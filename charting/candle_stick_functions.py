@@ -164,7 +164,7 @@ def jump_down(candles):
 def merge(candles):
 	high1 = max([c[high] for c in candles])
 	low1 = min([c[low] for c in candles])
-	return [candles[0][open],high1,low1,candles[-1][close]]
+	return [candles[0][open],high1,low1,candles[-1][close]] + candles[0][4:] #add date
 
 def lower_lows(candles):
 	return all(candle1[low] > candle2[low] for candle1,candle2 in zip(candles[:-1],candles[1:]))

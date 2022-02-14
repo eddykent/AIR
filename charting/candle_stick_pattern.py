@@ -154,7 +154,20 @@ class MorningEveningStars(CandleStickPattern):
 #	pass
 	
 class ThreeLineStrikes(CandleStickPattern):		
-	pass
+	
+	_required_candles = 4
+	
+	def _determine(self,candles):
+		if all(csf.fat(candle,self.fat_tolerance) for candle in candles):
+			if csf.hop_up(candles[0:2]) and csf.hop_up(candles[1:3]):
+				strike_height = candles[2][csf.high] - candles[0][csf.low]
+				if csf.body(candle[3]) > strike_height and csf.bearish(candle[3]):
+					return -1.0
+			if csf.hop_down(candles[0:2]) and csf.hop_down(candles[1:3]):
+				strike_height = candles[0][csf.high] - candles[2][csf.low]
+				if csf.body(candle[3]) > strike_height and csf.bullish(candle[3]):
+					return 1.0
+		return 0
 		
 		
 class Harami(CandleStickPattern):	#or whatever it is called! :)
