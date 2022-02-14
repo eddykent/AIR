@@ -1,0 +1,111 @@
+TODO: 
+Extend trades to be able to have entry, stop loss and take profit price values 
+
+Create & test full RNN with candles_and_indicators.sql, currency_strengths, correlations etc & get_y_values.sql 
+
+Write testing framework (to run a bunch of tests sequentially) and 
+store the results. Then leave it running to find best param settings 
+
+SCREENING - candle stick scanner for candle stick patterns and chart patterns. Use to determine entry points
+	- candlestick patterns at high timeframes 
+	- chart breakout patterns at lower timeframes (eg 4h) 
+	- chart breakout patterns again at lowest (15m?) timeframes to identify entry points 
+
+Partial RNN - use correlation matrix for grouping pairs together before running through an RNN
+
+RNN to determine next RSI values? (same thing as full rnn? above?) 
+
+ASYNC all webcalls in the fundmental analysis! -- probably pretty important for faster trade decisions :)
+ 
+IDEAS: 
+Try a smaller network (4 pairs) and train it with loads of random pairs
+stringed together. Ex: first channel is GBP/USD then second is NZD/JPY
+and so on. The idea is that concepts from other currencies can be found
+across all currencies. 
+Then run it on all 28 by running 7 networks at once (7*4 = 28)
+
+Cross correlation matrix - get which pairs are high correlated to work 
+out which ones to train together with. 
+
+Setup Object - the base object for setups, where a setup is a 
+signal generating tactic using anything we have already and can be used 
+with multiple timeframes. This will help with screening all the pairs
+
+Fundamental analysis/signals - use RSS feeds and a feed reader to get 
+sentiment for currencies and for currency pairs. Twitter and Reddit
+
+test chart patterns and practice drawing them - gradient descent for finding params? 
+
+ADVANCED: 
+Make a NN that takes a sequence of candlesticks and indicators AND a list of 28  
+trades (1 per fx) and attempt to predict a confidence score (0 = lose, 1 = win) per
+trade. Provide the NN the E, TP and SL as a percent difference from current price
+
+Make another NN that takes only the chart data and attempts to create trade values 
+which have an E, TP, SL and Confidence level for each. This will require a trading 
+loss function with something like 
+	loss = logloss(confidence_y,confidence_pred) + confidence_y * (mse(E,TP,SL) + direction loss)
+
+
+Currency strength from sentiment indicator! see:
+https://www.dukascopy.com/swiss/english/marketwatch/sentiment/ - blocked using <noscript> and <iframe>
+
+BUGS:
+Perhaps using pandas data frames will be more efficient and better for the whole thing? 
+Practice will also land you a high paying datascience role if you move jobs... 
+
+Use logging to report issues found when scraping websites as it will probably be way easier
+
+Getting stuff from multiple websites should be async so we can query em all at the same time
+
+can't read numbers from forexcleintsentiment.com 
+
+some sources are not working quite so well - eg forexcrunch 
+need to test for fulltexts in the sentiment analyser. Keep running it and figure out how to improve the scrapers
+
+currency_strength_diff_auto_regression_rsi.sql is not producing enough rows to run in database_tests.py
+
+Currency strength from sentiment indicator! see:
+https://www.dukascopy.com/swiss/english/marketwatch/sentiment/ - blocked using <noscript> and <iframe>
+
+
+DONE: 
+Auto regression on currency strength differences & use to predict next currency strengths (almost done! - need to add the ranking) 
+Auto regression on currency strengths (edit the diff one)  --parameterisation needed - done
+Finish TradeSchedule class to be able to test stuff easier - done
+Add pessimistic spread times (5pm and 10pm) on get_y_values.sql - done
+Test new currency strengths with RNN - done - still gets top and bottom but strength doesnt win
+Currency strength with RSI - done
+Currency strength with SO - done
+ARIMA on individual flows - predict price changes and add to RNN? - done (didnt work well!)
+Pull extra historic data from previous years from HistData? - done
+Create full sql query for getting all information ready for RNN (get_x_value.sql) - done (called candles_and_indicators.sql)
+correlation matrix for determining which pairs go together - done. k means can be used :)
+Currency Strength - Better RNN using all RSI values and previous currency strengths to predict next currency strength - important!
+		- without this the filter model won't work as well as it has done in testing
+MACD filter! - stop trades that have recently had a conflicting buy/sell signal from macd
+Boilinger Bands filter 
+Lag correlation matrix - find correlations between 4h candles over a period (like an advanced ARIMA model!) 
+Currency Strength apply new RNN in PRD to create trading filters 
+
+RSS Reader - create filter based on recent news feeds about any pairs or currencies. This incorps fundamentals to decisions 
+
+BUGS:
+(FIXED) Possible RSI calculation bug - using SMA in the place of SMMA (Smoothed modified moving average) 
+An EMA might be better in its place but it will be very bad for early trades without significant data
+EMA is faster though - so RSI will be improved if this is fixed. 
+
+(FIXED) candle dates have no index on them which would help solving the above bug  
+
+rsi values seem to be lagged by 1 step- could be due to not knowing the next candle - need to understand more! 
+
+(FIXED) currency_strength_rsi is way off - should be value between -7 and 7 surely? Yet it gets -18 to 24 so there are repeat rows somewhere
+		--fixed for rsi, usual currency_strength and for stochastic. 
+
+(FXIED) Bug with stochastic - not in range [0,1]
+
+(FIXED) test candlestick patterns more! --lots are not working
+
+(FIXED) MorningEveningStars, SoldiersAndCrows show no results
+
+(FIXED)WedgeBreakout trendlines have points on wrong side of them (also breaks ApproximateChannelBreakout and ParallelChannelBreakout)

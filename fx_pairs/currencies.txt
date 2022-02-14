@@ -1,0 +1,20 @@
+--This is a config file handled by ListFileReader class. 
+-- This file contains the main currencies that will be used in currency 
+-- strength calculations and possibly in other uses. 
+
+--For now, only use only the 8 most common currencies. 
+
+AUD -- Australian Dollar
+CAD -- Canadian Dollar
+CHF -- Swiss Frank
+EUR -- Euro 
+GBP -- Great British Pound
+JPY -- Japanese Yen
+NZD -- New Zealand Dollar
+USD -- US Dollar
+
+--hopefully these are the only currencies we need. 
+--Perhaps in the future we could use other currencies:
+--NOK -- Norweigen Kroner 
+--CNY -- Chinese Yen
+--SGD -- Singapore Dollar? 

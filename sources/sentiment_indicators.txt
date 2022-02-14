@@ -1,0 +1,6 @@
+--list of any websites that have a sentiment indicator that we might be able to scrape.
+--a parser will need more information for each one 
+https://www.dailyfx.com/sentiment-report -- need to cancel the modal? 
+https://forexclientsentiment.com/client-sentiment --might be malicious? 
+https://www.myfxbook.com/community/outlook --also has subpages that might be easier to use
+--https://www.dukascopy.com/swiss/english/marketwatch/sentiment/ -- Contains sentiment on currencies! (TODO)

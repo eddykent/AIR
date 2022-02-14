@@ -1,0 +1,7 @@
+--A list of all words that indicate that an instrument is bullish and we should look for a buy
+bullish
+rally
+rallies
+positive
+strong
+uptrend

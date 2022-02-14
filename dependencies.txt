@@ -1,0 +1,11 @@
+#list of python module dependencies for this project
+numpy
+#pandas
+psycopg2
+plotly
+requests
+requests-html
+statsmodels
+tensorflow
+feedparser
+nltk

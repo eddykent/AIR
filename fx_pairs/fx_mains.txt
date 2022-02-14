@@ -1,0 +1,32 @@
+--Currency pairs - the main ones!
+-- There should be 28 currency pairs in total 
+--In order to not use a particular pair, just comment it out :) 
+--recently edited to put the pairs in alphabetical order
+AUD/CAD
+AUD/CHF --breaks ARIMA models on 20/01/2022... 
+AUD/JPY
+AUD/NZD
+AUD/USD
+CAD/CHF
+CAD/JPY
+CHF/JPY
+EUR/AUD
+EUR/CAD
+EUR/CHF
+EUR/GBP
+EUR/JPY
+EUR/NZD
+EUR/USD
+GBP/AUD
+GBP/CAD
+GBP/CHF
+GBP/JPY
+GBP/NZD
+GBP/USD
+NZD/CAD
+NZD/CHF
+NZD/JPY
+NZD/USD
+USD/CAD
+USD/CHF
+USD/JPY

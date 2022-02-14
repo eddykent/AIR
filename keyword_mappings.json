@@ -1,0 +1,47 @@
+--keyword mappings are a list of [{"USD/JPY":["USD/JPY","USDJPY","USD","jpy"]}] with a hack:- 
+--bullish = caps and bearish = lowercase 
+--we can also get 2nd degree mappings (eg, "federal reserve"  -> "USD" -> "USD/JPY"
+--Another example:"BANK OF ENGLAND" -> "GBP" -> "eur/gbp" (notice the case!) 
+--Putting this together could help put all feeds into a tree structure, which can then
+--be used to generate fundamental signals 
+--higher degree relationships should be put first to be determined first. Eg, we want to 
+--Hear about the USD and thus about the federal reserve before we hear about the EUR/USD
+--so we can conclude it all together nicely with a focus on the higher degree 
+{
+	"AUD"    :["AUSTRALIA","AUSRTALIAN DOLLAR", "AUSSIE"],
+	"CAD"    :["CANADA", "CANADIAN DOLLAR", "LOONIE"],
+	"CHF"    :["SWITZERLAND", "SWISS FRANC", "SWISS"],
+	"EUR"    :["EUROPE", "EURO", "EUROPEAN"],
+	"GBP"    :["UK", "BRITAIN", "BRITISH POUND", "POUND"],
+	"JPY"    :["JAPAN","JAPANESE","JAPANESE YEN","YEN"],
+	"NZD"    :["NEW ZEALAND", "NEW ZEALAND DOLLAR", "KIWI"],
+	"USD"    :["USA", "US DOLLAR", "AMERICA", "GREENBACK", "GREEN BACK"],
+	"AUD/CAD":[],  
+	"AUD/CHF":[],
+	"AUD/JPY":[],
+	"AUD/NZD":[],   --these will also be dynamically filled from the single currencies above
+	"AUD/USD":[],
+	"CAD/CHF":[],
+	"CAD/JPY":[],
+	"CHF/JPY":[],
+	"EUR/AUD":[],
+	"EUR/CAD":[],
+	"EUR/CHF":[],
+	"EUR/GBP":[],
+	"EUR/JPY":[],
+	"EUR/NZD":[],
+	"EUR/USD":[],
+	"GBP/AUD":[],
+	"GBP/CAD":[],
+	"GBP/CHF":[],
+	"GBP/JPY":[],
+	"GBP/NZD":[],
+	"GBP/USD":["CABLE"],
+	"NZD/CAD":[],
+	"NZD/CHF":[],
+	"NZD/JPY":[],
+	"NZD/USD":[],
+	"USD/CAD":[],
+	"USD/CHF":[],
+	"USD/JPY":[]
+}

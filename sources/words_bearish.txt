@@ -1,0 +1,8 @@
+--A list of all words that might indicate that a current instrument is bearish and we should look for a sell
+bearish
+down
+dropped
+drops
+tank
+tanking
+tanked

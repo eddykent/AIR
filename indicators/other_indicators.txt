@@ -1,0 +1,10 @@
+Any additional indicators that are not from the database are placed in here. 
+all database ones (in case we want to get an indicator without calling the database again? 
+macd
+relative strength index 
+moving averages 
+stochastic oscillator
+mass index indictator
+average directional index
+awesome oscillator 
+

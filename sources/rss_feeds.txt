@@ -1,0 +1,14 @@
+--Every feed in here is good for now but not historic. 
+--Need to find a source of historical sentiment analysis figures if I want to use this sort of stuff in an ANN. 
+--The RSS feeds here should be used to get information about curreny pairs and currencies that we're interested in 
+--A simple word count may be good enough to then measure the sentiment of the article. The summary of the article might be good enough!
+--Some other methods may be needed such as opening the news stories and performing sentiment analysis on them
+https://www.dailyfx.com/feeds/market-news
+https://analysis.hotforex.com/feed/
+https://www.fxstreet.com/rss
+https://www.forexcrunch.com/feed/
+https://www.forexlive.com/feed/
+
+
+--think of other news feeds! - we could scan these too for relevant news and apply to the keys :D 
+--eg: http://feeds.bbci.co.uk/news/world/rss.xml
