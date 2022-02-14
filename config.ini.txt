@@ -1,0 +1,10 @@
+;configuration file for forex trading project 
+[postgres]
+host=[postgres host]
+user=[postgres user]
+password=[postgres password]
+dbname=TradeData
+
+[trading212]
+username=[your T212 email]
+password=[your T212 password]
