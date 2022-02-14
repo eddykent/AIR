@@ -156,6 +156,7 @@ class MorningEveningStars(CandleStickPattern):
 class ThreeLineStrikes(CandleStickPattern):		
 	
 	_required_candles = 4
+	fat_tolerance = 0.5
 	
 	def _determine(self,candles):
 		if all(csf.fat(candle,self.fat_tolerance) for candle in candles):
