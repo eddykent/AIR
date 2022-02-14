@@ -677,8 +677,7 @@ class SupportAndResistance(ChartPattern):
 		
 		base_view = super(self.__class__,self).draw_shapshot(candle_stream_index,candles)
 		#this_view = cpv.ChartPatternView()
-		this_view = base_view
-		
+				
 		extreme_points  = list(reversed(self._get_extremes(candle_stream_index - self.pattern_start_index)))
 		start_level = csf.median(candles[max(candle_stream_index-self.pattern_start_index,0)])
 		
@@ -690,7 +689,8 @@ class SupportAndResistance(ChartPattern):
 			lines.append(cpv.Line(candle_stream_index-self.memory_window,level,candle_stream_index,level))
 		
 		this_view.draw('boundary_lines neutral lines',lines)
-		#this_view += base_view
+		this_view += base_view
+		
 		return this_view
 	
 	
