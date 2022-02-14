@@ -20,3 +20,5 @@ HistData - gets data from DB and processes it into subsequences
 TradeSchedule - Gets a trade schedule and then tests it using the database
 
 Predictor - Gets data and builds a model to create trade schedules
+
+test
