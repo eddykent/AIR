@@ -95,7 +95,7 @@ class TypedList:
 		self.the_list[i] = v
 	
 	def __iter__(self):
-		return self.the_list__iter__()
+		return self.the_list.__iter__()
 		
 	def __next__(self):
 		return self.the_list.__next__()
@@ -118,19 +118,14 @@ class TypedList:
 			self.the_list.extend(vs.the_list)
 		else:
 			[self.check(v) for v in vs]
-			self.the_list += vs
+			self.the_list.extend(vs)
 	
-	def __iadd__(self, vs):
-		self.the_list.extend(vs)
-		return self
+	def clear(self):
+		self.the_list.clear()
 	
 	def __add__(self,vs):
 		self.the_list.extend(vs)
 		return self
-		
-	
-		
-	
 	
 	
 class Log:   ##learn how to use logger first

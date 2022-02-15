@@ -23,6 +23,7 @@ Circle = namedtuple('Circle','x y r')
 Triangle = namedtuple('Triangle','x1 y1 x2 y2 x3 y3')
 Quadrilateral = namedtuple('Triangle','x1 y1 x2 y2 x3 y3')
 Text = namedtuple('Text','x y string')
+Candle = namedtuple('Candle','open high low close datetime')
 
 #
 #class DrawingPoint(Point):
@@ -107,7 +108,8 @@ class DrawingMode(Enum):
 	CIRCLES = 3
 	SHAPES = 4
 	TEXT = 5
-	ALL = 6
+	CANDLES = 6
+	ALL = 7
 
 
 class DrawingData:
@@ -115,6 +117,7 @@ class DrawingData:
 	points = TypedList(None)
 	lines = TypedList(None)
 	boxes = TypedList(None)
+	candles = TypedList(None)
 	triangles = TypedList(None)
 	quadrilaterals = TypedList(None)
 	texts = TypedList(None)
@@ -132,14 +135,23 @@ class DrawingData:
 				self.boxes = TypedList(Box)
 			if mode == DrawingMode.CIRCLES or mode == DrawingMode.ALL:	
 				self.boxes = TypedList(Box)
+			if mode == DrawingMode.CANDLES or mode == DrawingMode.ALL:
+				self.candles = TypedList(Candle)
 			if mode == DrawingMode.SHAPES or mode == DrawingMode.ALL:
 				self.triangles = TypedList(Triangle)
 				self.quadrilaterals = TypedList(Quadrilateral)
 	
+	def __add__(self,drawing_data):
+		self.extend(drawing_data)
+		return self
+		
 	def draw(self,location,value):
 		if not location.endswith('s'):
 			location = location + 's'
-		self.__getattribute__(location).append(value)
+		if type(value) in (list,set): #any other iterator types we might use
+			self.__getattribute__(location).extend(value)	
+		else:
+			self.__getattribute__(location).append(value)
 	
 	def extend(self,drawing_data):
 		type_safe.has_type(drawing_data,DrawingData)
@@ -148,14 +160,11 @@ class DrawingData:
 			if not callable(self.__getattribute__(prop)):
 				self.__getattribute__(prop).extend(drawing_data.__getattribute__(prop))
 	
-	def __iadd__(self,drawing_data):
-		self.extend(drawing_data)
-		return self
-		
-	def __add__(self,drawing_data):
-		self.extend(drawing_data)
-		return self
-		
+	def clear(self):
+		properties = [property for property in dir(self) if not property.startswith('__') and not callable(property)]
+		for prop in properties:
+			if not callable(self.__getattribute__(prop)):
+				self.__getattribute__(prop).clear()
 		
 class ChartPatternViewElement:
 
@@ -165,7 +174,8 @@ class ChartPatternViewElement:
 	neutral = None
 	keyinfo = None
 	
-	def __init__(self,modes):
+	def __init__(self,_modes):
+		modes = _modes
 		if type(modes) != list:
 			modes = [modes]
 		self.bullish = DrawingData(modes)
@@ -173,6 +183,9 @@ class ChartPatternViewElement:
 		self.neutral = DrawingData(modes)
 		self.keyinfo = DrawingData(modes)
 		
+	def __add__(self,chart_view_pattern_element):
+		self.extend(chart_view_pattern_element)
+		return self
 	
 	def draw(self,location,value):
 		keys = [ts for ts in location.split(' ') if ts]
@@ -186,74 +199,75 @@ class ChartPatternViewElement:
 		for prop in properties:
 			if not callable(self.__getattribute__(prop)):
 				self.__getattribute__(prop).extend(chart_view_pattern_element.__getattribute__(prop))
-	
-	def __iadd__(self,chart_view_pattern_element):
-		self.extend(chart_view_pattern_element)
-		return self
-	
-	def __add__(self,chart_view_pattern_element):
-		self.extend(chart_view_pattern_element)
-		return self
 		
+	def clear(self):
+		self.bullish.clear()
+		self.bearish.clear()
+		self.neutral.clear()
+		self.keyinfo.clear()
 
 class ChartPatternView:
 	
-	
-	###private members 
-	_candle_stick_data = None
-	_instrument_name = ''
-	
-	
-	###public members
-	#every list is a ChartPatternViewElement
-	#lines to show on the top of the candles - indicating where the price is moving
-	#example is trading212 close price 
-	action_lines = TypedList(ChartPatternViewElement(DrawingMode.LINES))# route that the price action takes
-	
-	#background regions that we might want to draw - eg if it is a bullish or bearish region
-	backgrounds = ChartPatternViewElement(DrawingMode.BOXES)
-	
-	#shapes we might want to draw that covers the candles showing a chart pattern or a candle stick highlight box?
-	patterns = ChartPatternViewElement(DrawingMode.ALL)
-	
-	#support lines and resistance lines - eg at top of a chart pattern or below price action etc 
-	boundary_lines = ChartPatternViewElement(DrawingMode.LINES) #support,resistance, 
-	
-	#red and green points or just any points that we might want to add? 
-	boundary_points = ChartPatternViewElement(DrawingMode.POINTS)
-	
-	#any trades that were taken on the candlestick data - use to draw the stop loss and take profit regions and POSSIBLY use the data to draw if it is a winning/losing trade?
-	trades = ChartPatternViewElement(DrawingMode.ALL) #unbounded means draw a whole region upwards/downwards! 
-	bounded_trades = ChartPatternViewElement(DrawingMode.ALL) #bounded means we got an actual region to draw for these
-	
-	
-	#the actual candles themselves!
-	#candle_sticks = ChartPatternViewElement([DrawingMode.LINES,DrawingMode.BOXES])#plotly has this inbuilt but we MIGHT want to display it ourself?
-	
-	#a line that shows where we are in a point in time - might be useful for showing previous chart setups (eg if we want to check if a chart pattern happened in the last x candles)
-	#can also be used for fundamental bullish/bearish 
-	caret_lines = ChartPatternViewElement(DrawingMode.LINES)
-	
-	
-	#circle_highlights = ChartPatternViewElement(DrawingMode.CIRCLES)
-	
-	
-	##use for debugging purposes to ensure that the calculation is running smoothly 
-	debug = ChartPatternViewElement(DrawingMode.ALL)
-	
-	
-	def __init__(self):
-		pass
-	
-	def _set_candles(self,_candle_stick_data):
-		self._candle_stick_data = _candle_stick_data
-		##todo: populate candle_sticks  --- if needed?
+	def __init__(self):	
+		self.candle_sticks = ChartPatternViewElement(DrawingMode.CANDLES)
+		self._instrument_name = ''
 		
-	def _set_instrument_name(self,name):
-		self._instrument_name = name
+		###public members
+		#every list is a ChartPatternViewElement
+		#lines to show on the top of the candles - indicating where the price is moving
+		#example is trading212 close price 
+		self.action_lines = ChartPatternViewElement(DrawingMode.LINES)# route that the price action takes
+		
+		#background regions that we might want to draw - eg if it is a bullish or bearish region
+		self.backgrounds = ChartPatternViewElement(DrawingMode.BOXES)
+		
+		#shapes we might want to draw that covers the candles showing a chart pattern or a candle stick highlight box?
+		self.patterns = ChartPatternViewElement(DrawingMode.ALL)
+		
+		#support lines and resistance lines - eg at top of a chart pattern or below price action etc 
+		self.boundary_lines = ChartPatternViewElement(DrawingMode.LINES) #support,resistance, 
+		
+		#any lines that we want to use to show that a trend is happening
+		self.trend_lines = ChartPatternViewElement(DrawingMode.LINES)
+		
+		#red and green points or just any points that we might want to add? 
+		self.boundary_points = ChartPatternViewElement(DrawingMode.POINTS)
+		
+		#any trades that were taken on the candlestick data - use to draw the stop loss and take profit regions and POSSIBLY use the data to draw if it is a winning/losing trade?
+		self.trade_boxes = ChartPatternViewElement(DrawingMode.BOXES) #unbounded means draw a whole region upwards/downwards! 
+		self.bounded_trade_boxes = ChartPatternViewElement(DrawingMode.ALL) #bounded means we got an actual region to draw for these
+		self.trade_points = ChartPatternViewElement(DrawingMode.POINTS)#points in which entry and TP or SL were hit 
+		
+		#a line that shows where we are in a point in time - might be useful for showing previous chart setups (eg if we want to check if a chart pattern happened in the last x candles)
+		#can also be used for fundamental bullish/bearish 
+		self.caret_lines = ChartPatternViewElement(DrawingMode.LINES)
+		self.arrows = ChartPatternViewElement(DrawingMode.LINES)
+		
+		self.circle_highlights = ChartPatternViewElement(DrawingMode.CIRCLES)
+		
+		##use for debugging purposes to ensure that the calculation is running smoothly 
+		self.debugs = ChartPatternViewElement(DrawingMode.ALL)
 	
-	def draw(self,location,value): #this.add('boundary_point bullish point',(1,6))
-		location = re.sub('-|>|<',' ',location)
+	
+	def __add__(self,_chart_pattern_view):
+		self.extend(_chart_pattern_view)
+		return self
+	
+	def extend(self,_chart_pattern_view):
+		type_safe.has_type(_chart_pattern_view,ChartPatternView)
+		properties = [property for property in dir(self) if not property.startswith('_')]
+		
+		for prop in properties:
+			if not callable(self.__getattribute__(prop)):
+				self.__getattribute__(prop).extend(_chart_pattern_view.__getattribute__(prop))
+		
+		if self._instrument_name is None:
+			self._instrument_name = chart_pattern_view._instrument_name
+	
+	
+	#a generic method for drawing any elements into the fields above 
+	def draw(self,_location,_value): #this.add('boundary_point bullish point',(1,6))
+		location = re.sub('-|>|<|\.',' ',_location)
 		location = location.strip()
 		keys = [ts for ts in location.split(' ') if ts]
 		if not keys:
@@ -262,32 +276,45 @@ class ChartPatternView:
 		sublocation = ' '.join(keys[1:])
 		if not property.endswith('s'):
 			property = property + 's'
-		self.__getattribute__(property).draw(sublocation,value)
+		self.__getattribute__(property).draw(sublocation,_value)
 		
+	#drtawing specific stuff for ease of use (eg, candles will always be drawn the same - as will results for backgrounds etc) 
+	#basically if we can derive the style from the method name we can put it here. (upward trends are bullish, down are bearish etc)
+	def draw_candles(self,_candle_stick_data):
+		#self.candle_sticks.clear()
+		for untyped_candle in _candle_stick_data:
+			candle = Candle._make(untyped_candle[:5]) #don't get anything other than the first 5 values
+			self.draw('candle_sticks keyinfo candles',candle)
+			if candle.open > candle.close:#
+				self.draw('candle_sticks bearish candles',candle)
+			elif candle.open < candle.close:
+				self.draw('candle_sticks bullish candles',candle)
+			else:
+				self.draw('candle_sticks neutral candles',candle)
+		
+	def draw_instrument_name(self,_name):
+		self._instrument_name = _name
 	
-	def extend(self,chart_pattern_view):
-		type_safe.has_type(chart_pattern_view,ChartPatternView)
-		properties = [property for property in dir(self) if not property.startswith('_')]
+	def draw_background_result(self,_results):
+		pass
 		
-		for prop in properties:
-			if not callable(self.__getattribute__(prop)):
-				self.__getattribute__(prop).extend(chart_pattern_view.__getattribute__(prop))
+	def draw_trendlines(self,_trendlines):
+		pass
 	
-	def __iadd__(self,chart_pattern_view):
-		self.extend(chart_pattern_view)
-		return self
-			
-	def __add__(self,chart_pattern_view):
-		self.extend(chart_pattern_view)
-		return self
-		
 	def get_bounds(self):	
 		W = 0
 		H = 0
-		return W, H #size of the figure
+		return W, H #size of the figure	
 	
+#ChartCanvas - able to hold multiple chart pattern views and controls where they go (eg price action and RSI indicator)	
 	
-	
+
+
+
+
+
+
+
 
 #easy wrapper for all our chart viewing needs! 
 class ChartPainter:
@@ -335,14 +362,28 @@ class ChartPainter:
 	
 	def paint(self,chart_pattern_view):
 		type_safe.has_type(chart_pattern_view, ChartPatternView)
-		self.draw_candles(chart_pattern_view._candle_stick_data)
-	
-	#helpers
-	def draw_candles(self):
-		raise NotImplementedError('This method must be overridden')
+		self._draw_candles(chart_pattern_view.candle_sticks)
+
 		
+		
+		
+		self._draw_caret_lines(chart_pattern_view.caret_lines)
+	
+	#all methods that paint uses that must be overridden
+	def _paint_candles(self, chart_pattern_view):
+		raise NotImplementedError('This method must be overridden')
+	
+	def _paint_caret_lines(self, chart_pattern_view):
+		raise NotImplementedError('This method must be overridden')
+	
+	def _paint_boundary_lines(self, chart_pattern_view):
+		raise NotImplementedError('This method must be overridden')
+	
+	def _paint_trend_lines(self, chart_pattern_view):
+		raise NotImplementedError('This method must be overridden')
+	
 	def show(self):
-		fig.show()
+		raise NotImplementedError('This method must be overridden')
 		
 
 class PlotlyChartPainter(ChartPainter):
@@ -353,20 +394,32 @@ class PlotlyChartPainter(ChartPainter):
 		super(ChartPainter,self).__init__()
 		self.fig = chart.Figure(data=[])
 	
-	def draw_candles(self,candles):
+	def _paint_candles(self,candle_sticks):
+		all_candles = candle_sticks.keyinfo.candles #plotly nicely takes care of the bullish bearish style for us so give it all the candles 
+
 		candlestick_chart_data = chart.Candlestick(
 			#x=x,
-			open=[candle[csf.open] for candle in candles],
-			high=[candle[csf.high] for candle in candles],
-			low=[candle[csf.low] for candle in candles],
-			close=[candle[csf.close] for candle in candles],
-			name=pair
+			open=[candle.open for candle in all_candles],
+			high=[candle.high for candle in all_candles],
+			low=[candle.low for candle in all_candles],
+			close=[candle.close for candle in all_candles],
+			#name= instrument_name if instrument_name else ''
 		)
-		fig.add_trace(candlestick_chart_data)
+		self.fig.add_trace(candlestick_chart_data)
+	
+	def _paint_caret_lines(self, chart_pattern_view):
+		raise NotImplementedError('This method must be overridden')
+	
+	def _paint_boundary_lines(self, chart_pattern_view):
+		raise NotImplementedError('This method must be overridden')
+	
+	def _paint_trend_lines(self, chart_pattern_view):
+		raise NotImplementedError('This method must be overridden')
+	
 	
 	#override
 	def show(self):
-		fig.show()
+		self.fig.show()
 	
 	
 	

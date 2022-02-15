@@ -4,6 +4,7 @@
 # for example, to run chart_tests.py run this: 
 # from tests.chart_tests import *
 
+#from tests.typedlist_test import *
 
 #from tests.candle_stick_tests import *
 #from tests.chart_pattern_support_resistance_test import *
@@ -15,7 +16,6 @@ from tests.chart_pattern_view_test import *
 #wedge breakout 140 - lower line has points below it 
 
 #from charting.chart_viewer import *
-
 ###570 works but isnt being drawn!!!
 
 

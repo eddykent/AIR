@@ -258,7 +258,7 @@ def show_result(result,candles)	:
 	
 snapshot_index = len(result) - 1
 
-chart_pattern_view = chart_pattern.draw_snapshot(snapshot_index,candle_stream)
+chart_pattern_view = chart_pattern.draw_snapshot(candle_stream,snapshot_index)
 
 pcp = PlotlyChartPainter()
 pcp.paint(chart_pattern_view)

@@ -1,9 +1,12 @@
 
 import datetime
 
+import pdb
+
 #candle patterns - Engulfing, Pinbar, Soilders/Crows, MorningEveningStars, AbandonedIsland, ThreeLineStrikes, Inside/Outside?
 
 import charting.candle_stick_functions as csf
+import charting.chart_viewer as cpv
 #class CandleStickException(Exception):
 	
 #candle stick patterns return a list of -1, to 1s -1 is a bear, 1 is a bull and 0 is no pattern detected
@@ -70,6 +73,12 @@ class CandleStickPattern(object):
 	#	arrow_x = [index - 1, index - 1]
 	#	arrow_y = csf.lowest(candles), csf.lowest(candles) - suitable_height
 	#	return (x,y,arrow_x,arrow_y,the_candles,the_indexs)
+	
+	def draw_snapshot(self,candles,index):
+		
+		this_view = cpv.ChartPatternView()
+		this_view.draw_candles(candles)
+		return this_view
 		
 	
 
