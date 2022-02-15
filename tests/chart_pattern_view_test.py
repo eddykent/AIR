@@ -20,7 +20,7 @@ from charting import candle_stick_functions as csf
 from utils import Configuration, ListFileReader
 from charting.chart_pattern import * #grab all patterns 
 from charting.trending_pattern import * #grab all advanced patterns to
-
+from charting.candle_stick_pattern import *
 from charting.chart_viewer import PlotlyChartPainter 
 
 
@@ -54,10 +54,10 @@ database_response = cur.fetchall()
 #OurChartPattern = TriangleBreakout
 #OurChartPattern = FallingTriangleBreakout
 #OurChartPattern = RisingTriangleBreakout
-#OurChartPattern = WedgeBreakout  #2
+OurChartPattern = WedgeBreakout  #2
 #OurChartPattern = ApproximateChannelBreakout
 #OurChartPattern = SupportAndResistanceAction
-OurChartPattern = SupportAndResistance
+#OurChartPattern = SupportAndResistance
 #OurChartPattern = ParallelChannelBreakout
 
 
@@ -73,26 +73,48 @@ candle_stream = chart_pattern.to_candles(database_response,pair)
 
 
 t0 = time.time()
-result = chart_pattern.detect(candle_stream) #this calls _get_levels
+chart_result = chart_pattern.detect(candle_stream) #this calls _get_levels
 #levels = chart_pattern._get_levels(len(candle_stream)-5)
 t1 = time.time()
 
+#OurCandlePattern = PinBar
+#OurCandlePattern = Engulfing
+#OurCandlePattern = SoldiersAndCrows
+OurCandlePattern = MorningEveningStars
+#OurCandlePattern = Harami
+#OurCandlePattern = ThreeLineStrikes
 print(f"Drawing time for {chart_pattern.__class__.__name__} was {t1-t0}")
+
+
+candle_pattern = OurCandlePattern()
+
+t0 = time.time()
+candle_result = candle_pattern.detect(candle_stream)
+t1 = time.time()
+
+print(f"Drawing time for {candle_pattern.__class__.__name__} was {t1-t0}")
 
 #fig = chart.Figure(data=[])
 
 	
-snapshot_index = len(result) - 1
+snapshot_index = len(chart_result) - 1
 
 chart_view = chart_pattern.draw_snapshot(candle_stream,snapshot_index)
-chart_view.draw_results(rsult)
+chart_view.draw_background_results(chart_result)
 
 #time this since it is very reflexive
 pcp = PlotlyChartPainter()
 pcp.paint(chart_view)
 pcp.show()
 
+def draw(snapshot_index):
+	chart_view = chart_pattern.draw_snapshot(candle_stream,snapshot_index)
+	chart_view.draw_background_results(chart_result)
 
+	#time this since it is very reflexive
+	pcp = PlotlyChartPainter()
+	pcp.paint(chart_view)
+	pcp.show()
 
 
 

@@ -161,15 +161,19 @@ class TrendingPattern(ChartPattern):
 		line = self._fit_minimum_trend_line(closing_points,max_gap)
 		return line.error if line else MAX_ERROR_VALUE
 		
-	def draw_snapshot(self,snapshot_index,candles):
-		base_view = super(self.__class__,self).draw_snapshot(snapshot_index,candles)
+	def draw_snapshot(self,candles,snapshot_index):
+		base_view = super().draw_snapshot(candles,snapshot_index)
 		
-		closing_points = self.__get_closing_points(snapshot_index,candles)
-		max_gap = self._rolling_range_mean[snapshot_index]
-		line, error = self._fit_minimum_trend_line(closing_points,max_gap)
-		if error >= MAX_ERROR_VALUE:
-			return [None,None],[None,None]
-		return [line.x1,line.x2],[line.y1,line.y2] 
+		#closing_points = self.__get_closing_points(snapshot_index,candles)
+		#max_gap = self._rolling_range_mean[snapshot_index]
+		#line, error = self._fit_minimum_trend_line(closing_points,max_gap)
+		
+		#base_view.draw_trendlines()
+		
+		#if error >= MAX_ERROR_VALUE:
+		#	return [None,None],[None,None]
+		#return [line.x1,line.x2],[line.y1,line.y2] 
+		return base_view
 	
 
 
@@ -339,29 +343,22 @@ class TriangularBasedPattern(TrendingPattern):
 		return pattern_fitness
 		
 	
-	def draw_snapshot(self,candle_stream_index,candles):
+	def draw_snapshot(self,candles,snapshot_index):
 		#pdb.set_trace()
-		highers, lowers = self._highers_lowers(candle_stream_index)
-		max_gap = self._rolling_range_mean[candle_stream_index]
-		extreme_points = self._get_extremes(candle_stream_index - self.pattern_start_index)
-		upper_line, lower_line = self._generate_trendlines(highers,lowers,max_gap,candle_stream_index)
+		highers, lowers = self._highers_lowers(snapshot_index)
+		max_gap = self._rolling_range_mean[snapshot_index]
+		extreme_points = self._get_extremes(snapshot_index - self.pattern_start_index)
+		upper_line, lower_line = self._generate_trendlines(highers,lowers,max_gap,snapshot_index)
 		
-		xs = []
-		ys = []
+		lines = []
+		if upper_line.error != MAX_ERROR_VALUE:
+			lines.append(upper_line)
+		if lower_line.error != MAX_ERROR_VALUE:
+			lines.append(lower_line)
 		
-		if lower_line and lower_line.error != MAX_ERROR_VALUE:
-			xs += [lower_line.x1,lower_line.x2]
-			ys += [lower_line.y1,lower_line.y2]
-			
-		xs += [None]
-		ys += [None]
-		
-		if upper_line and upper_line.error != MAX_ERROR_VALUE:
-			xs += [upper_line.x1,upper_line.x2]
-			ys += [upper_line.y1,upper_line.y2]
-		
-		return xs,ys
-
+		base_view = super().draw_snapshot(candles,snapshot_index)
+		base_view.draw_trendlines(lines)
+		return base_view
 
 
 ##get higher highs and lower lows from non-grouped levels from a previous chart window. test for correlation. then test for breakouts 
@@ -614,29 +611,6 @@ class WedgeBreakout(SupportedLinePattern): ##run more and find bugs
 	
 	def _convergent(self,trend1,trend2):
 		return tlf.convergent(trend1,trend2)
-
-	def draw_snapshot(self,candle_stream_index,candles):
-		#pdb.set_trace()
-		highers, lowers = self._highers_lowers(candle_stream_index)
-		max_gap = self._rolling_range_mean[candle_stream_index]
-		extreme_points = self._get_extremes(candle_stream_index - self.pattern_start_index)
-		upper_line, lower_line = self._generate_trendlines(highers,lowers,max_gap,candle_stream_index)
-		
-		xs = []
-		ys = []
-		
-		if lower_line and lower_line.error != MAX_ERROR_VALUE:
-			xs += [lower_line.x1,lower_line.x2]
-			ys += [lower_line.y1,lower_line.y2]
-			
-		xs += [None]
-		ys += [None]
-		
-		if upper_line and upper_line.error != MAX_ERROR_VALUE:
-			xs += [upper_line.x1,upper_line.x2]
-			ys += [upper_line.y1,upper_line.y2]
-		
-		return xs,ys
 
 
 #a channel is optimised differently - it uses lines which are approximately paralell to eachother. 

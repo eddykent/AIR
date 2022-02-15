@@ -238,7 +238,7 @@ class ChartView:
 			layer = layer + 's'
 		self.__getattribute__(layer).draw(sublocator,_value)
 		
-	#drtawing specific stuff for ease of use (eg, candles will always be drawn the same - as will results for backgrounds etc) 
+	#drawing specific stuff for ease of use (eg, candles will always be drawn the same - as will results for backgrounds etc) 
 	#basically if we can derive the style from the method name we can put it here. (upward trends are bullish, down are bearish etc)
 	def draw_candles(self,_candle_stick_data):
 		#self.candle_sticks.clear()
@@ -252,20 +252,82 @@ class ChartView:
 			else:
 				self.draw('candle_sticks neutral candles',candle)	
 	
-	def draw_background_result(self,_results):
-		pass
+	def draw_background_results(self,_results): # should be list of numbers - might want to check?
+		min_x, min_y, max_x, max_y = self.calculate_bounds()
+		bearbox = []
+		bullbox = []
+		for i,r in enumerate(_results):
+			if r < 0:
+				bearbox.append(Box(i-1,min_y,i,max_y))
+			if r > 0:
+				bullbox.append(Box(i-1,min_y,i,max_y))
+		self.draw('backgrounds bullish boxes',bullbox)
+		self.draw('backgrounds bearish boxes',bearbox)
+			
+	def draw_fundamental_result(self,fundamentals):
+		min_x, min_y, max_x, max_y = self.calculate_bounds()
+		bearline = []
+		bullline = []
+		for i,r in enumerate(_results):
+			if r < 0:
+				bearbox.append(Line(i,min_y,i,max_y))
+			if r > 0:
+				bullbox.append(line(i,min_y,i,max_y))
+		self.draw('carets bullish lines',bullline)
+		self.draw('carets bearish lines',bearline)
+		
+	def draw_time_caret(self,snapshot_index):
+		min_x, min_y, max_x, max_y = self.calculate_bounds()
+		self.draw('carets neutral lines',Line(max_x,max_y,max_x,min_y))
 		
 	def draw_trendlines(self,_trendlines):
-		pass
+		#self.draw('trends keyinfo lines',[Line._make(line[:4]) for line in _trendlines])
+		if type(_trendlines) in (list,set):
+			increasing_lines = []
+			decreasing_lines = []
+			horizontal_lines = []
+			for line in _trendlines:
+				drawing_line = Line._make(line[:4])
+				if line.x1 < line.x2:
+					if line.y1 < line.y2:
+						increasing_lines.append(drawing_line)
+					elif line.y1 > line.y2:
+						decreasing_lines.append(drawing_line)
+					else:
+						horizontal_lines.append(drawing_line)
+				if line.x1 > line.x2:
+					if line.y1 < line.y2:
+						decreasing_lines.append(drawing_line)
+					elif line.y1 > line.y2:
+						increasing_lines.append(drawing_line)
+					else:
+						horizontal_lines.append(drawing_line)
+				#don't add points or vertical lines (A trend can never be vertical)
+						
+			self.draw('trends bullish lines',increasing_lines)
+			self.draw('trends bearish lines',decreasing_lines)
+			self.draw('trends neutral lines',horizontal_lines)
 	
 	def draw_candle_pattern(self,candle_stick_pattern,candles,index):
 		pass #handle highlighting a candle stick pattern if it is bullish/bearish
 	
+	def draw_chart_pattern(self,chart_pattern,candles,index):
+		pass #?? 
+	
 	#calculate the bounds from the candles. If they don't exist may have to calculate from elsewhere? 
 	def calculate_bounds(self):	
-		W = 0
-		H = 0
-		return W, H #size of the figure	
+		min_x = 0
+		min_y = 0
+		max_x = 0
+		max_y = 0
+		
+		if self.candle_sticks.keyinfo.candles:
+			min_x = 0 
+			min_y = min([c.low for c in self.candle_sticks.keyinfo.candles])
+			max_x = len(self.candle_sticks.keyinfo.candles)
+			max_y = max([c.high for c in self.candle_sticks.keyinfo.candles])
+		
+		return min_x,min_y,max_x,max_y
 	
 #ChartCanvas - able to hold multiple chart pattern views and controls where they go (eg price action and RSI indicator)	
 	
@@ -300,7 +362,10 @@ class ChartPainter:
 			'keyinfo':{'stroke':'rgba(255,255,0,1)'		,'fill':'rgba(255,255,0,0.3)'}
 		},
 		'trends':{
-		
+			'neutral':{'stroke':'rgb(200,200,200)'},
+			'bullish':{'stroke':'rgb(0,255,0)'},
+			'bearish':{'stroke':'rgb(255,0,0)'},
+			'keyinfo':{'stroke':'rgb(0,255,255)'}
 		},
 		#'shape':{
 		#	'neutral':{'stroke':'rgba(200,200,200,0.5)','fill':'rgba(0,0,200,0.2)'},
@@ -343,7 +408,7 @@ class ChartPainter:
 		type_safe.has_type(chart_view, ChartView)
 		#ordering = z-index
 		layers = chart_view.get_layers()
-		pdb.set_trace()
+		
 		for layer in layers:
 			if not self.activated.get(layer,True):
 				continue
@@ -402,6 +467,7 @@ class PlotlyChartPainter(ChartPainter):
 				points.marker.color = colour['stroke']
 				points.marker.size = thickness
 				self.fig.add_trace(points)
+				
 				self.fig_data.append(self.fig.data[-1]) #add last thing that has been figged to the fig data 
 				
 	
@@ -425,6 +491,7 @@ class PlotlyChartPainter(ChartPainter):
 				lines.line.color = colour['stroke']
 				lines.line.width = thickness
 				self.fig.add_trace(lines)
+				
 				self.fig_data.append(self.fig.data[-1]) #add last thing that has been figged to the fig data 
 		
 	def __paint_plotly_boxes(self,chart_layer,layer_name,border_width=0):
@@ -446,9 +513,11 @@ class PlotlyChartPainter(ChartPainter):
 					fill='toself',
 				)
 				boxes.line.width = border_width
-				boxes.line.color = colour['stroke']
+				if border_width: 
+					boxes.line.color = colour['stroke']
 				boxes.fillcolor = colour['fill']
 				self.fig.add_trace(boxes)
+				
 				self.fig_data.append(self.fig.data[-1]) #add last thing that has been figged to the fig data 
 
 
