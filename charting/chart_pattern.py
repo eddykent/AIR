@@ -441,9 +441,6 @@ class SupportAndResistance(ChartPattern):
 		sign = breakout / abs(breakout) if breakout != 0 else 0
 		
 		pattern_fitness = sign*self._pattern_fitness(levels,this_candle,extreme_points,max_gap)
-		
-		if np.isnan(pattern_fitness): #assert instead?
-			pattern_fitness = 0
 			
 		return pattern_fitness
 		
