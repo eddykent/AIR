@@ -1,6 +1,8 @@
 ###chart viewer - for displaying nice charts! 
 ## the idea here is we don't need to depend on plotly - we can just use a plotly interface! :) 
 ## that way, if we needed to switch to matplotlib we can by just defining a new class here 
+## Also all styling etc is done here so we can just dump lines/points etc into a view object 
+## and everything will be painted from a painting tool in this file 
 from enum import Enum
 from collections import namedtuple
 
@@ -25,82 +27,7 @@ Quadrilateral = namedtuple('Triangle','x1 y1 x2 y2 x3 y3')
 Text = namedtuple('Text','x y string')
 Candle = namedtuple('Candle','open high low close datetime')
 
-#
-#class DrawingPoint(Point):
-#	x = 0
-#	y = 0
-#	
-#	def __init__(self,x,y):
-#		self.x = x 
-#		self.y = y
-#	
-#	
-#class DrawingLine(Line):
-#	
-#	x1 = 0
-#	y1 = 0
-#	x2 = 0
-#	y2 = 0
-#	
-#	def __init__(self,x1,y1,x2,y2):
-#		self.x1 = x1
-#		self.y1 = y1
-#		self.x2 = x2
-#		self.y2 = y2
-#		
-#	@classmethod
-#	def from_points(cls,p1,p2):
-#		return cls(p1.x,p1.y,p2.x,p2.y)
-#		
-#	@classmethod
-#	def from_trendline(self,trendline):
-#		return cls(trendline.x1,trendline.y1,trendline.x2,trendline.y2)
-#		
-#	@classmethod
-#	def from_coords(self,x1,y1,x2,y2):
-#		return cls(x1,y1,x2,y2)
-#
-#class DrawingBox(Box):
-#	
-#	x1 = 0
-#	y1 = 0
-#	x2 = 0
-#	y2 = 0
-#	
-#	def __init__(self,x1,y1,x2,y2):
-#		self.x1 = x1
-#		self.y1 = y1
-#		self.x2 = x2
-#		self.y2 = y2
-#		
-#	@classmethod
-#	def from_points(cls,p1,p2):
-#		return cls(p1.x,p1.y,p2.x,p2.y)
-#	
-#	@classmethod
-#	def from_trendline(cls,trendline):
-#		return cls(trendline.x1,trendline.y1,trendline.x2,trendline.y2)
-#	
-#	@classmethod	
-#	def from_coords(cls,x1,y1,x2,y2):
-#		return cls(x1,y1,x2,y2)
-#	
-#	@classmethod
-#	def from_center_width_height(cls,x,y,w,h):
-#		return cls(x-(0.5*w),y-(0.5*h),x+(0.5*w),y+(0.5*h))
-#	
-#
-#
-#class DrawingShape:
-#	points = []
-#	
-#	def __init__(self,points):
-#		[type_safe(p,Point) for p in points]
-#		self.points = points
-#
-
-#a chart pattern view contains all of the information needed to sketch a chart with all the stuff on it. 
-#They should be able to be added together for combined views! :) 
+ 
 class DrawingMode(Enum):
 	POINTS = 0
 	LINES = 1
@@ -144,139 +71,172 @@ class DrawingData:
 	def __add__(self,drawing_data):
 		self.extend(drawing_data)
 		return self
+	
+	def __bool__(self):
+		drawing_object_types = self.get_drawing_object_types()
+		return any([getattr(self,drawing_object_type) for drawing_object_type in drawing_object_types])
 		
 	def draw(self,location,value):
 		if not location.endswith('s'):
 			location = location + 's'
 		if type(value) in (list,set): #any other iterator types we might use
-			self.__getattribute__(location).extend(value)	
+			getattr(self,location).extend(value)	
 		else:
-			self.__getattribute__(location).append(value)
+			getattr(self,location).append(value)
 	
+	def get_drawing_object_types(self):
+		drawing_object_types = [drawing_object_type for drawing_object_type in dir(self) if not drawing_object_type.startswith('__')]
+		return [drawing_object_type for drawing_object_type in drawing_object_types if not callable(self.__getattribute__(drawing_object_type))]
+
+
 	def extend(self,drawing_data):
 		type_safe.has_type(drawing_data,DrawingData)
-		properties = [property for property in dir(self) if not property.startswith('__') and not callable(property)]
-		for prop in properties:
-			if not callable(self.__getattribute__(prop)):
-				self.__getattribute__(prop).extend(drawing_data.__getattribute__(prop))
-	
+		drawing_object_types = self.get_drawing_object_types()
+		for drawing_object_type in drawing_object_types:
+			getattr(self,drawing_object_type).extend(getattr(drawing_data,drawing_object_type))
+				
 	def clear(self):
-		properties = [property for property in dir(self) if not property.startswith('__') and not callable(property)]
-		for prop in properties:
-			if not callable(self.__getattribute__(prop)):
-				self.__getattribute__(prop).clear()
-		
-class ChartPatternViewElement:
+		drawing_object_types = self.get_drawing_object_types()
+		for drawing_object_type in drawing_object_types:
+			getattr(self,drawing_object_type).clear()
+	
+	def get_drawing_objects(self,drawing_object_type):
+		return getattr(self,drawing_object_type)
+	
+	
+class ChartLayer:
 
-	#everything in here is a LineDotArea??
+	#styles that are drawn on this layer
+	neutral = None
 	bullish = None 
 	bearish = None
-	neutral = None
 	keyinfo = None
 	
 	def __init__(self,_modes):
 		modes = _modes
 		if type(modes) != list:
 			modes = [modes]
+			
+		self.neutral = DrawingData(modes)
 		self.bullish = DrawingData(modes)
 		self.bearish = DrawingData(modes)
-		self.neutral = DrawingData(modes)
 		self.keyinfo = DrawingData(modes)
 		
-	def __add__(self,chart_view_pattern_element):
-		self.extend(chart_view_pattern_element)
+	def __add__(self,chart_layer):
+		self.extend(chart_layer)
 		return self
+	
+	def __bool__(self):
+		styles = self.get_styles()
+		return any(getattr(self,style) for style in styles)
 	
 	def draw(self,location,value):
 		keys = [ts for ts in location.split(' ') if ts]
 		property = keys[0]
 		sublocation = ' '.join(keys[1:])
-		self.__getattribute__(property).draw(sublocation,value)
+		getattr(self,property).draw(sublocation,value)
 	
-	def extend(self,chart_view_pattern_element):
-		type_safe.has_type(chart_view_pattern_element,ChartPatternViewElement)
-		properties = [property for property in dir(self) if not property.startswith('_')]
-		for prop in properties:
-			if not callable(self.__getattribute__(prop)):
-				self.__getattribute__(prop).extend(chart_view_pattern_element.__getattribute__(prop))
+	def extend(self,chart_layer):
+		type_safe.has_type(chart_layer,ChartLayer)
+		styles = self.get_styles()
+		for style in styles:
+			getattr(self,style).extend(getattr(chart_layer,style))
 		
 	def clear(self):
 		self.bullish.clear()
 		self.bearish.clear()
 		self.neutral.clear()
 		self.keyinfo.clear()
+	
+	def get_styles(self):
+		styles = [style for style in vars(self) if not style.startswith('_')]
+		return [style for style in styles if not callable(self.__getattribute__(style))]
+	
+	def get_drawing_data(self,style):
+		styles = self.get_styles()
+		if style not in styles:
+			raise NameError(f"The style of {style} was not found on this layer.")
+		return getattr(self,style)
 
-class ChartPatternView:
+class ChartView:
 	
-	def __init__(self):	
-		self.candle_sticks = ChartPatternViewElement(DrawingMode.CANDLES)
-		self._instrument_name = ''
-		
-		###public members
-		#every list is a ChartPatternViewElement
-		#lines to show on the top of the candles - indicating where the price is moving
-		#example is trading212 close price 
-		self.action_lines = ChartPatternViewElement(DrawingMode.LINES)# route that the price action takes
-		
-		#background regions that we might want to draw - eg if it is a bullish or bearish region
-		self.backgrounds = ChartPatternViewElement(DrawingMode.BOXES)
-		
-		#shapes we might want to draw that covers the candles showing a chart pattern or a candle stick highlight box?
-		self.patterns = ChartPatternViewElement(DrawingMode.ALL)
-		
-		#support lines and resistance lines - eg at top of a chart pattern or below price action etc 
-		self.boundary_lines = ChartPatternViewElement(DrawingMode.LINES) #support,resistance, 
-		
-		#any lines that we want to use to show that a trend is happening
-		self.trend_lines = ChartPatternViewElement(DrawingMode.LINES)
-		
-		#red and green points or just any points that we might want to add? 
-		self.boundary_points = ChartPatternViewElement(DrawingMode.POINTS)
-		
-		#any trades that were taken on the candlestick data - use to draw the stop loss and take profit regions and POSSIBLY use the data to draw if it is a winning/losing trade?
-		self.trade_boxes = ChartPatternViewElement(DrawingMode.BOXES) #unbounded means draw a whole region upwards/downwards! 
-		self.bounded_trade_boxes = ChartPatternViewElement(DrawingMode.ALL) #bounded means we got an actual region to draw for these
-		self.trade_points = ChartPatternViewElement(DrawingMode.POINTS)#points in which entry and TP or SL were hit 
-		
-		#a line that shows where we are in a point in time - might be useful for showing previous chart setups (eg if we want to check if a chart pattern happened in the last x candles)
-		#can also be used for fundamental bullish/bearish 
-		self.caret_lines = ChartPatternViewElement(DrawingMode.LINES)
-		self.arrows = ChartPatternViewElement(DrawingMode.LINES)
-		
-		self.circle_highlights = ChartPatternViewElement(DrawingMode.CIRCLES)
-		
-		##use for debugging purposes to ensure that the calculation is running smoothly 
-		self.debugs = ChartPatternViewElement(DrawingMode.ALL)
+	_title = ''
 	
+	#everything that is put onto this object is a layer unless it starts with _
+	#the layers will draw in the order in which they are found in here
+	def __init__(self,title=''):	
+		self._title = title
+		self.define_layers()
 	
-	def __add__(self,_chart_pattern_view):
-		self.extend(_chart_pattern_view)
+	def __add__(self,_chart_view):
+		self.extend(_chart_view)
 		return self
 	
-	def extend(self,_chart_pattern_view):
-		type_safe.has_type(_chart_pattern_view,ChartPatternView)
-		properties = [property for property in dir(self) if not property.startswith('_')]
+	def extend(self,_chart_view):
+		type_safe.has_type(_chart_view,ChartView)
 		
-		for prop in properties:
-			if not callable(self.__getattribute__(prop)):
-				self.__getattribute__(prop).extend(_chart_pattern_view.__getattribute__(prop))
+		for layer in self.get_layers():
+			getattr(self,layer).extend(getattr(_chart_view,layer))
 		
-		if self._instrument_name is None:
-			self._instrument_name = chart_pattern_view._instrument_name
+		if not self._title:
+			self._title = _chart_view._title
 	
+	#override if different layers should be used
+	def define_layers(self):
+		#background regions that we might want to draw - eg if it is a bullish or bearish region
+		self.backgrounds = ChartLayer(DrawingMode.BOXES)
+		
+		#support lines and resistance lines - eg at top of a chart pattern or below price action etc 
+		self.boundaries = ChartLayer([DrawingMode.LINES,DrawingMode.POINTS]) #support,resistance, 
+		
+		#shapes we might want to draw that covers the candles showing a chart pattern eg a candle stick highlight box or a wedge
+		self.patterns = ChartLayer(DrawingMode.ALL)
+		
+		#any trades that were taken on the candlestick data - use to draw the stop loss and take profit regions and POSSIBLY use the data to draw if it is a winning/losing trade?
+		self.trades = ChartLayer([DrawingMode.BOXES,DrawingMode.POINTS,DrawingMode.LINES]) 
+		
+		#the candle sticks themselves that we will draw
+		self.candle_sticks = ChartLayer(DrawingMode.CANDLES)
+		
+		#lines to show on the top of the candles - indicating where the price is moving
+		#example is trading212 close price 
+		self.price_actions = ChartLayer(DrawingMode.LINES)# route that the price action takes
+		
+		#circles or shapes that highlight a region for us 
+		self.highlights = ChartLayer([DrawingMode.CIRCLES,DrawingMode.SHAPES,DrawingMode.BOXES])
+		
+		#any lines that we want to use to show that a trend is happening
+		self.trends = ChartLayer(DrawingMode.LINES)
+		
+		#can also be used for fundamental bullish/bearish 
+		self.carets = ChartLayer(DrawingMode.LINES)
+		
+		#anything that needs pointing to!
+		self.arrows = ChartLayer(DrawingMode.LINES)
+		
+		#pieces of text that can go anywhere
+		self.labels = ChartLayer(DrawingMode.TEXT)
+		
+		##use for debugging purposes to ensure that the calculation is running smoothly 
+		self.debugs = ChartLayer(DrawingMode.ALL)
 	
+	def get_layers(self):
+		layers = [layer for layer in vars(self) if not layer.startswith('_')]
+		return [layer for layer in layers if not callable(self.__getattribute__(layer))]
+				
+				
 	#a generic method for drawing any elements into the fields above 
 	def draw(self,_location,_value): #this.add('boundary_point bullish point',(1,6))
 		location = re.sub('-|>|<|\.',' ',_location)
 		location = location.strip()
 		keys = [ts for ts in location.split(' ') if ts]
 		if not keys:
-			raise ValueError('locator needs to be of the form "property style object"')
-		property = keys[0]
-		sublocation = ' '.join(keys[1:])
-		if not property.endswith('s'):
-			property = property + 's'
-		self.__getattribute__(property).draw(sublocation,_value)
+			raise ValueError('locator needs to be of the form "layer style object"')
+		layer = keys[0]
+		sublocator = ' '.join(keys[1:])
+		if not layer.endswith('s'):
+			layer = layer + 's'
+		self.__getattribute__(layer).draw(sublocator,_value)
 		
 	#drtawing specific stuff for ease of use (eg, candles will always be drawn the same - as will results for backgrounds etc) 
 	#basically if we can derive the style from the method name we can put it here. (upward trends are bullish, down are bearish etc)
@@ -290,10 +250,7 @@ class ChartPatternView:
 			elif candle.open < candle.close:
 				self.draw('candle_sticks bullish candles',candle)
 			else:
-				self.draw('candle_sticks neutral candles',candle)
-		
-	def draw_instrument_name(self,_name):
-		self._instrument_name = _name
+				self.draw('candle_sticks neutral candles',candle)	
 	
 	def draw_background_result(self,_results):
 		pass
@@ -301,7 +258,11 @@ class ChartPatternView:
 	def draw_trendlines(self,_trendlines):
 		pass
 	
-	def get_bounds(self):	
+	def draw_candle_pattern(self,candle_stick_pattern,candles,index):
+		pass #handle highlighting a candle stick pattern if it is bullish/bearish
+	
+	#calculate the bounds from the candles. If they don't exist may have to calculate from elsewhere? 
+	def calculate_bounds(self):	
 		W = 0
 		H = 0
 		return W, H #size of the figure	
@@ -312,75 +273,95 @@ class ChartPatternView:
 
 
 
-
-
-
-
 #easy wrapper for all our chart viewing needs! 
 class ChartPainter:
 	
 	fig = None
+	activated = {} #all layers are activated by default. If deactivate(layer) is called then this dict should have a False in it for that layer as the key
 	
-	colour_pallet = {
+	colour_palette = {
 		#for shapes, we might want to fill them with a nice colour!
-		'background':{
-			'default':'rgba(200,200,200,0.1)',
-			'bullish':'rgba(0,255,0,0.1)',
-			'bearish':'rgba(255,0,0,0.2)',
-			'keyinfo':'rgba(0,255,255,0.3)'
+		'backgrounds':{
+			'neutral':{'fill':'rgba(200,200,200,0.1)'},
+			'bullish':{'fill':'rgba(0,255,0,0.1)'},
+			'bearish':{'fill':'rgba(255,0,0,0.2)'},
+			'keyinfo':{'fill':'rgba(0,255,255,0.3)'}
 		},
-		'shape':{
-			'neutral':{'stroke':'rgba(200,200,200,0.5)','fill':'rgba(0,0,200,0.2)'},
-			'bullish':{'stroke':'rgba(0,255,0,0.5)','fill':'rgba(0,255,0,0.2)'},
-			'bearish':{'stroke':'rgba(255,0,0,0.5)','fill':'rgba(255,0,0,0.2)'},
-			'keyinfo':{'stroke':'rgba(255,255,0,0.1)','fill':'rgba(255,255,0,0.1)'}
+		'boundaries':{
+			'neutral':{'stroke':'rgba(200,200,200,1)'},
+			'bullish':{'stroke':'rgba(0,255,0,1)'},
+			'bearish':{'stroke':'rgba(255,0,0,1)'},
+			'keyinfo':{'stroke':'rgba(0,255,255,1)'}
 		},
-		#'caret_line': #for current position of interest (like a y axis)
-		#'trend_line': 'down -> bearish and up -> bullish? or stick to support resistance colors?
-		#'candle_stick' #obv
+		'candle_sticks':{
+			'bullish':{'stroke':'rgba(20,150,255,0.9)'	,'fill':'rgba(0,100,255,0.9)'},
+			'bearish':{'stroke':'rgba(255,20,50,0.9)'	,'fill':'rgba(255,70,70,0.9)'},
+			'neutral':{'stroke':'rgba(0,100,255,1)'		,'fill':'rgba(0,100,255,0.3)'},
+			'keyinfo':{'stroke':'rgba(255,255,0,1)'		,'fill':'rgba(255,255,0,0.3)'}
+		},
+		'trends':{
+		
+		},
+		#'shape':{
+		#	'neutral':{'stroke':'rgba(200,200,200,0.5)','fill':'rgba(0,0,200,0.2)'},
+		#	'bullish':{'stroke':'rgba(0,255,0,0.5)','fill':'rgba(0,255,0,0.2)'},
+		#	'bearish':{'stroke':'rgba(255,0,0,0.5)','fill':'rgba(255,0,0,0.2)'},
+		#	'keyinfo':{'stroke':'rgba(255,255,0,0.1)','fill':'rgba(255,255,0,0.1)'}
+		#},
 		#'level': #support and resistance lines
 		#'level_hit_point' #breakouts at support/resistance and also touch points on trend lines 
 		#'follow_line' #eg to draw a line over the candles to show the price action for a rising triangle
 		#'arrow':? #not sure yet but might be useful for pointing at someting :) 
-		'ranks': {
-			'rank':['red','blue','yellow','green']
-		},
-		'debug_point':{'*':'rgba(0,100,255,1)'},
-		'debug_line':{'*':'rgba(0,100,255,1)'},
-		'debug_area':{'*':'rgba(0,100,255,0.2)'}
+		
+		'debugs':{
+			'bullish':{'stroke':'rgba(0,255,100,1)','fill':'rgba(0,255,100,0.3'},
+			'bearish':{'stroke':'rgba(255,0,100,1)','fill':'rgba(255,0,100,0.3'},
+			'neutral':{'stroke':'rgba(0,100,255,1)','fill':'rgba(0,100,255,0.3'},
+			'keyinfo':{'stroke':'rgba(255,255,0,1)','fill':'rgba(255,255,0,0.3'}
+		}
 		#'sketch': #for anything not defined yet 
 	}
 	
 	def __init__(self): #override?
-		pass
+		self.fig = None
+		self.activated = {}
+		self.colour_palette = {} 
+		self.load_colours()
 	
-	def load_colours(self,file_name="default.json"):
+	def load_colours(self,file_name="default"):
+		if file_name == 'default':
+			self.colour_palette = ChartPainter.colour_palette
 		lfr = ListFileReader()
 		json_str = lfr.read_full_text(file_name)
 		new_colours = json.loads(json_str) #for 
 		DictUpdater.update(self.colour_pallet,new_colours)
 	
-	def paint(self,chart_pattern_view):
-		type_safe.has_type(chart_pattern_view, ChartPatternView)
-		self._draw_candles(chart_pattern_view.candle_sticks)
-
-		
-		
-		
-		self._draw_caret_lines(chart_pattern_view.caret_lines)
+	def activate(layer_name,yn=True):
+		self.activated[layer_name] = yn
 	
-	#all methods that paint uses that must be overridden
-	def _paint_candles(self, chart_pattern_view):
-		raise NotImplementedError('This method must be overridden')
+	def paint(self,chart_view):
+		type_safe.has_type(chart_view, ChartView)
+		#ordering = z-index
+		layers = chart_view.get_layers()
+		pdb.set_trace()
+		for layer in layers:
+			if not self.activated.get(layer,True):
+				continue
+			layer_content = chart_view.__getattribute__(layer)
+			if not layer_content:
+				continue
+			layer_painter_name = '_paint_'+layer
+			if hasattr(self,layer_painter_name):
+				layer_painter = getattr(self,layer_painter_name)
+				if not callable(layer_painter):
+					raise TypeError(f'Method {layer_painter_name} in {self.__class__.__name__} is not callable')
+				layer_painter(layer_content)
+			else:
+				pdb.set_trace()
+				raise NotImplementedError(f'Method {layer_painter_name} must be defined in {self.__class__.__name__}')
 	
-	def _paint_caret_lines(self, chart_pattern_view):
-		raise NotImplementedError('This method must be overridden')
-	
-	def _paint_boundary_lines(self, chart_pattern_view):
-		raise NotImplementedError('This method must be overridden')
-	
-	def _paint_trend_lines(self, chart_pattern_view):
-		raise NotImplementedError('This method must be overridden')
+	def get_colour(self,layer_name,style,default='#666666'):
+		return self.colour_palette.get(layer_name,{}).get(style,{'stroke':default,'fill':default})
 	
 	def show(self):
 		raise NotImplementedError('This method must be overridden')
@@ -389,14 +370,91 @@ class ChartPainter:
 class PlotlyChartPainter(ChartPainter):
 	
 	fig = None
+	fig_data = [] 
+	_drawing_object_mode = {
+		'points':'markers',
+		'lines':'lines',
+		'boxes':'none'
+	}
 	
 	def __init__(self):
 		super(ChartPainter,self).__init__()
-		self.fig = chart.Figure(data=[])
+		self.fig_data = []
+		self.fig = chart.Figure(data=self.fig_data)
 	
-	def _paint_candles(self,candle_sticks):
-		all_candles = candle_sticks.keyinfo.candles #plotly nicely takes care of the bullish bearish style for us so give it all the candles 
+	def __paint_plotly_points(self,chart_layer,layer_name,thickness=1):
+		styles = chart_layer.get_styles()
+		for style in styles:
+			drawing_data = chart_layer.get_drawing_data(style)
+			colour = self.get_colour(layer_name,style)
+			if drawing_data.points:
+				xs = []
+				ys = []
+				for point in drawing_data.points:
+					xs += [point.x,None]
+					ys += [point.y,None]
+				points = chart.Scatter(
+					x=xs,
+					y=ys,
+					mode='markers'
+				)
+				#colour = self.get_color(layer_name,style)
+				points.marker.color = colour['stroke']
+				points.marker.size = thickness
+				self.fig.add_trace(points)
+				self.fig_data.append(self.fig.data[-1]) #add last thing that has been figged to the fig data 
+				
+	
+	
+	def __paint_plotly_lines(self,chart_layer,layer_name,thickness=1):
+		styles = chart_layer.get_styles()
+		for style in styles:
+			drawing_data = chart_layer.get_drawing_data(style)
+			colour = self.get_colour(layer_name,style)
+			if drawing_data.lines:
+				xs = []
+				ys = []
+				for line in drawing_data.lines:
+					xs += [line.x1,line.x2,None]
+					ys += [line.y1,line.y2,None]
+				lines = chart.Scatter(
+					x=xs,
+					y=ys,
+					mode='lines'
+				)
+				lines.line.color = colour['stroke']
+				lines.line.width = thickness
+				self.fig.add_trace(lines)
+				self.fig_data.append(self.fig.data[-1]) #add last thing that has been figged to the fig data 
+		
+	def __paint_plotly_boxes(self,chart_layer,layer_name,border_width=0):
+		styles = chart_layer.get_styles()
+		
+		for style in styles:
+			drawing_data = chart_layer.get_drawing_data(style)
+			
+			colour = self.get_colour(layer_name,style) 
+			if drawing_data.boxes:
+				xs = []
+				ys = []
+				for box in drawing_data.boxes:
+					xs += [box.x1,box.x2,box.x2,box.x1,box.x1,None]
+					ys += [box.y1,box.y1,box.y2,box.y2,box.y1,None]
+				boxes = chart.Scatter(
+					x=xs,
+					y=ys,
+					fill='toself',
+				)
+				boxes.line.width = border_width
+				boxes.line.color = colour['stroke']
+				boxes.fillcolor = colour['fill']
+				self.fig.add_trace(boxes)
+				self.fig_data.append(self.fig.data[-1]) #add last thing that has been figged to the fig data 
 
+
+	def _paint_candle_sticks(self,chart_layer):
+		all_candles = chart_layer.keyinfo.candles #plotly nicely takes care of the bullish bearish style for us so give it all the candles 
+		
 		candlestick_chart_data = chart.Candlestick(
 			#x=x,
 			open=[candle.open for candle in all_candles],
@@ -405,20 +463,41 @@ class PlotlyChartPainter(ChartPainter):
 			close=[candle.close for candle in all_candles],
 			#name= instrument_name if instrument_name else ''
 		)
+		
+		bearish_colour = self.get_colour('candle_sticks','bearish')
+		bullish_colour = self.get_colour('candle_sticks','bullish')
+		neutral_colour = self.get_colour('candle_sticks','neutral')
+		#add colour scheme here
+		candlestick_chart_data.increasing.fillcolor = bullish_colour['fill'] #'rgba(0,100,255,0.9)'
+		candlestick_chart_data.increasing.line.color = bullish_colour['stroke'] #'rgba(20,150,255,0.9)'
+		candlestick_chart_data.decreasing.fillcolor = bearish_colour['fill'] #'rgba(255,70,70,0.9)'
+		candlestick_chart_data.decreasing.line.color = bearish_colour['stroke'] #'rgba(255,20,50,0.9)'
+		
 		self.fig.add_trace(candlestick_chart_data)
+		self.fig_data.append(self.fig.data[-1]) #add last thing that has been figged to the fig data 
 	
-	def _paint_caret_lines(self, chart_pattern_view):
-		raise NotImplementedError('This method must be overridden')
+	def _paint_backgrounds(self,chart_layer):
+		self.__paint_plotly_boxes(chart_layer,'backgrounds')
 	
-	def _paint_boundary_lines(self, chart_pattern_view):
-		raise NotImplementedError('This method must be overridden')
+	def _paint_carets(self, chart_layer):
+		self.__paint_plotly_lines(chart_layer,'carets',1)
+			
+	def _paint_boundaries(self, chart_layer):
+		self.__paint_plotly_lines(chart_layer,'boundaries',3)
+		self.__paint_plotly_points(chart_layer,'boundaries',3)
 	
-	def _paint_trend_lines(self, chart_pattern_view):
-		raise NotImplementedError('This method must be overridden')
+	def _paint_trends(self, chart_layer):
+		self.__paint_plotly_lines(chart_layer,'trends',2)
 	
+	def _paint_debugs(self,chart_layer):
+		self.__paint_plotly_lines(chart_layer,'debugs',3)
+		self.__paint_plotly_boxes(chart_layer,'debugs',1)
+		self.__paint_plotly_points(chart_layer,'debugs',8)
+		
 	
 	#override
 	def show(self):
+		self.fig.data = self.fig_data #force the data to be drawn in the right order - makes no difference... 
 		self.fig.show()
 	
 	

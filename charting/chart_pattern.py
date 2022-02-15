@@ -13,7 +13,7 @@ Extremity = namedtuple('Extremity','type value index')
 
 import charting.candle_stick_functions as csf
 from charting.candle_stick_pattern import CandleStickPattern
-import charting.chart_viewer as cpv
+import charting.chart_viewer as chv
 from utils import ListFileReader
 
 import pdb
@@ -99,7 +99,7 @@ class LevelActivity:
 				return Level.BEARISH
 		return Level.VOID
 	
-	#def draw(self) -> ChartPatternView:
+	#def draw(self) -> ChartView:
 	def draw(self): #need to enforce the type somehow
 		direct = 1 if self.direction() == Level.BULLISH else -1 if self.direction() == Level.BEARISH else 0
 		x,y,xh,yh = self.key_level.draw()
@@ -237,7 +237,7 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 		base_view = super().draw_snapshot(candle_stream,candle_stream_index)
 		
 		#build a view of this chart pattern
-		this_view = cpv.ChartPatternView()
+		this_view = chv.ChartView()
 		#this_view.set_candles(candle_stream) #already done in base
 		
 		extreme_points = self._get_extremes(candle_stream_index)
@@ -245,10 +245,10 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 		ymins = [ep.value for ep in extreme_points if ep.type == ExtremityType.MINIMUM]
 		xmaxs = [ep.index for ep in extreme_points if ep.type == ExtremityType.MAXIMUM]
 		ymaxs = [ep.value for ep in extreme_points if ep.type == ExtremityType.MAXIMUM]
-		min_points = [cpv.Point(x,y) for (x,y) in zip(xmins,ymins)]
-		max_points = [cpv.Point(x,y) for (x,y) in zip(xmaxs,ymaxs)]
+		min_points = [chv.Point(x,y) for (x,y) in zip(xmins,ymins)]
+		max_points = [chv.Point(x,y) for (x,y) in zip(xmaxs,ymaxs)]
 		
-		this_view.draw('caret_lines keyinfo lines', cpv.Line(candle_stream_index,min(ymins),candle_stream_index,max(ymaxs)) )
+		this_view.draw('carets keyinfo lines', chv.Line(candle_stream_index,min(ymins),candle_stream_index,max(ymaxs)) )
 		this_view.draw('debug bullish points',min_points)
 		this_view.draw('debug bearish points',max_points)
 		
@@ -454,7 +454,7 @@ class SupportAndResistance(ChartPattern):
 		base_view = super().draw_snapshot(candles,candle_stream_index)
 		
 		#base_view = base_instance.draw_snapshot(candle_stream_index,candles)
-		this_view = cpv.ChartPatternView()
+		this_view = chv.ChartView()
 				
 		extreme_points  = list(reversed(self._get_extremes(candle_stream_index - self.pattern_start_index)))
 		start_level = csf.median(candles[max(candle_stream_index-self.pattern_start_index,0)])
@@ -464,9 +464,9 @@ class SupportAndResistance(ChartPattern):
 		
 		lines = []
 		for level in levels:
-			lines.append(cpv.Line(candle_stream_index-self.memory_window,level,candle_stream_index,level))
+			lines.append(chv.Line(candle_stream_index-self.memory_window,level,candle_stream_index,level))
 		
-		this_view.draw('boundary_lines neutral lines',lines)
+		this_view.draw('boundaries neutral lines',lines)
 		base_view += this_view
 		
 		return base_view

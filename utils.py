@@ -84,6 +84,9 @@ class TypedList:
 	def __len__(self): 
 		return len(self.the_list)
 	
+	def __bool__(self):
+		return len(self.the_list) > 0
+	
 	def __getitem__(self, i): 
 		return self.the_list[i]
 
