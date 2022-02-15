@@ -133,9 +133,11 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 	fitness_parameters = {}
 	
 	def __init__(self,fractal_size=2,extremity_window=20):
+		super(ChartPattern,self).__init__()
 		self._fractal_size = fractal_size
 		self._local_extreme_window_size = extremity_window
 		self._load_fitness_parameters()
+		
 	
 	def _load_fitness_parameters(self,filename="charting/tuner/pattern_parameters.json"):
 		params = {} #attempt to read param settings from file if there are any
@@ -232,23 +234,26 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 	
 	#override for chart patterns 
 	def draw_snapshot(self,candle_stream_index,candle_stream):
-		extreme_points = self._get_extremes(candle_stream_index)
 		
-		xmins = [ep.index for ep in extreme_points if ep.type == ExtremityType.MINIMUM]
-		ymins = [ep.value for ep in extreme_points if ep.type == ExtremityType.MINIMUM]
+		#extreme_points = self._get_extremes(candle_stream_index)
 		
-		xmaxs = [ep.index for ep in extreme_points if ep.type == ExtremityType.MAXIMUM]
-		ymaxs = [ep.value for ep in extreme_points if ep.type == ExtremityType.MAXIMUM]
+		#xmins = [ep.index for ep in extreme_points if ep.type == ExtremityType.MINIMUM]
+		#ymins = [ep.value for ep in extreme_points if ep.type == ExtremityType.MINIMUM]
+		
+		#xmaxs = [ep.index for ep in extreme_points if ep.type == ExtremityType.MAXIMUM]
+		#ymaxs = [ep.value for ep in extreme_points if ep.type == ExtremityType.MAXIMUM]
 		
 		#build a view of this chart pattern
 		this_view = cpv.ChartPatternView()
-		this_view.set_candles(candle_stream)
+		#this_view.set_candles(candle_stream)
 		
-		min_points = [cpv.Point(x,y) for (x,y) in zip(xmins,ymins)]
-		max_points = [cpv.Point(x,y) for (x,y) in zip(xmaxs,ymaxs)]
+		#min_points = [cpv.Point(x,y) for (x,y) in zip(xmins,ymins)]
+		#max_points = [cpv.Point(x,y) for (x,y) in zip(xmaxs,ymaxs)]
 		
-		this_view.draw('debug bullish points',min_points)
-		this_view.draw('debug bearish points',max_points)
+		
+		#this_view.draw('caret_lines keyinfo lines', cpv.Line(candle_stream_index,min(ymins),candle_stream_index,max(ymaxs)) )
+		#this_view.draw('debug bullish points',min_points)
+		#this_view.draw('debug bearish points',max_points)
 		
 		return this_view
 	
@@ -282,6 +287,197 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 				all(highs[i] > highs[i+1] for i in range(fractal_size,2*fractal_size)):
 				return True
 		return False
+
+
+#uses a method that uses error values from most recent extreme points instead of clusters. Less effective but faster
+#also levels are fixed length away from the current candle
+#also gives some key functions for later chart patterns like TriangleBreakout etc 
+class SupportAndResistance(ChartPattern):
+	
+	top_levels = 5# number of support/resistance levels to identify
+	
+	_memory_window = 100
+	
+	pattern_start_index = 1
+	buffer_gap = 0.5
+	
+	fitness_keys = ['length','breakout_size','hits','variance','level_error']
+	fitness_parameters = {'length':1.0, 'breakout_size':1.0, 'hits':1.0, 'variance':1.0, 'level_error':1.0}
+	
+	def __init__(self):
+		super(SupportAndResistance,self).__init__()
+	
+	def _closest_level_to_candle(self,levels,candle):
+		distances = [csf.body_distance(candle,level) for level in levels]
+		return levels[np.argmin(distances)]
+	
+	def _level_errors(self,levels,points,gap):
+		return [(level, self._level_error(level,points,gap)) for level in levels]
+		
+	
+	def _close_points_to_level(self,level,points,gap):
+		return [p for p in points if abs(p.value - level) < gap]
+	
+	#calculate the mean squared error for a list of points and a given level for all points close to the level
+	def _level_error(self,level,points,gap):
+		close_points = self._close_points_to_level(level,points,gap)
+		if not close_points:
+			return MAX_ERROR_VALUE
+		total = sum((p.value - level)*(p.value - level) for p in close_points)
+		return total / len(close_points)
+	
+	
+	def _generate_levels(self,extreme_points,start_level,gap):
+		max_distance = 0
+		support_points = []
+		n_support = 0
+		
+		buffer = self.buffer_gap * gap
+		
+		for i,ep in enumerate(extreme_points):
+			this_distance =  abs(ep.value - start_level)
+			if this_distance > max_distance + buffer: #esure that the next level is actually far away enough - might need to make gap larger
+				#if  #check this level is not max error
+				if self._level_error(ep.value, extreme_points[i:],gap) < MAX_ERROR_VALUE: #profile this step - might be causing headaches! could be better done in _pattern_fitness
+					max_distance = this_distance
+					support_points.append(ep)
+					n_support += 1 
+					if n_support >= self.top_levels:
+						break
+					
+		return [ep.value for ep in support_points]
+	
+	#def _fit_minimum_level_line(self,points,max_gap):?
+	
+	def _breakout_fitness_signed(self,level,this_candle):
+		
+		distance = csf.body_distance(this_candle,level)
+		if csf.body_bottom(this_candle) > level:
+			#above level - so bullish
+			return distance
+		if csf.body_top(this_candle) < level:
+			#below level - so bearish
+			return -distance 
+		return 0 #breakout hasn't happened yet 
+	
+	#higher the fitness the better! 
+	def _pattern_fitness(self,levels,this_candle,points,gap,parameter_settings={}):
+		
+		## variance (normalise?) (div by mem window?)
+		## level length 
+		## n hits on level
+		## breakout distance
+		default = 0
+		
+		#bounds checks 
+		if not levels: 
+			return default
+		
+		level = self._closest_level_to_candle(levels,this_candle)
+		#level_errors = sorted(self._level_errors(levels,points,gap),key=lambda le:le[1])
+		#level = level_errors[0][0]
+		breakout = abs(self._breakout_fitness_signed(level,this_candle))
+		hits = self._close_points_to_level(level,points,gap)
+		level_error = self._level_error(level,points,gap)
+		level_length = abs(hits[0].index - hits[-1].index) #might be able to just do hits[0] and hits[-1]
+		variance = np.var([ep.index for ep in hits])
+		
+		#bounds checks 
+		if not hits: 
+			return default
+		
+		if level_length == 0:
+			return default
+		
+		if breakout == 0:
+			return default
+			
+		#ratios
+		#fitness_keys = ['length','breakout_size','hits','variance','level_error']
+		ratios = {}
+		ratios['length'] = level_length / self.memory_window
+		ratios['breakout_size'] = abs(breakout)
+		ratios['hits'] = len(hits) / self.memory_window
+		ratios['variance'] = variance / self.memory_window
+		ratios['level_error'] = level_error / gap #? 
+		
+		#final linear combination
+		fitness_score = sum([ratios.get(k,0)*parameter_settings.get(k, self.fitness_parameters.get(k,0)) for k in self.fitness_keys])
+		
+		#normalise the fitness between 0 and 1 so it can be compared to other chart patterns 
+		denom = sum([parameter_settings.get(k, self.fitness_parameters.get(k,0)) for k in self.fitness_keys])
+		
+		assert denom > 0 , 'fitness parameter settings are wrong. they need to all be positive with at least one value'
+		
+		fitness = fitness_score / denom 
+		return fitness
+	
+	
+	#def get_levels(self,candle_stream_index,candle_stream):
+	#	extreme_points  = list(reversed(self._get_extremes(candle_stream_index - self.pattern_start_index)))
+	#	start_level = csf.median(candle_stream[max(candle_stream_index-self.pattern_start_index,0)])
+	#	
+	#	max_gap = self._rolling_range_mean[candle_stream_index]
+	#	levels = self._generate_levels(extreme_points,start_level,max_gap)
+	#	return levels 
+	
+	def _determine(self,candle_stream_index,candle_stream):
+		
+		extreme_points  = list(reversed(self._get_extremes(candle_stream_index - self.pattern_start_index)))
+		start_level = csf.median(candle_stream[max(candle_stream_index-self.pattern_start_index,0)])
+		
+		max_gap = self._rolling_range_mean[candle_stream_index]
+		levels = self._generate_levels(extreme_points,start_level,max_gap)
+		
+		this_candle = candle_stream[candle_stream_index]
+		
+		default = 0 #MAX_ERROR_VALUE
+		
+		if not levels:
+			return default
+		
+		level = self._closest_level_to_candle(levels,this_candle)
+		
+		breakout = self._breakout_fitness_signed(level,this_candle)
+		sign = breakout / abs(breakout) if breakout != 0 else 0
+		
+		pattern_fitness = sign*self._pattern_fitness(levels,this_candle,extreme_points,max_gap)
+		
+		if np.isnan(pattern_fitness): #assert instead?
+			pattern_fitness = 0
+			
+		return pattern_fitness
+		
+	
+	def draw_snapshot(self,candle_stream_index,candles):
+
+		base_instance = ChartPattern() ##horrible! must clean this as it doesn't work as it should
+		
+		base_view = base_instance.draw_snapshot(candle_stream_index,candles)
+		this_view = cpv.ChartPatternView()
+				
+		extreme_points  = list(reversed(self._get_extremes(candle_stream_index - self.pattern_start_index)))
+		start_level = csf.median(candles[max(candle_stream_index-self.pattern_start_index,0)])
+		
+		max_gap = self._rolling_range_mean[candle_stream_index]
+		levels = self._generate_levels(extreme_points,start_level,max_gap)
+		
+		lines = []
+		for level in levels:
+			lines.append(cpv.Line(candle_stream_index-self.memory_window,level,candle_stream_index,level))
+		
+		pdb.set_trace()
+		
+		#this_view.draw('boundary_lines neutral lines',lines)
+		this_view = this_view + base_view
+		
+		return this_view
+	
+	
+
+
+
+
 
 #this class detects if a breakout or a retest has happened at a support/resistance level 
 #the support and resistance is calculated from memory window and from extreme points. The activity is then inspected and resulting breakouts/retests are reported
@@ -515,191 +711,6 @@ class SupportAndResistanceAction(ChartPattern):
 	#
 	#def draw_snapshot(self):
 	#	pass
-
-#uses a method that uses error values from most recent extreme points instead of clusters. Less effective but faster
-#also levels are fixed length away from the current candle
-#also gives some key functions for later chart patterns like TriangleBreakout etc 
-class SupportAndResistance(ChartPattern):
-	
-	top_levels = 5# number of support/resistance levels to identify
-	
-	_memory_window = 100
-	
-	pattern_start_index = 1
-	buffer_gap = 0.5
-	
-	fitness_keys = ['length','breakout_size','hits','variance','level_error']
-	fitness_parameters = {'length':1.0, 'breakout_size':1.0, 'hits':1.0, 'variance':1.0, 'level_error':1.0}
-	
-	def _closest_level_to_candle(self,levels,candle):
-		distances = [csf.body_distance(candle,level) for level in levels]
-		return levels[np.argmin(distances)]
-	
-	def _level_errors(self,levels,points,gap):
-		return [(level, self._level_error(level,points,gap)) for level in levels]
-		
-	
-	def _close_points_to_level(self,level,points,gap):
-		return [p for p in points if abs(p.value - level) < gap]
-	
-	#calculate the mean squared error for a list of points and a given level for all points close to the level
-	def _level_error(self,level,points,gap):
-		close_points = self._close_points_to_level(level,points,gap)
-		if not close_points:
-			return MAX_ERROR_VALUE
-		total = sum((p.value - level)*(p.value - level) for p in close_points)
-		return total / len(close_points)
-	
-	
-	def _generate_levels(self,extreme_points,start_level,gap):
-		max_distance = 0
-		support_points = []
-		n_support = 0
-		
-		buffer = self.buffer_gap * gap
-		
-		for i,ep in enumerate(extreme_points):
-			this_distance =  abs(ep.value - start_level)
-			if this_distance > max_distance + buffer: #esure that the next level is actually far away enough - might need to make gap larger
-				#if  #check this level is not max error
-				if self._level_error(ep.value, extreme_points[i:],gap) < MAX_ERROR_VALUE: #profile this step - might be causing headaches! could be better done in _pattern_fitness
-					max_distance = this_distance
-					support_points.append(ep)
-					n_support += 1 
-					if n_support >= self.top_levels:
-						break
-					
-		return [ep.value for ep in support_points]
-	
-	#def _fit_minimum_level_line(self,points,max_gap):?
-	
-	def _breakout_fitness_signed(self,level,this_candle):
-		
-		distance = csf.body_distance(this_candle,level)
-		if csf.body_bottom(this_candle) > level:
-			#above level - so bullish
-			return distance
-		if csf.body_top(this_candle) < level:
-			#below level - so bearish
-			return -distance 
-		return 0 #breakout hasn't happened yet 
-	
-	#higher the fitness the better! 
-	def _pattern_fitness(self,levels,this_candle,points,gap,parameter_settings={}):
-		
-		## variance (normalise?) (div by mem window?)
-		## level length 
-		## n hits on level
-		## breakout distance
-		default = 0
-		
-		#bounds checks 
-		if not levels: 
-			return default
-		
-		level = self._closest_level_to_candle(levels,this_candle)
-		#level_errors = sorted(self._level_errors(levels,points,gap),key=lambda le:le[1])
-		#level = level_errors[0][0]
-		breakout = abs(self._breakout_fitness_signed(level,this_candle))
-		hits = self._close_points_to_level(level,points,gap)
-		level_error = self._level_error(level,points,gap)
-		level_length = abs(hits[0].index - hits[-1].index) #might be able to just do hits[0] and hits[-1]
-		variance = np.var([ep.index for ep in hits])
-		
-		#bounds checks 
-		if not hits: 
-			return default
-		
-		if level_length == 0:
-			return default
-		
-		if breakout == 0:
-			return default
-			
-		#ratios
-		#fitness_keys = ['length','breakout_size','hits','variance','level_error']
-		ratios = {}
-		ratios['length'] = level_length / self.memory_window
-		ratios['breakout_size'] = abs(breakout)
-		ratios['hits'] = len(hits) / self.memory_window
-		ratios['variance'] = variance / self.memory_window
-		ratios['level_error'] = level_error / gap #? 
-		
-		#final linear combination
-		fitness_score = sum([ratios.get(k,0)*parameter_settings.get(k, self.fitness_parameters.get(k,0)) for k in self.fitness_keys])
-		
-		#normalise the fitness between 0 and 1 so it can be compared to other chart patterns 
-		denom = sum([parameter_settings.get(k, self.fitness_parameters.get(k,0)) for k in self.fitness_keys])
-		
-		assert denom > 0 , 'fitness parameter settings are wrong. they need to all be positive with at least one value'
-		
-		fitness = fitness_score / denom 
-		return fitness
-	
-	
-	#def get_levels(self,candle_stream_index,candle_stream):
-	#	extreme_points  = list(reversed(self._get_extremes(candle_stream_index - self.pattern_start_index)))
-	#	start_level = csf.median(candle_stream[max(candle_stream_index-self.pattern_start_index,0)])
-	#	
-	#	max_gap = self._rolling_range_mean[candle_stream_index]
-	#	levels = self._generate_levels(extreme_points,start_level,max_gap)
-	#	return levels 
-	
-	def _determine(self,candle_stream_index,candle_stream):
-		
-		extreme_points  = list(reversed(self._get_extremes(candle_stream_index - self.pattern_start_index)))
-		start_level = csf.median(candle_stream[max(candle_stream_index-self.pattern_start_index,0)])
-		
-		max_gap = self._rolling_range_mean[candle_stream_index]
-		levels = self._generate_levels(extreme_points,start_level,max_gap)
-		
-		this_candle = candle_stream[candle_stream_index]
-		
-		default = 0 #MAX_ERROR_VALUE
-		
-		if not levels:
-			return default
-		
-		level = self._closest_level_to_candle(levels,this_candle)
-		
-		breakout = self._breakout_fitness_signed(level,this_candle)
-		sign = breakout / abs(breakout) if breakout != 0 else 0
-		
-		pattern_fitness = sign*self._pattern_fitness(levels,this_candle,extreme_points,max_gap)
-		
-		if np.isnan(pattern_fitness): #assert instead?
-			pattern_fitness = 0
-			
-		return pattern_fitness
-		
-	
-	def draw_snapshot(self,candle_stream_index,candles):
-		
-		base_view = super(self.__class__,self).draw_shapshot(candle_stream_index,candles)
-		#this_view = cpv.ChartPatternView()
-				
-		extreme_points  = list(reversed(self._get_extremes(candle_stream_index - self.pattern_start_index)))
-		start_level = csf.median(candles[max(candle_stream_index-self.pattern_start_index,0)])
-		
-		max_gap = self._rolling_range_mean[candle_stream_index]
-		levels = self._generate_levels(extreme_points,start_level,max_gap)
-		
-		lines = []
-		for level in levels:
-			lines.append(cpv.Line(candle_stream_index-self.memory_window,level,candle_stream_index,level))
-		
-		this_view.draw('boundary_lines neutral lines',lines)
-		this_view += base_view
-		
-		return this_view
-	
-	
-
-
-
-
-
-
 
 
 

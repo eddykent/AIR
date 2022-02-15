@@ -7,7 +7,7 @@ import charting.candle_stick_functions as csf
 #class CandleStickException(Exception):
 	
 #candle stick patterns return a list of -1, to 1s -1 is a bear, 1 is a bull and 0 is no pattern detected
-class CandleStickPattern:
+class CandleStickPattern(object):
 	
 	_required_candles = 1 #number of candles needed for this pattern
 	pattern_name  = "Candle stick pattern"
@@ -47,29 +47,29 @@ class CandleStickPattern:
 		for snapshot in sequence],key=lambda c:c[4]) #sort into chronological order 
 	
 	
-	def draw_snapshot(self,index,candles):
-		the_indexs = list(range(index-self._required_candles,index))
-		the_candles = candles[index-self._required_candles:index]
-		suitable_height = (sum([csf.range(candle) for candle in candles]) / len(candles)) * 0.4
-		suitable_width = 0.4
-		high = csf.highest_body(the_candles)
-		low = csf.lowest_body(the_candles)
-		y = [
-			low - suitable_height,
-			high + suitable_height,
-			high + suitable_height,
-			low - suitable_height,
-			low - suitable_height
-		]
-		x = [
-			index - self._required_candles - suitable_width, 
-			index - self._required_candles - suitable_width, 
-			index - 1 + suitable_width, 
-			index - 1 + suitable_width,
-			index - self._required_candles - suitable_width]
-		arrow_x = [index - 1, index - 1]
-		arrow_y = csf.lowest(candles), csf.lowest(candles) - suitable_height
-		return (x,y,arrow_x,arrow_y,the_candles,the_indexs)
+	#def draw_snapshot(self,index,candles):
+	#	the_indexs = list(range(index-self._required_candles,index))
+	#	the_candles = candles[index-self._required_candles:index]
+	#	suitable_height = (sum([csf.range(candle) for candle in candles]) / len(candles)) * 0.4
+	#	suitable_width = 0.4
+	#	high = csf.highest_body(the_candles)
+	#	low = csf.lowest_body(the_candles)
+	#	y = [
+	#		low - suitable_height,
+	#		high + suitable_height,
+	#		high + suitable_height,
+	#		low - suitable_height,
+	#		low - suitable_height
+	#	]
+	#	x = [
+	#		index - self._required_candles - suitable_width, 
+	#		index - self._required_candles - suitable_width, 
+	#		index - 1 + suitable_width, 
+	#		index - 1 + suitable_width,
+	#		index - self._required_candles - suitable_width]
+	#	arrow_x = [index - 1, index - 1]
+	#	arrow_y = csf.lowest(candles), csf.lowest(candles) - suitable_height
+	#	return (x,y,arrow_x,arrow_y,the_candles,the_indexs)
 		
 	
 

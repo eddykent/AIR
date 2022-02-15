@@ -118,10 +118,11 @@ class TypedList:
 			self.the_list.extend(vs.the_list)
 		else:
 			[self.check(v) for v in vs]
-			self.the_list.extend(vs)
+			self.the_list += vs
 	
 	def __iadd__(self, vs):
 		self.the_list.extend(vs)
+		return self
 	
 	def __add__(self,vs):
 		self.the_list.extend(vs)

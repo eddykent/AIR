@@ -19,7 +19,9 @@ assert __name__ != "__main__", "You must run tests through the run_test.py hoist
 from charting import candle_stick_functions as csf
 from utils import Configuration, ListFileReader
 from charting.chart_pattern import * #grab all patterns 
-from charting.trending_pattern import * #grab all advanced patterns too 
+from charting.trending_pattern import * #grab all advanced patterns to
+
+from charting.chart_viewer import PlotlyChartPainter 
 
 
 config = Configuration()
@@ -80,7 +82,8 @@ t1 = time.time()
 
 print(f"Drawing time for {chart_pattern.__class__.__name__} was {t1-t0}")
 
-fig = chart.Figure(data=[])
+#fig = chart.Figure(data=[])
+
 
 
 
@@ -255,8 +258,13 @@ def show_result(result,candles)	:
 	
 snapshot_index = len(result) - 1
 
+chart_pattern_view = chart_pattern.draw_snapshot(snapshot_index,candle_stream)
+
+pcp = PlotlyChartPainter()
+pcp.paint(chart_pattern_view)
+pcp.show()
+
 def draw_all(snapshot_index):
-	
 	#key_levels, level_fitness_tab = chart_pattern._get_key_level_information(snapshot_index,candle_stream,chart_pattern._get_extremes(snapshot_index))
 
 	#actions = chart_pattern._determine(200,candle_stream,chart_pattern._get_extremes(200))

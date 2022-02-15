@@ -142,16 +142,18 @@ class DrawingData:
 		self.__getattribute__(location).append(value)
 	
 	def extend(self,drawing_data):
-		type_safe(drawing_data,DrawingData)
+		type_safe.has_type(drawing_data,DrawingData)
 		properties = [property for property in dir(self) if not property.startswith('__') and not callable(property)]
 		for prop in properties:
-			self.__getattribute__(prop).extend(drawing_data.__getattribute__(prop))
+			if not callable(self.__getattribute__(prop)):
+				self.__getattribute__(prop).extend(drawing_data.__getattribute__(prop))
 	
 	def __iadd__(self,drawing_data):
 		self.extend(drawing_data)
+		return self
 		
 	def __add__(self,drawing_data):
-		self += drawing_data
+		self.extend(drawing_data)
 		return self
 		
 		
@@ -179,16 +181,18 @@ class ChartPatternViewElement:
 		self.__getattribute__(property).draw(sublocation,value)
 	
 	def extend(self,chart_view_pattern_element):
-		type_safe(chart_view_pattern_element,ChartPatternViewElement)
-		properties = [property for property in dir(self) if not property.startswith('__') and not callable(property)]
+		type_safe.has_type(chart_view_pattern_element,ChartPatternViewElement)
+		properties = [property for property in dir(self) if not property.startswith('_')]
 		for prop in properties:
-			self.__getattribute__(prop).extend(chart_view_pattern_element.__getattribute__(prop))
+			if not callable(self.__getattribute__(prop)):
+				self.__getattribute__(prop).extend(chart_view_pattern_element.__getattribute__(prop))
 	
 	def __iadd__(self,chart_view_pattern_element):
 		self.extend(chart_view_pattern_element)
+		return self
 	
 	def __add__(self,chart_view_pattern_element):
-		self += chart_view_pattern_element
+		self.extend(chart_view_pattern_element)
 		return self
 		
 
@@ -241,11 +245,11 @@ class ChartPatternView:
 	def __init__(self):
 		pass
 	
-	def set_candles(self,_candle_stick_data):
+	def _set_candles(self,_candle_stick_data):
 		self._candle_stick_data = _candle_stick_data
 		##todo: populate candle_sticks  --- if needed?
 		
-	def set_instrument_name(self,name):
+	def _set_instrument_name(self,name):
 		self._instrument_name = name
 	
 	def draw(self,location,value): #this.add('boundary_point bullish point',(1,6))
@@ -262,18 +266,20 @@ class ChartPatternView:
 		
 	
 	def extend(self,chart_pattern_view):
-		type_safe(chart_pattern_view,ChartPatternView)
-		properties = [property for property in dir(self) if not property.startswith('__') and not callable(property)]
+		type_safe.has_type(chart_pattern_view,ChartPatternView)
+		properties = [property for property in dir(self) if not property.startswith('_')]
+		
 		for prop in properties:
-			self.__getattribute__(prop).extend(chart_pattern_view.__getattribute__(prop))
+			if not callable(self.__getattribute__(prop)):
+				self.__getattribute__(prop).extend(chart_pattern_view.__getattribute__(prop))
 	
 	def __iadd__(self,chart_pattern_view):
 		self.extend(chart_pattern_view)
+		return self
 			
 	def __add__(self,chart_pattern_view):
-		self += chart_pattern_view
+		self.extend(chart_pattern_view)
 		return self
-		
 		
 	def get_bounds(self):	
 		W = 0
@@ -319,7 +325,7 @@ class ChartPainter:
 	}
 	
 	def __init__(self): #override?
-		fig = chart.Figure(data=[])
+		pass
 	
 	def load_colours(self,file_name="default.json"):
 		lfr = ListFileReader()
@@ -327,8 +333,8 @@ class ChartPainter:
 		new_colours = json.loads(json_str) #for 
 		DictUpdater.update(self.colour_pallet,new_colours)
 	
-	def sketch_view(self,chart_pattern_view):
-		type_safe.has_type(chart_pattern_view,ChartPatternView)
+	def paint(self,chart_pattern_view):
+		type_safe.has_type(chart_pattern_view, ChartPatternView)
 		self.draw_candles(chart_pattern_view._candle_stick_data)
 	
 	#helpers
@@ -341,6 +347,11 @@ class ChartPainter:
 
 class PlotlyChartPainter(ChartPainter):
 	
+	fig = None
+	
+	def __init__(self):
+		super(ChartPainter,self).__init__()
+		self.fig = chart.Figure(data=[])
 	
 	def draw_candles(self,candles):
 		candlestick_chart_data = chart.Candlestick(
@@ -353,7 +364,9 @@ class PlotlyChartPainter(ChartPainter):
 		)
 		fig.add_trace(candlestick_chart_data)
 	
-	
+	#override
+	def show(self):
+		fig.show()
 	
 	
 	
