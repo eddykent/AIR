@@ -153,7 +153,7 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 		raise NotImplementedError('This method must be overridden')
 		#return 0 
 	
-	def _get_extremes(self,candle_index,candles=[]):
+	def _get_extremes(self,candle_index):
 		#return [ep for ep in self._extreme_points if _ep.index < candle_index and _ep.index >= candle_index - self.memory_window]
 		end_index = candle_index
 		start_index = max(candle_index  - self.memory_window,0)
@@ -167,11 +167,12 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 				extremes.append(ex)
 		return extremes
 	
+	
 	def _get_range_points(self,candle_index):
 		highs = self._high_points[candle_index -self.memory_window:candle_index+1]
 		lows = self._low_points[candle_index -self.memory_window:candle_index+1]
 		return highs, lows
-
+	
 	#private functions 
 	def _calculate_rolling_mean_range(self,candle_stream):
 		ranges = [candle[csf.high] - candle[csf.low] for candle in candle_stream]
@@ -222,12 +223,15 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 		self._low_points = [Extremity(ExtremityType.MINIMUM,candle_stream[i][csf.low],i) for i in range(len(candle_stream))]
 		
 	
-	#for this candle stream, return a same sized list of locations of bearish and bullish patterns 
-	def detect(self,candle_stream):
+	def setup(self,candle_stream):
 		self._calculate_local_extremes(candle_stream)
 		self._calculate_rolling_mean_range(candle_stream)
 		self._calculate_all_range_points(candle_stream)
 		
+	
+	#for this candle stream, return a same sized list of locations of bearish and bullish patterns 
+	def detect(self,candle_stream):		
+		self.setup(candle_stream) #ensure setup was called 
 		results = []
 		for candle_stream_index in range(len(candle_stream)):
 			results.append(self._determine(candle_stream_index,candle_stream))
@@ -242,7 +246,6 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 		#build a view of this chart pattern
 		this_view = chv.ChartView()
 		#this_view.set_candles(candle_stream) #already done in base
-		
 		extreme_points = self._get_extremes(candle_stream_index)
 		xmins = [ep.index for ep in extreme_points if ep.type == ExtremityType.MINIMUM]
 		ymins = [ep.value for ep in extreme_points if ep.type == ExtremityType.MINIMUM]
@@ -288,75 +291,7 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 				return True
 		return False
 
-		
-
-#use a least squares algorithm to find all extreme points 
-class ChartPatternLeastSquares(ChartPattern):
 	
-	degree = 18 #the degree of function in which to use for the least squares curve fit
-	
-	#override this in FFT version
-	def _fit_function(self,values):
-		xs = range(len(values))
-		ys = values
-		
-		poly = Poly.fit(xs,ys,self.degree)
-		curve = [poly(x) for x in xs] 
-		return curve
-	
-	def _get_start_end_index(self,candles,candle_index):
-		start_index = max(0,candle_index-self.memory_window)
-		end_index = min(start_index+self.memory_window+1,len(candles))
-		return start_index, end_index
-	
-	def _get_curve(self,candles,start_index,end_index):	
-		#candle_mapper = lambda c: c[csf.low]
-		#candle_mapper = lambda c: c[csf.high]
-		#candle_mapper = csf.mean
-		candle_mapper = csf.typical #maps the candle to a value
-		candle_window = candles[start_index:end_index]
-		values = list(reversed([candle_mapper(candle) for candle in candle_window]))  #start from the latest
-		curve = list(reversed(self._fit_function(values)))   #reverse back result to put it into the correct order
-		return curve
-	
-	#rename to get_extremes when ready? 
-	def _get_stationary_points(self,curve,candles,start_index,end_index):  
-		
-		stationary_points = []
-		indexs = range(start_index+1,end_index-1)   #clip ends off as we don't know if there is a local minimum at each end
-		for index,p1,p2,p3 in zip(indexs,curve[:-2],curve[1:-1],curve[2:]):
-			if self._fractal_down([p1,p2,p3],1):
-				#found max
-				local_max = candles[index][csf.high] #csf.highest(candles[index-1:index+2])
-				stationary_points.append(Extremity(ExtremityType.MAXIMUM,local_max,index))
-			if self._fractal_up([p1,p2,p3],1):
-				#found min
-				local_min = candles[index][csf.low] #csf.lowest(candles[index-1:index+2])
-				stationary_points.append(Extremity(ExtremityType.MINIMUM,local_min,index))
-		
-		#current_point = Extremity(ExtremityType.VOID,csf.median(candles[candle_index]),candle_index)
-		# +  [current_point]
-		return stationary_points[:-1]
-	
-	def _find_shape_points(self,candles,candle_index):
-		start_index, end_index = self._get_start_end_index(candles,candle_index)
-		curve = self._get_curve(candles,start_index,end_index)
-		return self._get_stationary_points(curve,candles,start_index,end_index)
-		
-	def draw_snapshot(self,candles,snapshot_index):
-		base_view = super().draw_snapshot(candles,snapshot_index)
-		
-		start_index, end_index = self._get_start_end_index(candles,snapshot_index)
-		curve = self._get_curve(candles,start_index,end_index)
-		path = [] 
-		for i,y in enumerate(curve):
-			x = i + start_index
-			path.append(chv.Point(x,y))
-		
-		base_view.draw('price_actions keyinfo paths',path)
-		
-		return base_view
-
 
 #uses a method that uses error values from most recent extreme points instead of clusters. Less effective but faster
 #also levels are fixed length away from the current candle

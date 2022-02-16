@@ -62,7 +62,9 @@ database_response = cur.fetchall()
 #OurChartPattern = ParallelChannelBreakout
 
 
-OurChartPattern = TopAndBottom
+#OurChartPattern = DoubleTopAndBottom
+OurChartPattern = TripleTopAndBottom
+
 
 
 chart_pattern = OurChartPattern()
@@ -75,9 +77,10 @@ pair = 'GBP/USD'
 candle_stream = chart_pattern.to_candles(database_response,pair)
 
 
+chart_pattern.setup(candle_stream)
+
 t0 = time.time()
-chart_result = chart_pattern.detect(candle_stream) #this calls _get_levels
-#levels = chart_pattern._get_levels(len(candle_stream)-5)
+chart_result = chart_pattern.detect(candle_stream) 
 t1 = time.time()
 
 #OurCandlePattern = PinBar
@@ -99,24 +102,15 @@ print(f"Drawing time for {candle_pattern.__class__.__name__} was {t1-t0}")
 
 #fig = chart.Figure(data=[])
 
-	
-snapshot_index = len(chart_result) - 1
 
-chart_view = chart_pattern.draw_snapshot(candle_stream,snapshot_index)
 
-if chart_result and not any(r is None for r in chart_result):
-	chart_view.draw_background_results(chart_result)
-
-#time this since it is very reflexive
-pcp = PlotlyChartPainter()
-pcp.paint(chart_view)
-pcp.show()
-
-chart_pattern._determine(556,candle_stream)
 
 def draw(snapshot_index):
+	
 	chart_view = chart_pattern.draw_snapshot(candle_stream,snapshot_index)
-	#chart_view.draw_background_results(chart_result)
+	if chart_result and not any(r is None for r in chart_result):
+		chart_view.draw_background_results(chart_result)
+
 
 	#time this since it is very reflexive
 	pcp = PlotlyChartPainter()
