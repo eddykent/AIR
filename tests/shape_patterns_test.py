@@ -21,7 +21,7 @@ from utils import Configuration, ListFileReader
 from charting.chart_pattern import * #grab all patterns 
 from charting.trending_pattern import * #grab all advanced patterns to
 from charting.candle_stick_pattern import *
-from charting.shape
+from charting.shape_pattern import *
 from charting.chart_viewer import PlotlyChartPainter 
 
 
@@ -62,7 +62,7 @@ database_response = cur.fetchall()
 #OurChartPattern = ParallelChannelBreakout
 
 
-#OurChartPattern = TopAndBottom
+OurChartPattern = TopAndBottom
 
 
 chart_pattern = OurChartPattern()
@@ -103,7 +103,7 @@ print(f"Drawing time for {candle_pattern.__class__.__name__} was {t1-t0}")
 snapshot_index = len(chart_result) - 1
 
 chart_view = chart_pattern.draw_snapshot(candle_stream,snapshot_index)
-chart_view.draw_background_results(chart_result)
+#chart_view.draw_background_results(chart_result)
 
 #time this since it is very reflexive
 pcp = PlotlyChartPainter()
@@ -112,7 +112,7 @@ pcp.show()
 
 def draw(snapshot_index):
 	chart_view = chart_pattern.draw_snapshot(candle_stream,snapshot_index)
-	chart_view.draw_background_results(chart_result)
+	#chart_view.draw_background_results(chart_result)
 
 	#time this since it is very reflexive
 	pcp = PlotlyChartPainter()
