@@ -76,7 +76,7 @@ class DrawingData:
 		drawing_object_types = self.get_drawing_object_types()
 		return any([getattr(self,drawing_object_type) for drawing_object_type in drawing_object_types])
 		
-	def draw(self,location,value):
+	def draw(self,location,value): #add reflexive mappings here? 
 		if not location.endswith('s'):
 			location = location + 's'
 		if type(value) in (list,set): #any other iterator types we might use
@@ -311,7 +311,7 @@ class ChartView:
 	def draw_candle_pattern(self,candle_stick_pattern,candles,index):
 		pass #handle highlighting a candle stick pattern if it is bullish/bearish
 	
-	def draw_chart_pattern(self,chart_pattern,candles,index):
+	def draw_chart_pattern(self,chart_pattern,candles,index):  #use draw_snapshot methods
 		pass #?? 
 	
 	#calculate the bounds from the candles. If they don't exist may have to calculate from elsewhere? 
@@ -367,22 +367,22 @@ class ChartPainter:
 			'bearish':{'stroke':'rgb(255,0,0)'},
 			'keyinfo':{'stroke':'rgb(0,255,255)'}
 		},
-		#'shape':{
-		#	'neutral':{'stroke':'rgba(200,200,200,0.5)','fill':'rgba(0,0,200,0.2)'},
-		#	'bullish':{'stroke':'rgba(0,255,0,0.5)','fill':'rgba(0,255,0,0.2)'},
-		#	'bearish':{'stroke':'rgba(255,0,0,0.5)','fill':'rgba(255,0,0,0.2)'},
-		#	'keyinfo':{'stroke':'rgba(255,255,0,0.1)','fill':'rgba(255,255,0,0.1)'}
-		#},
+		'patterns':{
+			'neutral':{'stroke':'rgba(150,150,150,1.0)','fill':'rgba(0,0,200,0.2)'},
+			'bullish':{'stroke':'rgba(0,255,0,0.5)','fill':'rgba(0,255,0,0.2)'},
+			'bearish':{'stroke':'rgba(255,0,0,0.5)','fill':'rgba(255,0,0,0.2)'},
+			'keyinfo':{'stroke':'rgba(255,255,0,0.1)','fill':'rgba(255,255,0,0.1)'}
+		},
 		#'level': #support and resistance lines
 		#'level_hit_point' #breakouts at support/resistance and also touch points on trend lines 
 		#'follow_line' #eg to draw a line over the candles to show the price action for a rising triangle
 		#'arrow':? #not sure yet but might be useful for pointing at someting :) 
 		
 		'debugs':{
-			'bullish':{'stroke':'rgba(0,255,100,1)','fill':'rgba(0,255,100,0.3'},
-			'bearish':{'stroke':'rgba(255,0,100,1)','fill':'rgba(255,0,100,0.3'},
-			'neutral':{'stroke':'rgba(0,100,255,1)','fill':'rgba(0,100,255,0.3'},
-			'keyinfo':{'stroke':'rgba(255,255,0,1)','fill':'rgba(255,255,0,0.3'}
+			'bullish':{'stroke':'rgba(0,255,255,1)','fill':'rgba(0,255,255,0.4'},
+			'bearish':{'stroke':'rgba(255,0,255,1)','fill':'rgba(255,0,255,0.4'},
+			'neutral':{'stroke':'rgba(0,0,255,1)','fill':'rgba(0,0,255,0.4'},
+			'keyinfo':{'stroke':'rgba(255,255,255,1)','fill':'rgba(255,255,255,0.4'}
 		}
 		#'sketch': #for anything not defined yet 
 	}
@@ -561,7 +561,10 @@ class PlotlyChartPainter(ChartPainter):
 	def _paint_debugs(self,chart_layer):
 		self.__paint_plotly_lines(chart_layer,'debugs',3)
 		self.__paint_plotly_boxes(chart_layer,'debugs',1)
-		self.__paint_plotly_points(chart_layer,'debugs',8)
+		self.__paint_plotly_points(chart_layer,'debugs',7)
+		
+	def _paint_patterns(self,chart_layer):
+		self.__paint_plotly_points(chart_layer,'patterns',15)
 		
 	
 	#override
