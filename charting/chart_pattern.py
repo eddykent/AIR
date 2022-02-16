@@ -3,6 +3,7 @@
 
 #chart patterns are not of any fixed size, but they make use of support and resistance areas and of extreme points! 
 import numpy as np
+from numpy.polynomial.polynomial import Polynomial as Poly
 import datetime
 
 from enum import Enum
@@ -130,6 +131,7 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 	_low_points = []
 	
 	fitness_parameters = {}
+	_candle_stream = []
 	
 	def __init__(self,fractal_size=2,extremity_window=20):
 		super(ChartPattern,self).__init__()
@@ -182,10 +184,10 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 		for index in range(self._fractal_size,len(candle_stream)-self._fractal_size):
 			candle_block = candle_stream[index-self._fractal_size:index+self._fractal_size+1]
 			
-			if self.__fractal_up([candle[csf.low] for candle in candle_block],self._fractal_size):
+			if self._fractal_up([candle[csf.low] for candle in candle_block],self._fractal_size):
 				_extreme_points.append(Extremity(ExtremityType.MINIMUM,csf.lowest(candle_block),index)) #index is at the middle of the fractal?
 				
-			if self.__fractal_down([candle[csf.high] for candle in candle_block],self._fractal_size):
+			if self._fractal_down([candle[csf.high] for candle in candle_block],self._fractal_size):
 				_extreme_points.append(Extremity(ExtremityType.MAXIMUM,csf.highest(candle_block),index))
 				
 		#then using a sliding window approach 
@@ -286,18 +288,74 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 				return True
 		return False
 
+		
+
 #use a least squares algorithm to find all extreme points 
 class ChartPatternLeastSquares(ChartPattern):
 	
-	degree = 15#the degree of function in which to use for the least squares curve fit
+	degree = 18 #the degree of function in which to use for the least squares curve fit
 	
-	def _get_extremes(self,candle_index,candles):
+	#override this in FFT version
+	def _fit_function(self,values):
+		xs = range(len(values))
+		ys = values
 		
-
-
-class ChartPatternFFT(ChartPattern):
+		poly = Poly.fit(xs,ys,self.degree)
+		curve = [poly(x) for x in xs] 
+		return curve
 	
-	def _get_extremes(self,candle_index,candles):
+	def _get_start_end_index(self,candles,candle_index):
+		start_index = max(0,candle_index-self.memory_window)
+		end_index = min(start_index+self.memory_window+1,len(candles))
+		return start_index, end_index
+	
+	def _get_curve(self,candles,start_index,end_index):	
+		#candle_mapper = lambda c: c[csf.low]
+		#candle_mapper = lambda c: c[csf.high]
+		#candle_mapper = csf.mean
+		candle_mapper = csf.typical #maps the candle to a value
+		candle_window = candles[start_index:end_index]
+		values = list(reversed([candle_mapper(candle) for candle in candle_window]))  #start from the latest
+		curve = list(reversed(self._fit_function(values)))   #reverse back result to put it into the correct order
+		return curve
+	
+	#rename to get_extremes when ready? 
+	def _get_stationary_points(self,curve,candles,start_index,end_index):  
+		
+		stationary_points = []
+		indexs = range(start_index+1,end_index-1)   #clip ends off as we don't know if there is a local minimum at each end
+		for index,p1,p2,p3 in zip(indexs,curve[:-2],curve[1:-1],curve[2:]):
+			if self._fractal_down([p1,p2,p3],1):
+				#found max
+				local_max = candles[index][csf.high] #csf.highest(candles[index-1:index+2])
+				stationary_points.append(Extremity(ExtremityType.MAXIMUM,local_max,index))
+			if self._fractal_up([p1,p2,p3],1):
+				#found min
+				local_min = candles[index][csf.low] #csf.lowest(candles[index-1:index+2])
+				stationary_points.append(Extremity(ExtremityType.MINIMUM,local_min,index))
+		
+		#current_point = Extremity(ExtremityType.VOID,csf.median(candles[candle_index]),candle_index)
+		# +  [current_point]
+		return stationary_points[:-1]
+	
+	def _find_shape_points(self,candles,candle_index):
+		start_index, end_index = self._get_start_end_index(candles,candle_index)
+		curve = self._get_curve(candles,start_index,end_index)
+		return self._get_stationary_points(curve,candles,start_index,end_index)
+		
+	def draw_snapshot(self,candles,snapshot_index):
+		base_view = super().draw_snapshot(candles,snapshot_index)
+		
+		start_index, end_index = self._get_start_end_index(candles,snapshot_index)
+		curve = self._get_curve(candles,start_index,end_index)
+		path = [] 
+		for i,y in enumerate(curve):
+			x = i + start_index
+			path.append(chv.Point(x,y))
+		
+		base_view.draw('price_actions keyinfo paths',path)
+		
+		return base_view
 
 
 #uses a method that uses error values from most recent extreme points instead of clusters. Less effective but faster

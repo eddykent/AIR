@@ -36,7 +36,8 @@ class DrawingMode(Enum):
 	SHAPES = 4
 	TEXT = 5
 	CANDLES = 6
-	ALL = 7
+	PATHS = 7
+	ALL = 8
 
 
 class DrawingData:
@@ -49,6 +50,7 @@ class DrawingData:
 	quadrilaterals = TypedList(None)
 	texts = TypedList(None)
 	circles = TypedList(None)
+	paths = TypedList(None)
 	
 	def __init__(self,modes=[DrawingMode.ALL]):
 		for mode in modes:
@@ -64,6 +66,8 @@ class DrawingData:
 				self.boxes = TypedList(Box)
 			if mode == DrawingMode.CANDLES or mode == DrawingMode.ALL:
 				self.candles = TypedList(Candle)
+			if mode == DrawingMode.PATHS or mode == DrawingMode.ALL:
+				self.paths = TypedList(Point)
 			if mode == DrawingMode.SHAPES or mode == DrawingMode.ALL:
 				self.triangles = TypedList(Triangle)
 				self.quadrilaterals = TypedList(Quadrilateral)
@@ -200,7 +204,7 @@ class ChartView:
 		
 		#lines to show on the top of the candles - indicating where the price is moving
 		#example is trading212 close price 
-		self.price_actions = ChartLayer(DrawingMode.LINES)# route that the price action takes
+		self.price_actions = ChartLayer(DrawingMode.PATHS)# route that the price action takes
 		
 		#circles or shapes that highlight a region for us 
 		self.highlights = ChartLayer([DrawingMode.CIRCLES,DrawingMode.SHAPES,DrawingMode.BOXES])
@@ -373,6 +377,12 @@ class ChartPainter:
 			'bearish':{'stroke':'rgba(255,0,0,0.5)','fill':'rgba(255,0,0,0.2)'},
 			'keyinfo':{'stroke':'rgba(255,255,0,0.1)','fill':'rgba(255,255,0,0.1)'}
 		},
+		'price_actions':{
+			'neutral':{'stroke':'rgb(0,0,255)'},
+			'bullish':{'stroke':'rgb(0,255,0)'},
+			'bearish':{'stroke':'rgb(255,0,0)'},
+			'keyinfo':{'stroke':'rgb(0,255,255)'}
+		},
 		#'level': #support and resistance lines
 		#'level_hit_point' #breakouts at support/resistance and also touch points on trend lines 
 		#'follow_line' #eg to draw a line over the candles to show the price action for a rising triangle
@@ -470,7 +480,28 @@ class PlotlyChartPainter(ChartPainter):
 				
 				self.fig_data.append(self.fig.data[-1]) #add last thing that has been figged to the fig data 
 				
-	
+	def __paint_plotly_paths(self,chart_layer,layer_name,thickness=1):
+		styles = chart_layer.get_styles()
+		for style in styles:
+			drawing_data = chart_layer.get_drawing_data(style)
+			colour = self.get_colour(layer_name,style)
+			if drawing_data.paths:
+				xs = []
+				ys = []
+				for point in drawing_data.paths: 
+					xs += [point.x]
+					ys += [point.y]
+				path = chart.Scatter(
+					x=xs,
+					y=ys,
+					mode='lines'
+				)
+				#colour = self.get_color(layer_name,style)
+				path.line.color = colour['stroke']
+				path.line.width = thickness
+				self.fig.add_trace(path)
+				
+				self.fig_data.append(self.fig.data[-1]) #add last thing that has been figged to the fig data 
 	
 	def __paint_plotly_lines(self,chart_layer,layer_name,thickness=1):
 		styles = chart_layer.get_styles()
@@ -566,6 +597,8 @@ class PlotlyChartPainter(ChartPainter):
 	def _paint_patterns(self,chart_layer):
 		self.__paint_plotly_points(chart_layer,'patterns',15)
 		
+	def _paint_price_actions(self,chart_layer):
+		self.__paint_plotly_paths(chart_layer,'price_actions',2)
 	
 	#override
 	def show(self):

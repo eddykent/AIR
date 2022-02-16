@@ -103,12 +103,16 @@ print(f"Drawing time for {candle_pattern.__class__.__name__} was {t1-t0}")
 snapshot_index = len(chart_result) - 1
 
 chart_view = chart_pattern.draw_snapshot(candle_stream,snapshot_index)
-#chart_view.draw_background_results(chart_result)
+
+if chart_result and not any(r is None for r in chart_result):
+	chart_view.draw_background_results(chart_result)
 
 #time this since it is very reflexive
 pcp = PlotlyChartPainter()
 pcp.paint(chart_view)
 pcp.show()
+
+chart_pattern._determine(556,candle_stream)
 
 def draw(snapshot_index):
 	chart_view = chart_pattern.draw_snapshot(candle_stream,snapshot_index)
