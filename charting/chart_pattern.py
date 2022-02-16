@@ -151,7 +151,7 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 		raise NotImplementedError('This method must be overridden')
 		#return 0 
 	
-	def _get_extremes(self,candle_index):
+	def _get_extremes(self,candle_index,candles=[]):
 		#return [ep for ep in self._extreme_points if _ep.index < candle_index and _ep.index >= candle_index - self.memory_window]
 		end_index = candle_index
 		start_index = max(candle_index  - self.memory_window,0)
@@ -171,20 +171,21 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 		return highs, lows
 
 	#private functions 
-	def __calculate_rolling_mean_range(self,candle_stream):
+	def _calculate_rolling_mean_range(self,candle_stream):
 		ranges = [candle[csf.high] - candle[csf.low] for candle in candle_stream]
 		self._rolling_range_mean = self._window_function(np.mean,ranges,self.memory_window)
 	
-	def __calculate_local_extremes(self,candle_stream):	#local in the sense of a local minimum/maximum not the memory window 
+	#pre calculation procedure for getting the local optima - uses fractals and a rolling window
+	def _calculate_local_extremes(self,candle_stream):	#local in the sense of a local minimum/maximum not the memory window 
 		#find extreme points using the fractal approach
 		_extreme_points = []
 		for index in range(self._fractal_size,len(candle_stream)-self._fractal_size):
 			candle_block = candle_stream[index-self._fractal_size:index+self._fractal_size+1]
 			
-			if self.__fractal_up(candle_block,self._fractal_size):
+			if self.__fractal_up([candle[csf.low] for candle in candle_block],self._fractal_size):
 				_extreme_points.append(Extremity(ExtremityType.MINIMUM,csf.lowest(candle_block),index)) #index is at the middle of the fractal?
 				
-			if self.__fractal_down(candle_block,self._fractal_size):
+			if self.__fractal_down([candle[csf.high] for candle in candle_block],self._fractal_size):
 				_extreme_points.append(Extremity(ExtremityType.MAXIMUM,csf.highest(candle_block),index))
 				
 		#then using a sliding window approach 
@@ -214,16 +215,16 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 		#sort them in their index order so they are easy to iterate through
 		self._extreme_points = sorted(set(_extreme_points),key=lambda p: p.index)
 	
-	def __calculate_all_range_points(self,candle_stream):
+	def _calculate_all_range_points(self,candle_stream):
 		self._high_points = [Extremity(ExtremityType.MAXIMUM,candle_stream[i][csf.high],i) for i in range(len(candle_stream))]
 		self._low_points = [Extremity(ExtremityType.MINIMUM,candle_stream[i][csf.low],i) for i in range(len(candle_stream))]
 		
 	
 	#for this candle stream, return a same sized list of locations of bearish and bullish patterns 
 	def detect(self,candle_stream):
-		self.__calculate_local_extremes(candle_stream)
-		self.__calculate_rolling_mean_range(candle_stream)
-		self.__calculate_all_range_points(candle_stream)
+		self._calculate_local_extremes(candle_stream)
+		self._calculate_rolling_mean_range(candle_stream)
+		self._calculate_all_range_points(candle_stream)
 		
 		results = []
 		for candle_stream_index in range(len(candle_stream)):
@@ -268,24 +269,35 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 	
 	
 	@staticmethod
-	def __fractal_up(candles,fractal_size=2):
+	def _fractal_up(values,fractal_size=2):
 		fractal_length = 2*fractal_size + 1
-		if len(candles) >= fractal_length:
-			lows = [candle[csf.low] for candle in candles[-fractal_length:]]
-			if all(lows[i-1] > lows[i] for i in range(1,fractal_size+1)) and \
-				all(lows[i] < lows[i+1] for i in range(fractal_size,2*fractal_size)):
+		if len(values) >= fractal_length:
+			if all(values[i-1] > values[i] for i in range(1,fractal_size+1)) and \
+				all(values[i] < values[i+1] for i in range(fractal_size,2*fractal_size)):
 				return True
 		return False
 		
 	@staticmethod
-	def __fractal_down(candles,fractal_size=2):
+	def _fractal_down(values,fractal_size=2):
 		fractal_length = 2*fractal_size + 1
-		if len(candles) >= fractal_length:
-			highs = [candle[csf.high] for candle in candles[-fractal_length:]]
-			if all(highs[i-1] < highs[i] for i in range(1,fractal_size+1)) and \
-				all(highs[i] > highs[i+1] for i in range(fractal_size,2*fractal_size)):
+		if len(values) >= fractal_length:
+			if all(values[i-1] < values[i] for i in range(1,fractal_size+1)) and \
+				all(values[i] > values[i+1] for i in range(fractal_size,2*fractal_size)):
 				return True
 		return False
+
+#use a least squares algorithm to find all extreme points 
+class ChartPatternLeastSquares(ChartPattern):
+	
+	degree = 15#the degree of function in which to use for the least squares curve fit
+	
+	def _get_extremes(self,candle_index,candles):
+		
+
+
+class ChartPatternFFT(ChartPattern):
+	
+	def _get_extremes(self,candle_index,candles):
 
 
 #uses a method that uses error values from most recent extreme points instead of clusters. Less effective but faster
@@ -326,6 +338,7 @@ class SupportAndResistance(ChartPattern):
 		return total / len(close_points)
 	
 	
+	#perhaps we should instead iterate through all levels and then return the ones that have the most points and least error
 	def _generate_levels(self,extreme_points,start_level,gap):
 		max_distance = 0
 		support_points = []

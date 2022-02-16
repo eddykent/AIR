@@ -10,7 +10,7 @@ import charting.chart_viewer as chv
 #class CandleStickException(Exception):
 	
 #candle stick patterns return a list of -1, to 1s -1 is a bear, 1 is a bull and 0 is no pattern detected
-class CandleStickPattern(object):
+class CandleStickPattern():
 	
 	_required_candles = 1 #number of candles needed for this pattern
 	pattern_name  = "Candle stick pattern"

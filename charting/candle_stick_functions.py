@@ -36,6 +36,11 @@ def range(candle):
 def median(candle):	
 	return (candle[high] - candle[low])*0.5 + candle[low]
 
+def typical(candle):
+	return (candle[high] + candle[low] + candle[close]) / 3.0
+
+def mean(candle):
+	return sum(candle[0:4]) / 4.0
 
 def doji(candle,doji_body=0.1):   #is the body of the candle small enough to make this a doji?
 	candle_body = body(candle)
