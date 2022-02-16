@@ -8,3 +8,7 @@ dbname=TradeData
 [trading212]
 username=[your T212 email]
 password=[your T212 password]
+
+
+[alpha_vantage_keys]
+keys=['your api key','another if you have one etc',...]
