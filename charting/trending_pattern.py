@@ -541,7 +541,7 @@ class SupportedLinePattern(TriangularBasedPattern):
 		close_point_terms = [1.0 - (cps/max_close_points) for cps in close_points]
 		
 		#n_point_terms = [1.0 - (i/N) for i in range(N)]    #more points => better  NUMBER OF CLOSE POINTS NOT ALL POINTS! 
-		error_values = [self._line_error(points[0:i+1],gap,extreme_type) for i in range(0,N)] 
+		error_values = [self._line_error(points[0:i+1],gap,extreme_type) for i in range(0,N)]    ##this is the only difference between this class and TrendingPattern - REFACTOR
 		error_values_without_wrongs = [ev if ev != MAX_ERROR_VALUE else -MAX_ERROR_VALUE for ev in error_values] #turn MAX_ERROR_VALUE into -1s so call to max() works
 		
 		max_error = max(error_values_without_wrongs)

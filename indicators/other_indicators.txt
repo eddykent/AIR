@@ -7,4 +7,5 @@ stochastic oscillator
 mass index indictator
 average directional index
 awesome oscillator 
+triple MAs 
 
