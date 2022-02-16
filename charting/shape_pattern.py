@@ -130,7 +130,8 @@ class DoubleTopAndBottom(ShapePattern):
 	
 	#BULLISH SHAPES ONLY! we can find the bearish shapes by _shape_inverse
 	walk_shapes = [
-		[2,0,1,0,1]
+		[2,0,1,0,1], 
+		[1,0,1,0,1]
 	] 
 	
 	def _determine(self,candle_stream_index,candle_stream):
@@ -159,7 +160,7 @@ class DoubleTopAndBottom(ShapePattern):
 		
 		return 0
 	
-	def walk_fitness(self,walk_groups):
+	def walk_fitness(self,walk_groups,bullbear=0):
 		return 1
 	
 	
