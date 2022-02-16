@@ -203,6 +203,9 @@ class TriangularBasedPattern(TrendingPattern):
 		return tlf.convergent(upper_line,lower_line) 
 	
 	
+	def _apex_check(self,upper_line,lower_line,candle_stick_index):
+		return True
+	
 	#breakout calculations
 	def _gradient_for_breakout(self,trend1,trend2):
 		return 0 # 0 means it will always pass (not positive or negative)
@@ -335,6 +338,8 @@ class TriangularBasedPattern(TrendingPattern):
 		if not self._convergent(upper_line,lower_line):
 			return default
 		
+		if not self._apex_check(upper_line,lower_line,candle_stream_index):
+			return default
 		
 		breakout = self._breakout_fitness_signed(upper_line,lower_line,candle_stream,candle_stream_index)
 		sign = breakout / abs(breakout) if breakout != 0 else 0
@@ -611,7 +616,10 @@ class WedgeBreakout(SupportedLinePattern): ##run more and find bugs
 	
 	def _convergent(self,trend1,trend2):
 		return tlf.convergent(trend1,trend2)
-
+	
+	def _apex_check(self,trend1,trend2,candle_stick_index):
+		x,y = tlf.intersection_point(trend1,trend2)
+		return x > candle_stick_index - self.pattern_start_index
 
 #a channel is optimised differently - it uses lines which are approximately paralell to eachother. 
 class ApproximateChannelBreakout(SupportedLinePattern): 
@@ -623,6 +631,9 @@ class ApproximateChannelBreakout(SupportedLinePattern):
 	def _convergence_fitness(self,trend1,trend2,candle_stream_index):
 		return 1.0 - tlf.convergence_speed(trend1,trend2) # we want the gradients to be level with eachother as much as possible to define a channel
 	
+	def _apex_check(self,trend1,trend2,candle_stick_index):
+		return True # no checks needed on the apex for channels
+		
 	#they don't need to converge
 	def _convergent(self,trend1,trend2):
 		m1 = tlf.gradient(trend1)
@@ -651,6 +662,9 @@ class ParallelChannelBreakout(SupportedLinePattern):
 	def _convergent(self,trend1,trend2):
 		return True
 	
+	def _apex_check(self,trend1,trend2,candle_stick_index):
+		return True # no checks needed on the apex for channels
+		
 	#their gradient needs to be almost the same
 	def _convergence_fitness(self,trend1,trend2,candle_stream_index):
 		return 0 #don't take any notice of convergence

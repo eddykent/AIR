@@ -72,7 +72,7 @@ def intersecting_bounds(trendline1, trendline2):
 	return overlap_x(trendline1,trendline2) and overlap_y(trendline1,trendline2) 
 	
 
-def apex_point(trendline1,trendline2): #return a point in which the projected lines of these two intersect
+def intersection_point(trendline1,trendline2): #return a point in which the projected lines of these two intersect
 	line1 = (trendline1.x1,trendline1.y1),(trendline1.x2,trendline1.y2)
 	line2 = (trendline2.x1,trendline2.y1),(trendline2.x2,trendline2.y2)
 	xdiff = (line1[0][0] - line1[1][0], line2[0][0] - line2[1][0])
@@ -99,7 +99,7 @@ def angle(trendline1,trendline2):
 def intersection(trendline1,trendline2):
 	if not intersecting_bounds(trendline1,trendline2):
 		return None ,None
-	x,y = apex_point(trendline1,trendline2)
+	x,y = intersection_point(trendline1,trendline2)
 	if x is None or y is None:
 		return None,None
 	if lower_x(trendline1) <= x and x <= higher_x(trendline1):
