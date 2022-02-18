@@ -125,12 +125,13 @@ class Cypher(HarmonicPattern):
 					continue
 				index = i + start_point.index
 				
-				
+				#finding A
 				if A is None or (candle[csf.high] > candle_stream[A][csf.high] and B is None): 
 					A = index  
 					B = None
 					C = None
 				
+				#finding B
 				elif A is not None and self.retracement(candle_stream[X][csf.low],candle_stream[A][csf.high],candle[csf.low]) > 0.382 and C is None:
 					if B is None or candle[csf.low] < candle_stream[B][csf.low]:
 						B = index
@@ -139,7 +140,8 @@ class Cypher(HarmonicPattern):
 						B = None
 						C = None
 						break
-						
+				
+				#finding C
 				elif B is not None and self.extension(candle_stream[X][csf.low],candle_stream[A][csf.high],candle[csf.high]) > 1.272:  #usually 1.128 but 1.272 works better
 					if C is None or candle[csf.high] > candle_stream[C][csf.high]:
 						C = index
@@ -149,6 +151,7 @@ class Cypher(HarmonicPattern):
 						C = None
 						break
 				
+				#finding D
 				elif C is not None and self.retracement(candle_stream[X][csf.low],candle_stream[C][csf.high],candle[csf.low]) > 0.786:
 					D = index
 					
@@ -166,12 +169,14 @@ class Cypher(HarmonicPattern):
 					continue 
 					
 				index = i + start_point.index
-				#A checks
+				
+				#finding A
 				if A is None or (candle[csf.low] < candle_stream[A][csf.low] and B is None): 
 					A = index  
 					B = None
 					C = None
 				
+				#finding B
 				elif A is not None and self.retracement(candle_stream[X][csf.high],candle_stream[A][csf.low],candle[csf.high]) > 0.382 and C is None:
 					if B is None or candle[csf.high] > candle_stream[B][csf.high]:
 						B = index
@@ -180,8 +185,9 @@ class Cypher(HarmonicPattern):
 						B = None
 						C = None
 						break
-						
-				elif B is not None and self.extension(candle_stream[X][csf.high],candle_stream[A][csf.low],candle[csf.low]) > 1.272:
+				
+				#finding C
+				elif B is not None and self.extension(candle_stream[X][csf.high],candle_stream[A][csf.low],candle[csf.low]) > 1.272: #usually 1.128 but 1.272 works better#usually 1.128 but 1.272 works better
 					if C is None or candle[csf.low] > candle_stream[C][csf.low]:
 						C = index
 					if self.extension(candle_stream[X][csf.high],candle_stream[A][csf.low],candle[csf.close]) > 1.414: #check if close or low (allowed to touch?)
@@ -190,6 +196,7 @@ class Cypher(HarmonicPattern):
 						C = None
 						break
 				
+				#finding D
 				elif C is not None and self.retracement(candle_stream[X][csf.high],candle_stream[C][csf.low],candle[csf.high]) > 0.786:
 					D = index
 					
