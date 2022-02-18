@@ -349,7 +349,7 @@ class ChartPainter:
 		#for shapes, we might want to fill them with a nice colour!
 		'backgrounds':{
 			'neutral':{'fill':'rgba(200,200,200,0.1)'},
-			'bullish':{'fill':'rgba(0,255,0,0.1)'},
+			'bullish':{'fill':'rgba(0,255,0,0.2)'},
 			'bearish':{'fill':'rgba(255,0,0,0.2)'},
 			'keyinfo':{'fill':'rgba(0,255,255,0.3)'}
 		},
@@ -373,9 +373,9 @@ class ChartPainter:
 		},
 		'patterns':{
 			'neutral':{'stroke':'rgba(150,150,150,1.0)','fill':'rgba(0,0,200,0.2)'},
-			'bullish':{'stroke':'rgba(0,255,0,0.5)','fill':'rgba(0,255,0,0.2)'},
-			'bearish':{'stroke':'rgba(255,0,0,0.5)','fill':'rgba(255,0,0,0.2)'},
-			'keyinfo':{'stroke':'rgba(255,255,0,0.1)','fill':'rgba(255,255,0,0.1)'}
+			'bullish':{'stroke':'rgba(0,255,0,0.9)','fill':'rgba(0,255,0,0.2)'},
+			'bearish':{'stroke':'rgba(255,0,0,0.9)','fill':'rgba(255,0,0,0.2)'},
+			'keyinfo':{'stroke':'rgba(255,255,0,0.5)','fill':'rgba(255,255,0,0.1)'}
 		},
 		'price_actions':{
 			'neutral':{'stroke':'rgb(0,0,255)'},
