@@ -596,6 +596,7 @@ class PlotlyChartPainter(ChartPainter):
 		
 	def _paint_patterns(self,chart_layer):
 		self.__paint_plotly_points(chart_layer,'patterns',15)
+		self.__paint_plotly_paths(chart_layer,'patterns',4)
 		
 	def _paint_price_actions(self,chart_layer):
 		self.__paint_plotly_paths(chart_layer,'price_actions',2)
