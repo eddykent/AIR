@@ -16,6 +16,8 @@ Partial RNN - use correlation matrix for grouping pairs together before running 
 RNN to determine next RSI values? (same thing as full rnn? above?) 
 
 ASYNC all webcalls in the fundmental analysis! -- probably pretty important for faster trade decisions :)
+
+Offet minute values in database calls so the candles can be made from any time 
  
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs
