@@ -16,6 +16,7 @@ from utils import ListFileReader, CurrencyPair
 
 import scrape.client_sentiment_scraper as clisps
 import scrape.feed_collector as feedco
+from scrape.scraper import Bias
 
 KeywordMap = namedtuple('KeywordMap','keyword values')
 RelevanceInfo = namedtuple('RelevanceInfo', 'degree direction')
@@ -74,13 +75,19 @@ class ClientSentiment: #a client sentiment is just how many are buying/selling. 
 	
 	def __process_findings(self,results):
 		#TODO: write some tactic to process the tuples into findings so we can use it in a filter
+		self.findings = {pair:[] for pair in self.instruments}
+		for r in results:
+			if r.bias != Bias.MIXED:
+				instrument_result = self.findings.get(r.instrument,[])
+				instrument_result.append(r)
+				self.findings[r.instrument] = instrument_result
 		pdb.set_trace()
 
 
 
 	
 ##not sure how this will work yet - could just be something that prevents trading at choppy times when 
-##big news is about to come out 
+##big news is about to comeresults out 
 ##OR it could be something that suggests a trade based on the economic calendar prediction
 class EconomicCalendar:
 	pass

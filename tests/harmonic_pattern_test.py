@@ -69,7 +69,7 @@ chart_pattern = OurChartPattern()
 
 #chart_pattern.bounce_size = 2
 #chart_pattern.memory_window = 250
-pair = 'GBP/USD'
+pair = 'USD/JPY'
 candle_stream = chart_pattern.to_candles(database_response,pair)
 
 
