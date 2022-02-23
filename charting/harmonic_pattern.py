@@ -106,6 +106,137 @@ class HarmonicPattern(ChartPattern):
 		
 		return base_view
 
+
+class ABCD(HarmonicPattern):
+	pass
+	
+class Butterfly(HarmonicPattern):
+	pass
+	
+class Gartley(HarmonicPattern):
+	pass
+	
+class Bat(HarmonicPattern):
+		
+	def _get_abcd(self,start_point,candle_stream, candle_stream_index):
+		#assume start_point is a minimum
+		end_index = min(start_point.index+self.memory_window,candle_stream_index)
+		Found = False
+		X = start_point.index
+		A = None #high candle
+		B = None #low candle#store the candles that we find when checking this window
+		C = None #new high candle
+		D = None #new low candle
+		
+		if start_point.type == ExtremityType.MINIMUM: #looking for bullish harmonics
+			
+			for i,candle in enumerate(candle_stream[start_point.index:end_index+1]):
+				if i == 0:
+					continue
+				index = i + start_point.index
+				
+				#finding A
+				if A is None or (candle[csf.high] > candle_stream[A][csf.high] and B is None): 
+					A = index  
+					B = None
+					C = None
+				
+				#finding B
+				elif A is not None and self.retracement(candle_stream[X][csf.low],candle_stream[A][csf.high],candle[csf.low]) > 0.382 and C is None:
+					if B is None or candle[csf.low] < candle_stream[B][csf.low]:
+						B = index
+					
+					if self.retracement(candle_stream[X][csf.low],candle_stream[A][csf.high],candle[csf.close]) > 0.5: #pattern is off if the market closes after this value
+						#A = None #pattern is invalidated
+						B = None
+						C = None
+						#break
+				
+				#finding C
+				elif B is not None and self.retracement(candle_stream[A][csf.high],candle_stream[B][csf.low],candle[csf.high]) > 0.382:  
+					if C is None or candle[csf.high] > candle_stream[C][csf.high]:
+						C = index
+					if self.retracement(candle_stream[A][csf.high],candle_stream[B][csf.low],candle[csf.close]) > 0.886: #check! if close or high (allowed to touch?) 
+						#A = None #pattern is invalidated
+						B = None
+						C = None
+						#break
+				
+				#finding D
+				elif C is not None and self.retracement(candle_stream[X][csf.low],candle_stream[A][csf.high],candle[csf.low]) > 0.886:
+															
+					if self.extension(candle_stream[A][csf.high],candle_stream[B][csf.low],candle[csf.low]) > 2.618:
+						#A = None #pattern is invalidated
+						B = None
+						C = None
+						D = None
+						#break#pattern is invalidated
+					
+					elif self.extension(candle_stream[A][csf.high],candle_stream[B][csf.low],candle[csf.low]) > 1.618:
+						D = index
+						return XABCD(HarmonicDirection.BULLISH,X,A,B,C,D) #return as soon as we identity D 		
+		
+		
+		if start_point.type == ExtremityType.MAXIMUM: #looking for bearish bat harmonics
+			
+			for i,candle in enumerate(candle_stream[start_point.index:end_index+1]):
+				if i == 0:
+					continue
+				index = i + start_point.index
+				
+				#finding A
+				if A is None or (candle[csf.low] < candle_stream[A][csf.low] and B is None): 
+					A = index  
+					B = None
+					C = None
+				
+				#finding B
+				elif A is not None and self.retracement(candle_stream[X][csf.high],candle_stream[A][csf.low],candle[csf.high]) > 0.382 and C is None:
+					if B is None or candle[csf.high] > candle_stream[B][csf.high]:
+						B = index
+					
+					if self.retracement(candle_stream[X][csf.high],candle_stream[A][csf.low],candle[csf.close]) > 0.5: #pattern is off if the market closes after this value
+						#A = None #pattern is invalidated
+						B = None
+						C = None
+						#break
+				
+				#finding C
+				elif B is not None and self.retracement(candle_stream[A][csf.low],candle_stream[B][csf.high],candle[csf.low]) > 0.382:  
+					if C is None or candle[csf.low] < candle_stream[C][csf.low]:
+						C = index
+					if self.retracement(candle_stream[A][csf.low],candle_stream[B][csf.high],candle[csf.close]) > 0.886: #check! if close or low (allowed to touch?) 
+						#A = None #pattern is invalidated
+						B = None
+						C = None
+						#break
+				
+				#finding D
+				elif C is not None and self.retracement(candle_stream[X][csf.high],candle_stream[A][csf.low],candle[csf.high]) > 0.886:
+															
+					if self.extension(candle_stream[A][csf.low],candle_stream[B][csf.high],candle[csf.high]) > 2.618:
+						#A = None #pattern is invalidated
+						B = None
+						C = None
+						D = None
+						#break#pattern is invalidated
+					
+					elif self.extension(candle_stream[A][csf.low],candle_stream[B][csf.high],candle[csf.high]) > 1.618:
+						D = index
+						return XABCD(HarmonicDirection.BEARISH,X,A,B,C,D) #return as soon as we identity D 		
+		
+					
+		return XABCD(HarmonicDirection.VOID,X,A,B,C,D)
+
+
+class Crab(HarmonicPattern):
+	pass
+
+
+class DeepCrab(HarmonicPattern):
+	pass
+	
+
 class Cypher(HarmonicPattern):
 	
 	#use state machine 
@@ -210,87 +341,6 @@ class Cypher(HarmonicPattern):
 					
 		return XABCD(HarmonicDirection.VOID,X,A,B,C,D)
 
-
-class Crab(HarmonicPattern):
-	pass
-
-class ABCD(HarmonicPattern):
-	pass
-	
-class Butterfly(HarmonicPattern):
-	pass
-	
-class Gartley(HarmonicPattern):
-	pass
-	
-
-class Bat(HarmonicPattern):
-		
-	def _get_abcd(self,start_point,candle_stream, candle_stream_index):
-		#assume start_point is a minimum
-		end_index = min(start_point.index+self.memory_window,candle_stream_index)
-		Found = False
-		X = start_point.index
-		A = None #high candle
-		B = None #low candle#store the candles that we find when checking this window
-		C = None #new high candle
-		D = None #new low candle
-		
-		if start_point.type == ExtremityType.MINIMUM: #looking for bullish harmonics
-			
-			for i,candle in enumerate(candle_stream[start_point.index:end_index+1]):
-				if i == 0:
-					continue
-				index = i + start_point.index
-				
-				#finding A
-				if A is None or (candle[csf.high] > candle_stream[A][csf.high] and B is None): 
-					A = index  
-					B = None
-					C = None
-				
-				#finding B
-				elif A is not None and self.retracement(candle_stream[X][csf.low],candle_stream[A][csf.high],candle[csf.low]) > 0.382 and C is None:
-					if B is None or candle[csf.low] < candle_stream[B][csf.low]:
-						B = index
-					
-					if self.retracement(candle_stream[X][csf.low],candle_stream[A][csf.high],candle[csf.close]) > 0.5: #pattern is off if the market closes after this value
-						A = None #pattern is invalidated
-						B = None
-						C = None
-						break
-				
-				#finding C
-				elif B is not None and self.retracement(candle_stream[A][csf.high],candle_stream[B][csf.low],candle[csf.high]) > 0.382:  
-					if C is None or candle[csf.high] > candle_stream[C][csf.high]:
-						C = index
-					if self.retracement(candle_stream[A][csf.low],candle_stream[B][csf.high],candle[csf.high]) > 0.886: #check! if close or high (allowed to touch?) 
-						A = None #pattern is invalidated
-						B = None
-						C = None
-						break
-				
-				#finding D
-				elif C is not None and self.retracement(candle_stream[X][csf.low],candle_stream[A][csf.high],candle[csf.low]) > 0.886:
-															
-					if self.extension(candle_stream[A][csf.high],candle_stream[B][csf.low],candle[csf.low]) > 2.618:
-						A = None #pattern is invalidated
-						B = None
-						C = None
-						D = None
-						break#pattern is invalidated
-					
-					if self.extension(candle_stream[A][csf.high],candle_stream[B][csf.low],candle[csf.low]) > 1.618:
-						D = index
-						return XABCD(HarmonicDirection.BULLISH,X,A,B,C,D) #return as soon as we identity D 		
-		
-		
-					
-		return XABCD(HarmonicDirection.VOID,X,A,B,C,D)
-
-class DeepCrab(HarmonicPattern):
-	pass
-	
 class Shark(HarmonicPattern):
 	pass
 
