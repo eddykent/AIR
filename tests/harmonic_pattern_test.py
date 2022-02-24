@@ -61,7 +61,7 @@ database_response = cur.fetchall()
 #OurChartPattern = SupportAndResistance
 #OurChartPattern = ParallelChannelBreakout
 
-OurChartPattern = Gartley
+OurChartPattern = Crab
 
 chart_pattern = OurChartPattern()
 
