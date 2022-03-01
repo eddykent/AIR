@@ -28,8 +28,21 @@ WITH ccs AS (
 )
 SELECT currency INTO TEMPORARY TABLE tmp_currencies FROM ccs;
 
+
 --build candles of our chosen chart size 
-WITH candle_indexs AS (
+WITH selected_candles AS (
+	SELECT from_currency, to_currency,
+	open_price,
+	high_price,
+	low_price,
+	close_price, 
+	the_date - INTERVAL '120 mins' AS the_date
+	FROM exchange_value_tick evt 
+	WHERE from_currency  = ANY(SELECT currency FROM tmp_currencies) AND to_currency = ANY(SELECT currency FROM tmp_currencies)
+	AND the_date < (DATE '24 Feb 2022' + INTERVAL '12 hours')
+	AND the_date >= (DATE '24 Feb 2022' - INTERVAL '100 days' + INTERVAL '12 hours') --600 = 400 + 200 (days_back + normalisation_window)
+), 
+candle_indexs AS (
 	SELECT from_currency, to_currency,
 	open_price,
 	high_price,
@@ -37,14 +50,9 @@ WITH candle_indexs AS (
 	close_price,
 	TO_TIMESTAMP (FLOOR(( EXTRACT ('EPOCH' FROM (the_date )) ) / (60*15) ) * (60*15)) AT TIME ZONE 'UTC' AS the_date,
 	the_date::DATE AS date_day, --day_index ? 
-	--ROW_NUMBER() OVER (PARTITION BY from_currency, to_currency ORDER BY DATE(the_date)) AS day_index, --doesnt work :( needs to be done in separate cte
-	(EXTRACT(MINUTE FROM the_date) + 60 * EXTRACT (HOUR FROM the_date))::INT / 240 AS candle_index 
-	FROM exchange_value_tick evt 
-	WHERE from_currency  = ANY(SELECT currency FROM tmp_currencies) AND to_currency = ANY(SELECT currency FROM tmp_currencies)
-	AND the_date < (DATE '15 Dec 2021' + INTERVAL '11 hours')
-	AND the_date >= (DATE '15 Dec 2021' - INTERVAL '600 days' + INTERVAL '11 hours') --600 = 400 + 200 (days_back + normalisation_window)
-	--AND from_currency = 'AUD' AND to_currency = 'CAD' AND the_date > '26 Apr 2020 22:00'::TIMESTAMP 
-	--AND the_date < '26 Apr 2020 22:15'::TIMESTAMP 
+	--the_date,
+	(EXTRACT(MINUTE FROM the_date) + 60 * EXTRACT (HOUR FROM the_date))::INT / 240::INT AS candle_index
+	FROM selected_candles
 ),
 candles_start_end AS (
 	SELECT from_currency,
@@ -93,7 +101,7 @@ time_indexed_candles AS (
 	c.high_price,
 	c.low_price,
 	c.close_price,
-	c.the_date,
+	c.the_date + INTERVAL '120 mins' AS the_date,
 	t.time_index 
 	FROM candles c 
 	JOIN time_indexs t ON c.the_date = t.the_date

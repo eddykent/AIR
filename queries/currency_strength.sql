@@ -14,31 +14,30 @@ WITH ccs AS (
 )
 SELECT currency INTO TEMPORARY TABLE tmp_currencies FROM ccs;
 
-WITH candle_indexs AS (
+--build candles of our chosen chart size 
+WITH selected_candles AS (
+	SELECT from_currency, to_currency,
+	open_price,
+	high_price,
+	low_price,
+	close_price, 
+	the_date - INTERVAL '%(candle_offset)s mins' AS the_date
+	FROM exchange_value_tick evt 
+	WHERE from_currency  = ANY(SELECT currency FROM tmp_currencies) AND to_currency = ANY(SELECT currency FROM tmp_currencies)
+	AND the_date < (DATE %(the_date)s + INTERVAL '%(hour)s hours')
+	AND the_date >= (DATE %(the_date)s - INTERVAL '%(days_back)s days' + INTERVAL '%(hour)s hours') --600 = 400 + 200 (days_back + normalisation_window)
+), 
+candle_indexs AS (
 	SELECT from_currency, to_currency,
 	open_price,
 	high_price,
 	low_price,
 	close_price,
-	TO_TIMESTAMP (FLOOR(( EXTRACT ('EPOCH' FROM (the_date )) ) / (60*15) ) * (60*15)) AT TIME ZONE 'UTC' AS the_date, 
-	the_date::DATE AS date_day,
-	(EXTRACT(MINUTE FROM the_date) + 60 * EXTRACT (HOUR FROM the_date))::INT / %(chart_resolution)s::INT AS candle_index 
-	FROM exchange_value_tick evt 
-	WHERE from_currency  = ANY(SELECT currency FROM tmp_currencies) AND to_currency = ANY(SELECT currency FROM tmp_currencies)
-	AND the_date < (DATE %(the_date)s + INTERVAL '%(hour)s hours')
-	AND the_date >= (DATE %(the_date)s - INTERVAL '%(days_back)s days' + INTERVAL '%(hour)s hours')
-),
-candles_start_end AS (
-	SELECT from_currency,
-	to_currency, 
-	FIRST_VALUE(open_price) OVER (PARTITION BY from_currency, to_currency, date_day, candle_index ORDER BY the_date ASC) AS open_price,
-	high_price AS high_price, 
-	low_price AS low_price, 
-	FIRST_VALUE(close_price) OVER (PARTITION BY from_currency, to_currency, date_day, candle_index ORDER BY the_date DESC) AS close_price, 
-	the_date AS the_date,
-	date_day, 
-	candle_index 
-	FROM candle_indexs
+	TO_TIMESTAMP (FLOOR(( EXTRACT ('EPOCH' FROM (the_date )) ) / (60*15) ) * (60*15)) AT TIME ZONE 'UTC' AS the_date,
+	the_date::DATE AS date_day, --day_index ? 
+	--the_date,
+	(EXTRACT(MINUTE FROM the_date) + 60 * EXTRACT (HOUR FROM the_date))::INT / %(chart_resolution)s::INT AS candle_index
+	FROM selected_candles
 ),
 candles_bad_dates AS (
 	SELECT from_currency, 
@@ -75,7 +74,7 @@ time_indexed_candles AS (
 	c.high_price,
 	c.low_price,
 	c.close_price,
-	c.the_date,
+	c.the_date + INTERVAL '%(candle_offset)s mins' AS the_date,
 	t.time_index 
 	FROM candles c 
 	JOIN time_indexs t ON c.the_date = t.the_date
