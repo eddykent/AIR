@@ -1,6 +1,5 @@
 TODO: 
-Extend trades to be able to have entry, stop loss and take profit price values   -- REFACTOR trade_schedule.py
-extend test_trades.sql or use another to use full tradesignal types 
+extend test_trades.sql or use another sql to test full tradesignal types 
 
 Create & test full RNN with candles_and_indicators.sql, currency_strengths, correlations etc & get_y_values.sql 
 
