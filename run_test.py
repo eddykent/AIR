@@ -9,9 +9,12 @@
 #from tests.candle_stick_tests import *
 
 #from tests.chart_pattern_support_resistance_test import *
-from tests.harmonic_pattern_test import *
+#from tests.harmonic_pattern_test import *
+
+#bat - 213,419,805
 
 #from tests.shape_patterns_test import *
+from tests.candle_offset_test import *
 
 #from currency_strength_nn import *
 ##447 doesnt work? 
