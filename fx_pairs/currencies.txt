@@ -16,5 +16,7 @@ USD -- US Dollar
 --hopefully these are the only currencies we need. 
 --Perhaps in the future we could use other currencies:
 --NOK -- Norweigen Kroner 
+--DKK -- Danish Kroner
+--SEK -- Swedish Kroner
 --CNY -- Chinese Yen
 --SGD -- Singapore Dollar? 
