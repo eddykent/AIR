@@ -1,12 +1,46 @@
-## setups are trades that have been produced from signals from various sources. 
+## setups are trades that have been produced from signals from various sources. A TradeSetup class finds trades on a given date 
+#that have a high probabily of winning based on their backtest results.  TradeSetup classes need to be backtestable 
 
 
 
 
-class Setup(ChartPattern):	
+from utils import ListFileReader, Database
+from trade_schedule import TradeSignal, TradeDirection
+
+
+class TradeSetup:	
+	
+	instruments = []# pairs we want to find trades for 
+	currencies = [] # currencies we might use 
+	
+	trades = []
+	
+	#def __init__(self):
+	#	pass #lfr = ListFileReader()
+	
+	def setup(self):
+		lft = ListFileReader()
+		
+		if not self.instruments:
+			self.instruments = lfr.read('fx_pairs/fx_mains.txt')
+		
+		if not self.currencies:
+			self.currencies = lfr.read('fx_pairs/currencies.txt')
+	
+	# return any trades that hit a bullish or bearish status from any sources (chart patterns? indicators?) 
+	# return the most recent that are on this self.the_date 
+	def get_trades(self):
+		pass 
+	
+	# return all trade schedules for all times - a dict of datetime:[Trade]- it is up to a TradeSchedule to evaluate - we focus on signal generation!
+	def full_backtest(self):
+		pass
+	
+
+
+class SimpleHarmonicSetup(TradeSetup):
+	#iterate through the harmonic patterns and report any that are bullish/bearish
 	pass
-
-
 
 
 

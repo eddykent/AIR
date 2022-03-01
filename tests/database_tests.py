@@ -6,7 +6,8 @@ import plotly.express as px
 
 import pdb
 
-from trade_schedule import TradeSchedule, CurrencyStrengthFilter, RSIFilter, MAFilter, MACDFilter, BollingerBandsFilter
+from trade_schedule import TradeSchedule
+from trade_filter import CurrencyStrengthFilter, RSIFilter, MAFilter, MACDFilter, BollingerBandsFilter
 from utils import Configuration, ListFileReader, TimeZipper, Database
 
 

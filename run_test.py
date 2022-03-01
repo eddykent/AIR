@@ -13,8 +13,10 @@
 
 #bat - 213,419,805
 
+from tests.database_tests import *
+
 #from tests.shape_patterns_test import *
-from tests.candle_offset_test import *
+#from tests.candle_offset_test import *
 
 #from currency_strength_nn import *
 ##447 doesnt work? 
@@ -29,4 +31,4 @@ from tests.candle_offset_test import *
 #509 bearish
 #510 bearish
 #393 bullish
-#394 bullish
+#394 bullish 
