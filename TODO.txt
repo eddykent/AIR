@@ -17,9 +17,6 @@ RNN to determine next RSI values? (same thing as full rnn? above?)
 
 ASYNC all webcalls in the fundmental analysis! -- probably pretty important for faster trade decisions :)
 
-Purchasing Power Pairty index - get a pair (eg, EUR/USD) and then add the other pairs together 
-to see if the exchange rate is the same (for common exchanges)
- - the discrepancy can  be used as an indicator of the pairs "real worth".
  
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs
@@ -40,6 +37,7 @@ sentiment for currencies and for currency pairs. Twitter and Reddit
 
 test chart patterns and practice drawing them - gradient descent for finding params? 
 shape based and harmonic based patterns! - done
+
 
 ADVANCED: 
 Make a NN that takes a sequence of candlesticks and indicators AND a list of 28  

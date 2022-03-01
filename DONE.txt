@@ -23,6 +23,13 @@ RSS Reader - create filter based on recent news feeds about any pairs or currenc
 
 Added offset value to database queries for 4h and for intra-hour trades if we ever want to run the algorithm at any time 
 
+Purchasing Power Pairty index - get a pair (eg, EUR/USD) and then add the other pairs together 
+to see if the exchange rate is the same (for common exchanges)
+ - the discrepancy can  be used as an indicator of the pairs "real worth".
+ --Deemed not significant enough - the discrepancy rarely reaches above 0.1% and when it does, the market doesnt really move much. 
+ --this sort of feature would probably suit very low timeframes like 1s
+
+
 BUGS:
 (FIXED) Possible RSI calculation bug - using SMA in the place of SMMA (Smoothed modified moving average) 
 An EMA might be better in its place but it will be very bad for early trades without significant data
