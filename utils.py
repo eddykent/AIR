@@ -187,6 +187,7 @@ class Configuration:
 			'starting_candle':2,#which 15 minute candle to start from when evaluating trading schedules (to account for computation time)
 			'the_date':None,#date in which the trade will happen (and all learning is from subsequent candles before etc) 
 			'hour':None, #the time in which the trade will happen 
+			'candle_offset':0, #if using 4h chart, this needs to be 2 hours (120)
 			'days_back':1500, #rough estimate of how much data needs to be read to get enough to generate all sequences
 			'trade_length_days':1, #the length a trade is expected to last (close the trade if it elapses this time)
 			'currencies':[], #list of contributing currencies for currency strength and other calculations 
