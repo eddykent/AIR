@@ -17,7 +17,11 @@ RNN to determine next RSI values? (same thing as full rnn? above?)
 
 ASYNC all webcalls in the fundmental analysis! -- probably pretty important for faster trade decisions :)
 
-Offet minute values in database calls so the candles can be made from any time 
+Offet minute values in database calls so the candles can be made from any time - might be useful for running intra-hour
+
+Purchasing Power Pairty index - get a pair (eg, EUR/USD) and then add the other pairs together 
+to see if the exchange rate is the same (for common exchanges)
+ - the discrepancy can  be used as an indicator of the pairs "real worth".
  
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs
@@ -37,7 +41,7 @@ Fundamental analysis/signals - use RSS feeds and a feed reader to get
 sentiment for currencies and for currency pairs. Twitter and Reddit
 
 test chart patterns and practice drawing them - gradient descent for finding params? 
-shape based and harmonic based patterns! 
+shape based and harmonic based patterns! - done
 
 ADVANCED: 
 Make a NN that takes a sequence of candlesticks and indicators AND a list of 28  
@@ -49,9 +53,6 @@ which have an E, TP, SL and Confidence level for each. This will require a tradi
 loss function with something like 
 	loss = logloss(confidence_y,confidence_pred) + confidence_y * (mse(E,TP,SL) + direction loss)
 
-
-Currency strength from sentiment indicator! see:
-https://www.dukascopy.com/swiss/english/marketwatch/sentiment/ - blocked using <noscript> and <iframe>
 
 BUGS:
 Perhaps using pandas data frames will be more efficient and better for the whole thing? 
@@ -70,6 +71,10 @@ currency_strength_diff_auto_regression_rsi.sql is not producing enough rows to r
 
 Currency strength from sentiment indicator! see:
 https://www.dukascopy.com/swiss/english/marketwatch/sentiment/ - blocked using <noscript> and <iframe>
+
+hour should not be a db query parameter - we can get the hour from the datetime passed into the query
+
+
 
 
 DONE: 
