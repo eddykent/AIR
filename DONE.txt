@@ -1,0 +1,44 @@
+
+
+DONE: 
+Auto regression on currency strength differences & use to predict next currency strengths (almost done! - need to add the ranking) 
+Auto regression on currency strengths (edit the diff one)  --parameterisation needed - done
+Finish TradeSchedule class to be able to test stuff easier - done
+Add pessimistic spread times (5pm and 10pm) on get_y_values.sql - done
+Test new currency strengths with RNN - done - still gets top and bottom but strength doesnt win
+Currency strength with RSI - done
+Currency strength with SO - done
+ARIMA on individual flows - predict price changes and add to RNN? - done (didnt work well!)
+Pull extra historic data from previous years from HistData? - done
+Create full sql query for getting all information ready for RNN (get_x_value.sql) - done (called candles_and_indicators.sql)
+correlation matrix for determining which pairs go together - done. k means can be used :)
+Currency Strength - Better RNN using all RSI values and previous currency strengths to predict next currency strength - important!
+		- without this the filter model won't work as well as it has done in testing
+MACD filter! - stop trades that have recently had a conflicting buy/sell signal from macd
+Boilinger Bands filter 
+Lag correlation matrix - find correlations between 4h candles over a period (like an advanced ARIMA model!) 
+Currency Strength apply new RNN in PRD to create trading filters 
+
+RSS Reader - create filter based on recent news feeds about any pairs or currencies. This incorps fundamentals to decisions 
+
+Added offset value to database queries for 4h and for intra-hour trades if we ever want to run the algorithm at any time 
+
+BUGS:
+(FIXED) Possible RSI calculation bug - using SMA in the place of SMMA (Smoothed modified moving average) 
+An EMA might be better in its place but it will be very bad for early trades without significant data
+EMA is faster though - so RSI will be improved if this is fixed. 
+
+(FIXED) candle dates have no index on them which would help solving the above bug  
+
+rsi values seem to be lagged by 1 step- could be due to not knowing the next candle - need to understand more! 
+
+(FIXED) currency_strength_rsi is way off - should be value between -7 and 7 surely? Yet it gets -18 to 24 so there are repeat rows somewhere
+		--fixed for rsi, usual currency_strength and for stochastic. 
+
+(FXIED) Bug with stochastic - not in range [0,1]
+
+(FIXED) test candlestick patterns more! --lots are not working
+
+(FIXED) MorningEveningStars, SoldiersAndCrows show no results
+
+(FIXED)WedgeBreakout trendlines have points on wrong side of them (also breaks ApproximateChannelBreakout and ParallelChannelBreakout)
