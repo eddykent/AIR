@@ -65,6 +65,11 @@ can't read numbers from forexcleintsentiment.com
 some sources are not working quite so well - eg forexcrunch 
 need to test for fulltexts in the sentiment analyser. Keep running it and figure out how to improve the scrapers
 
+sentiment scores - when a positive sell order is given (Eg from fxstreet etc) it shows as a positive sentiment 
+ - need to check article first and see if it is a buy/sell order and not a general news story about a pair/currency
+ - if it is a buy/sell order then perhaps it should be added to a separate indicator. Some kind of status is needed 
+	per article to achieve this
+
 currency_strength_diff_auto_regression_rsi.sql is not producing enough rows to run in database_tests.py
 
 Currency strength from sentiment indicator! see:
