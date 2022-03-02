@@ -5,11 +5,12 @@ import re
 
 import pdb
 
-from scrape.scraper import Scraper, Bias
+from scrape.scraper import Scraper
+from scrape.feed_collector import Bias
 from utils import  ListFileReader
 
 ##useful? painful? can refactor out if annoying
-ClientSentimentInfo = namedtuple('ClientSentimentInfo','instrument timeframe bias net_long net_short error') 
+ClientSentimentInfo = namedtuple('ClientSentimentInfo','source_ref instrument timeframe bias net_long net_short error') 
 ##add additional info such as changes and popularity/io etc? -perhaps this info is just volume? 
 
 class ClientSentimentScraper(Scraper):
@@ -47,7 +48,7 @@ class ClientSentimentScraper(Scraper):
 				bias = Bias.SLIGHT_BEARISH
 			else:
 				bias = Bias.MIXED #sucks - no real significant info for this pair
-			analysed_these.append(ClientSentimentInfo(csi.instrument,csi.timeframe,bias,csi.net_long,csi.net_short,False))
+			analysed_these.append(ClientSentimentInfo('',csi.instrument,csi.timeframe,bias,csi.net_long,csi.net_short,False))
 			
 		return keep_these + analysed_these 
 
@@ -87,7 +88,7 @@ class DailyFX(ClientSentimentScraper):
 				except ValueError:
 					parse_error = True
 				src_bias = Bias.BULLISH if bias == 'BULLISH' else Bias.BEARISH if bias == 'BEARISH' else Bias.MIXED
-				info.append(ClientSentimentInfo(instrument,timeframe,src_bias,netlong,netshort,parse_error))
+				info.append(ClientSentimentInfo('dailyfx',instrument,timeframe,src_bias,netlong,netshort,parse_error))
 		return info	
 		
 		
@@ -117,7 +118,7 @@ class ForexClientSentiment(ClientSentimentScraper):
 				parse_error = True
 				bias = 'Mixed'
 				
-			long_box = box.xpath("//*[@class='sentiment--values--numbers--long']")
+			long_box = box.xpath("//*[@class='sentiment--values--numbers--long']") #grr!
 			short_box = box.xpath("//*[@class='sentiment--values--numbers--short']")
 			if not (long_box and short_box):
 				continue
@@ -134,7 +135,7 @@ class ForexClientSentiment(ClientSentimentScraper):
 				netlong = 0
 				netshort = 0
 			src_bias = Bias.BULLISH if bias == 'BULLISH' else Bias.BEARISH if bias == 'BEARISH' else Bias.MIXED
-			info.append(ClientSentimentInfo(instrument,timeframe,src_bias,netlong,netshort,parse_error))
+			info.append(ClientSentimentInfo('forexclientsentiment',instrument,timeframe,src_bias,netlong,netshort,parse_error))
 		return info
 
 
@@ -179,11 +180,11 @@ class MyFXBook(ClientSentimentScraper):
 				except (ValueError, IndexError) as e:
 					parse_error = True
 			instrument = instrument[:3] + '/' + instrument[3:] #add the slash back 
-			info.append(ClientSentimentInfo(instrument,timeframe,src_bias,netlong,netshort,parse_error))
+			info.append(ClientSentimentInfo('myfxbook',instrument,timeframe,src_bias,netlong,netshort,parse_error))
 		return info
 
 
-#blocked! :( 
+#blocked! :( - will need a special case of selenium 
 class Dukascopy(ClientSentimentScraper):
 
 	def scrape(self):

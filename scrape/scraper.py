@@ -12,26 +12,6 @@ import pdb
 
 
 
-class Bias(Enum):
-	BEARISH = -2 #filter 
-	SLIGHT_BEARISH = -1 #setup
-	MIXED = 0
-	SLIGHT_BULLISH = 1 #setup
-	BULLISH = 2 #filter
-
-
-
-#the_date - date of the article and when it was published 
-#instrument - eg EUR/USD 
-#keyword  - the keyword that was found in the article/story or whatever 
-#title - the title from the artricle for displaying later & for debugging purposes
-#summary - the summary from the article for displaying later & for debugging purposes
-#source_url - the url where the source is 
-#degree - 1 if the article is directly related and 2 if the article is indirectly related (eg federal reserve on GBP/USD)
-#bias - BULLISH, BEARISH, MIXED
-#significance - final sentiment score for using when performing fundamental analysis on the instrument 
-SentimentDatum  = namedtuple('SentimentDatum','the_date instrument keyword title summary source_url degree bias significance')
-
 
 ##format of a scraper object - a simple class that 'has a' html parsed inside it 
 ##client_sentiment_scraper objects inherit this
@@ -229,16 +209,6 @@ class ForexCrunch(Scraper):
 		return '\n'.join([p.text for p in ps])
 
 	
-
-
-
-
-
-
-
-
-
-
 
 
 

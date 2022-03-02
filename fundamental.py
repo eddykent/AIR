@@ -16,7 +16,7 @@ from utils import ListFileReader, CurrencyPair
 
 import scrape.client_sentiment_scraper as clisps
 import scrape.feed_collector as feedco
-from scrape.scraper import Bias
+from scrape.feed_collector import Bias
 
 KeywordMap = namedtuple('KeywordMap','keyword values')
 RelevanceInfo = namedtuple('RelevanceInfo', 'degree direction')
@@ -41,13 +41,14 @@ class ClientSentiment: #a client sentiment is just how many are buying/selling. 
 	
 	instruments = []
 	sources = []
-	findings = {}
+	findings = {} #all findings from multiple sources
+	collected_result = {} #the over-all result for each instrument from the findings 
 	
 	def __init__(self,instruments=[]):
 		lfr = ListFileReader()
 		if not instruments:
 			instruments = lfr.read('fx_pairs/fx_mains.txt')
-		self.instruments = instruments 
+		self.instruments = instruments #currencies too?
 		self.sources = lfr.read('sources/sentiment_indicators.txt')
 		self.findings = {pair:[] for pair in self.instruments}
 	
@@ -74,15 +75,40 @@ class ClientSentiment: #a client sentiment is just how many are buying/selling. 
 		pass
 	
 	def __process_findings(self,results):
-		#TODO: write some tactic to process the tuples into findings so we can use it in a filter
+		#TODO: write some tactic to process the tuples into findings, then into a summary so we can use it in a filter
 		self.findings = {pair:[] for pair in self.instruments}
+		self.collected_result = {pair:Bias.MIXED for pair in self.instruments} 
 		for r in results:
 			if r.bias != Bias.MIXED:
 				instrument_result = self.findings.get(r.instrument,[])
 				instrument_result.append(r)
 				self.findings[r.instrument] = instrument_result
-		pdb.set_trace()
-
+		for instrument in self.findings:  #might want to include something about the timeframe or the date? 
+			csinfos = self.findings[instrument]
+			tally = {} 
+			for csi in csinfos:
+				score = tally.get(csi.bias,0)
+				score += 1
+				tally[csi.bias] = score
+			
+			collected_result = Bias.MIXED
+			
+			has_bull = Bias.BULLISH in tally or Bias.SLIGHT_BULLISH in tally
+			has_bear = Bias.BEARISH in tally or Bias.SLIGHT_BEARISH in tally
+			
+			if not (has_bull and has_bear): #if we are not bullish AND bearish
+				
+				if Bias.BULLISH in tally:
+					collected_result = Bias.BULLISH
+				elif Bias.SLIGHT_BULLISH in tally:
+					collected_result = Bias.SLIGHT_BULLISH
+						
+				if Bias.BEARISH in tally:
+					collected_result = Bias.BEARISH
+				elif Bias.SLIGHT_BEARISH in tally:
+					collected_result = Bias.SLIGHT_BEARISH
+					
+			self.collected_result[instrument] = collected_result
 
 
 	
@@ -123,14 +149,9 @@ class KeywordMapHelper:
 	#if an article title or an article summary has any words that are interesting to us, it is relevant. 
 	#otherwise we can probably filter it out to save computational resources! 
 	#this step organises things for us to be able to update sentiments based on relevance and degree
-	def relevant_keys(self,article):	
+	def relevant_keys(self,summary_text):	
 		#perhaps we should move all author name words from the article first to ensure we don't get false relevances XD
-		
-		if article._relevant_keys:
-			return article._relevant_keys
-			
-		summary_text = article.title + ' ' + article.summary
-
+				
 		words = nltk.word_tokenize(summary_text.lower())
 		intersect = self.all_words_relevance.intersection(words)
 		
@@ -174,7 +195,6 @@ class KeywordMapHelper:
 				elif pad_val in summary_text:
 					relevant_keys[keyword] = relevant_keys.get(keyword,[]) + [RelevanceInfo(degree,direction)]
 		
-		article._relevant_keys = relevant_keys 
 		return relevant_keys
 	
 	def bloat(self):
@@ -182,6 +202,7 @@ class KeywordMapHelper:
 		build_this_dict = {}
 		# set bloated keyword maps to have move values from previous key words etc 
 		# example: if keyword 'USD' has a keyword value 'FEDERAL RESERVE' then we should add 'federal reserve' to GBP/USD etc 
+		pdb.set_trace()
 		for keyword_mapping in self.input_keyword_map:
 			keyword = keyword_mapping.keyword
 			values = keyword_mapping.values
@@ -217,63 +238,53 @@ class KeywordMapHelper:
 		return value == value.lower()
 	
 	
-#from a bunch of text, is it good or bad?
-class SentimentAnalysis:
+#Tool for doing all natural language stuff for articles found online. News storys are articles collected from a feed collector
+#they are then passed into this tool for further clarification. Is the story actually a buy/sell signal? Is it relevant? is the
+#author positive or negative about whatever it is they are talking about? What are the main key words we can use etc 
+class ArticleAnalysis:
 	
 	stopwords = []
 	keyword_helper = None ##use to help filter sentences etc 
 	filter_articles = ['seminar','video','tutorial'] #think of any other stuff here! 
-	analyzer = None
+	#may want to do own sentiment analysis - to do so  replace sentiment_analyzer 
+	sentiment_analyzer = None
 	
 	def __init__(self, keyword_helper):
 		self.stopwords = nltk.corpus.stopwords.words('english')
-		self.analyzer = nltk.sentiment.SentimentIntensityAnalyzer()
+		self.sentiment_analyzer = nltk.sentiment.SentimentIntensityAnalyzer()
 		self.keyword_helper = keyword_helper
 	
 	#motivation: https://realpython.com/python-nltk-sentiment-analysis/
-	def get_score(self,article):
+	def get_sentiment(self,article):
 		article.fetch_full_text() #comment out once we have done an async call on all relevant articles
 		if type(article.full_text) != str:
 			print("the text is not a string?")
 			pdb.set_trace()
-		score = self.analyzer.polarity_scores(article.full_text)
+		#sentences = nltk.sentence_tokenize(article.full_text)
+		score = self.sentiment_analyzer.polarity_scores(article.full_text) #we should do this on relevant sentences, not on the full text
 		return score['compound'] # 0 means no sentiment at all (not positive or negative). 1 is good and -1 is  bad 
-	
-	def get_relevance(self,article):
-		##determine if this article is actually relevant first - perhaps look for things like filter_words and if there are none it might be relevant!
-		relevant_keys = self.keyword_helper.relevant_keys(article)
-		if not relevant_keys:
-			return 0.0 # well there's no keywords in the title/summary! 
 		
+	#for fast filtering articles that have no relevant stuff in their title (prevents us doing 100s of web calls)
+	def get_relevance(self,article):
+		relevant_keys = self.keyword_helper.relevant_keys(article.title + ' ' + article.summary)
+		if not relevant_keys:
+			return 0.0 # well there's no keywords in the title/summary  
+		return 1.0 #crude but works for now. 
+	
+	def get_keywords(self,article):
+		##determine if this article is actually relevant first - perhaps look for things like filter_words and if there are none it might be relevant!
+		relevant_keys = self.keyword_helper.relevant_keys(article.full_text)
+	
+	def get_type(self,article): 
+		article.fetch_full_text()
 		tokens = nltk.word_tokenize(article.title.lower() + ' ' + article.summary.lower()) 
 		##need to do something to prevent webinar invites seeping through... 
 		distribution = nltk.FreqDist([t for t in tokens if t not in self.stopwords])
 		#TODO - use the distribution to assess relevance & reject things like values in filter_article
-		return 1.0 #crude but works for now. 
 	
-#may want to do own sentiment analysis - to do so  replace analyzer in the SentimentAnayzer class with something like the below base class
 
 
 
-if __name__ == '__main__':
-	
-	lfr = ListFileReader()
-	fx_pairs = lfr.read('fx_pairs/fx_mains.txt')
-	cs = ClientSentiment(fx_pairs)##put fx pairs in!
-	cs.fetch()
-		
-	
-	#rss = feedco.RSSCollect(lfr.read('sources/rss_feeds.txt'))
-	#keyword_mappings_example = [
-	#	('USD',['FEDERAL RESERVE', 'US DOLLAR', 'GREEN BACK', 'GREENBACK', 'USD']),
-	#	('GBP/USD',['GBP/USD','GBPUSD','GBP','usd','CABLE'])  #put after USD to be detected second - but usd matches USD so all the other keys can be added (but in lower case) to this
-		#which is why helper is needed! :) 
-	#]
-	#rss.parse_feeds()
-	#kwh = KeywordMapHelper()	
-	#sa = SentimentAnalysis(kwh)
-	#rss.sentiment_analysis(sa)
-	#rss.collect(kwh)
 
 
 

@@ -13,7 +13,7 @@
 
 #bat - 213,419,805
 
-from tests.database_tests import *
+import tests.fundamental_test as fun
 
 #from tests.shape_patterns_test import *
 #from tests.candle_offset_test import *
