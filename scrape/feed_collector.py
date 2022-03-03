@@ -17,6 +17,15 @@ class Bias(Enum):
 	SLIGHT_BULLISH = 1 #setup
 	BULLISH = 2 #filter
 
+
+class TextType(Enum):
+	UNKNOWN = 0
+	INVITATION = 1 #eg to a webinar or something
+	TUTORIAL = 2 #also include video etc - these are not useful to us and we should avoid them if possible 
+	TRADE_SIGNAL = 3 #we can store the trade signal stories for later if needed! 
+	STORY = 4 #this is the one we actually want! We perform sentiment analysis on stories only. We could use the trade signals though. 
+	
+
 #the_date - date of the article and when it was published 
 #instrument - eg EUR/USD 
 #keyword  - the keyword that was found in the article/story or whatever 
@@ -32,10 +41,13 @@ SentimentDatum  = namedtuple('SentimentDatum','the_date instrument keyword title
 class FeedCollect:
 
 	sources = [] 
-	keyword_mappings = []
 	articles = [] 
-	instrument_summary = [] #for each instrument, keep the bullish/bearish scores and sources in SentimentDatum objects
-	relevance_threshold = 0.1
+	all_findings = [] #for each instrument, keep the bullish/bearish scores and sources in SentimentDatum objects
+	instrument_summary = []# for each instrument, keep a simple "bullish"/"bearish" score gerneated from the findings 
+	
+	_sentiment_scores = []#keep internal results of sentiment for each article
+	_relevant_key_info = []#keep internal results of all relevant keys found for all articles 
+	_text_types = []#keep internal results of what type of text the passage was for each article
 
 	def __init__(self,sources): 
 		self.sources = sources
@@ -45,26 +57,31 @@ class FeedCollect:
 	def parse_feeds(self):
 		raise NotImplementedError('This method must be overridden')
 	
-	def analyse_articles(self,article_analyser):
-		for article in self.articles:
-			if article.relevance_score is None: 
-				article.relevance_score = article_analyser.get_relevance(article)
+	#walk through each article, decide whether to open it or not and perform analysis on it to gauge 
+	#key words it is talking about as well as sentiment about those words 
+	def analyse_articles(self,text_analyser):
+		#initalise lists 
+		self._sentiment_scores = [0 for a in self.articles] 
+		self._relevant_key_info = [[] for a in self.articles]
+		self._text_types = [TextType.UNKNOWN for a in self.articles]
+		
+		for i, article in enumerate(self.articles):
+			relevant_keys_in_title = text_analyser.get_relevant_keys(article.title + ' ' + article.summary)
 			
-		#perform an async here?
-		#async [article.fetch_full_text() for article in self.articles if article.sentiment_scores]
-		for article in self.articles:
-			if article.relevance_score > self.relevance_threshold: #so this article is relevant
-				article.sentiment_score = article_analyser.get_sentiment(article)
+			if not relevant_keys_in_title:
+				continue # this article has no information about stuff we are interested in in the title so we can skip it 
+			
+			article.fetch_full_text() #async from here? 
+			self._relevant_key_info[i] = text_analyser.get_relevant_keys(article.full_text)
 	
+	#generate list of SentimentDatum and store in insturment_summary
 	def collect(self,keyword_helper=None):
-		self.instrument_summary = [] 
-		for article in self.articles: 
-			relevant_keys = keyword_helper.relevant_keys(article) if keyword_helper else article._relevant_keys
+		self.all_findings = [] 
 			
 	
 	#def keyword_collect(self):
 	def parse_historic(self):
-		pass #one can dream
+		pass #one can dream - do something about loading/saving articles to the database for this
 	
 	@staticmethod
 	def _pretty_sourcename(link):

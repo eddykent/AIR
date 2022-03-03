@@ -34,14 +34,15 @@ currencies = lfr.read('fx_pairs/currencies.txt')
 fx_pairs = lfr.read('fx_pairs/fx_mains.txt')
 sorted(fx_pairs)
 
-the_date = datetime.datetime(2022,2,11,14,0)
+the_date = datetime.datetime(2022,2,23,10,0)
 
 parameters = {
 	'chart_resolution':60,
 	'the_date':the_date,
 	'hour':the_date.hour,
 	'days_back':50,
-	'currencies':currencies	
+	'currencies':currencies,
+	'candle_offset':0
 }
 
 query = ''

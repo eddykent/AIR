@@ -41,6 +41,7 @@ parameters = {
 	'the_date':the_date,
 	'hour':the_date.hour,
 	'days_back':50,
+	'candle_offset':0,
 	'currencies':currencies	
 }
 
@@ -61,7 +62,7 @@ database_response = cur.fetchall()
 #OurChartPattern = SupportAndResistance
 #OurChartPattern = ParallelChannelBreakout
 
-OurChartPattern = Crab
+OurChartPattern = Bat
 
 chart_pattern = OurChartPattern()
 

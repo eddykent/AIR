@@ -114,11 +114,14 @@ class ClientSentiment: #a client sentiment is just how many are buying/selling. 
 	
 ##not sure how this will work yet - could just be something that prevents trading at choppy times when 
 ##big news is about to comeresults out 
-##OR it could be something that suggests a trade based on the economic calendar prediction
+##OR it could be something that suggests a trade based on the economic calendar prediction - or both
 class EconomicCalendar:
 	pass
 	
-	
+
+
+
+
 #something to help parse all keywords from any files into a keywords object for a FeedCollect
 #keyword mappings are a list of [{'USD/JPY':['USD/JPY','USDJPY','USD','jpy']}] with a hack:- 
 #bullish = caps and bearish = lowercase 
@@ -171,11 +174,11 @@ class KeywordMapHelper:
 			
 			for value in values:
 				direction = 1 if self.bullish(value) else -1
-				pad_val = ' ' + value.lower() + ' ' #ensure it is a word and not part of a word
+				pad_val = ' ' + value + ' ' #ensure it is a word and not part of a word
 				if value.lower() in words:
 					relevant_keys[keyword] = relevant_keys.get(keyword,[]) + [RelevanceInfo(degree,direction)]
 					
-				elif pad_val in summary_text:
+				elif pad_val.lower() in summary_text:
 					relevant_keys[keyword] = relevant_keys.get(keyword,[]) + [RelevanceInfo(degree,direction)]
 					
 					
@@ -192,17 +195,16 @@ class KeywordMapHelper:
 				if value.lower() in words:
 					relevant_keys[keyword] = relevant_keys.get(keyword,[]) + [RelevanceInfo(degree,direction)]
 					
-				elif pad_val in summary_text:
+				elif pad_val.lower() in summary_text:
 					relevant_keys[keyword] = relevant_keys.get(keyword,[]) + [RelevanceInfo(degree,direction)]
 		
 		return relevant_keys
 	
+	# set bloated keyword maps to have move values from previous key words etc 
+	# example: if keyword 'USD' has a keyword value 'FEDERAL RESERVE' then we should add 'federal reserve' to GBP/USD etc
 	def bloat(self):
 		self.bloated_keyword_map = []
-		build_this_dict = {}
-		# set bloated keyword maps to have move values from previous key words etc 
-		# example: if keyword 'USD' has a keyword value 'FEDERAL RESERVE' then we should add 'federal reserve' to GBP/USD etc 
-		pdb.set_trace()
+		build_this_dict = {} 
 		for keyword_mapping in self.input_keyword_map:
 			keyword = keyword_mapping.keyword
 			values = keyword_mapping.values
@@ -237,15 +239,18 @@ class KeywordMapHelper:
 	def bearsh(value):
 		return value == value.lower()
 	
-	
-#Tool for doing all natural language stuff for articles found online. News storys are articles collected from a feed collector
-#they are then passed into this tool for further clarification. Is the story actually a buy/sell signal? Is it relevant? is the
-#author positive or negative about whatever it is they are talking about? What are the main key words we can use etc 
-class ArticleAnalysis:
+
+
+
+#Tool for doing all natural language stuff for passages found online. News storys are articles collected from a feed collector
+#their text is then passed into this tool for further clarification. Is the story actually a buy/sell signal? Is it relevant? 
+#is the author positive or negative about whatever it is they are talking about? What are the main key words we can use etc 
+class TextAnalysis:
 	
 	stopwords = []
 	keyword_helper = None ##use to help filter sentences etc 
-	filter_articles = ['seminar','video','tutorial'] #think of any other stuff here! 
+	
+	#filter_articles = ['seminar','video','tutorial'] #think of any other stuff here! 
 	#may want to do own sentiment analysis - to do so  replace sentiment_analyzer 
 	sentiment_analyzer = None
 	
@@ -253,35 +258,28 @@ class ArticleAnalysis:
 		self.stopwords = nltk.corpus.stopwords.words('english')
 		self.sentiment_analyzer = nltk.sentiment.SentimentIntensityAnalyzer()
 		self.keyword_helper = keyword_helper
+		if callable(self.keyword_helper.bloat):
+			self.keyword_helper.bloat() 
 	
 	#motivation: https://realpython.com/python-nltk-sentiment-analysis/
-	def get_sentiment(self,article):
-		article.fetch_full_text() #comment out once we have done an async call on all relevant articles
-		if type(article.full_text) != str:
+	def get_sentiment(self,passage_text):
+		if type(passage_text) != str:
 			print("the text is not a string?")
 			pdb.set_trace()
 		#sentences = nltk.sentence_tokenize(article.full_text)
-		score = self.sentiment_analyzer.polarity_scores(article.full_text) #we should do this on relevant sentences, not on the full text
+		score = self.sentiment_analyzer.polarity_scores(passage_text) #we should do this on relevant sentences, not on the full text
 		return score['compound'] # 0 means no sentiment at all (not positive or negative). 1 is good and -1 is  bad 
 		
 	#for fast filtering articles that have no relevant stuff in their title (prevents us doing 100s of web calls)
-	def get_relevance(self,article):
-		relevant_keys = self.keyword_helper.relevant_keys(article.title + ' ' + article.summary)
-		if not relevant_keys:
-			return 0.0 # well there's no keywords in the title/summary  
-		return 1.0 #crude but works for now. 
-	
-	def get_keywords(self,article):
-		##determine if this article is actually relevant first - perhaps look for things like filter_words and if there are none it might be relevant!
-		relevant_keys = self.keyword_helper.relevant_keys(article.full_text)
-	
-	def get_type(self,article): 
-		article.fetch_full_text()
-		tokens = nltk.word_tokenize(article.title.lower() + ' ' + article.summary.lower()) 
+	def get_relevant_keys(self,passage_text):
+		return self.keyword_helper.relevant_keys(passage_text)
+		
+	def get_type(self,passage_text): 
+		tokens = nltk.word_tokenize(passage_text.lower()) 
 		##need to do something to prevent webinar invites seeping through... 
 		distribution = nltk.FreqDist([t for t in tokens if t not in self.stopwords])
 		#TODO - use the distribution to assess relevance & reject things like values in filter_article
-	
+		
 
 
 

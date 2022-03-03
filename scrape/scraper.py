@@ -46,9 +46,6 @@ class Article:
 	source_ref = None
 	full_text = None #dynamically grabbed using requests object if needed 
 	__lazy_load = True
-	_relevant_keys = {} 
-	relevance_score = None
-	sentiment_score = None
 	
 	def __init__(self,the_date,author,title,summary,source_title,link):
 		self.the_date = the_date
