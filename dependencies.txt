@@ -1,4 +1,4 @@
-#list of python module dependencies for this project
+#list of python module dependencies & setups for this project
 numpy
 #pandas
 psycopg2
@@ -9,3 +9,5 @@ statsmodels
 tensorflow
 feedparser
 nltk
+spacy
+#python -m spacy download en_core_web_lg

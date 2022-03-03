@@ -10,7 +10,7 @@ import pdb
 
 from scrape.scraper import Article
 
-class Bias(Enum):
+class TextBias(Enum):
 	BEARISH = -2 #filter 
 	SLIGHT_BEARISH = -1 #setup
 	MIXED = 0
@@ -19,7 +19,7 @@ class Bias(Enum):
 
 
 class TextType(Enum):
-	UNKNOWN = 0
+	UNKNOWN = 0 #initalise to unknown to tell us we havent checked yet 
 	INVITATION = 1 #eg to a webinar or something
 	TUTORIAL = 2 #also include video etc - these are not useful to us and we should avoid them if possible 
 	TRADE_SIGNAL = 3 #we can store the trade signal stories for later if needed! 
@@ -45,7 +45,7 @@ class FeedCollect:
 	all_findings = [] #for each instrument, keep the bullish/bearish scores and sources in SentimentDatum objects
 	instrument_summary = []# for each instrument, keep a simple "bullish"/"bearish" score gerneated from the findings 
 	
-	_sentiment_scores = []#keep internal results of sentiment for each article
+	_text_bias = []#keep internal results of sentiment for each article in the form of TextBias values 
 	_relevant_key_info = []#keep internal results of all relevant keys found for all articles 
 	_text_types = []#keep internal results of what type of text the passage was for each article
 
@@ -61,18 +61,29 @@ class FeedCollect:
 	#key words it is talking about as well as sentiment about those words 
 	def analyse_articles(self,text_analyser):
 		#initalise lists 
-		self._sentiment_scores = [0 for a in self.articles] 
-		self._relevant_key_info = [[] for a in self.articles]
+		self._text_bias = [TextBias.MIXED for a in self.articles] 
 		self._text_types = [TextType.UNKNOWN for a in self.articles]
+		self._relevant_key_info = [[] for a in self.articles]
 		
 		for i, article in enumerate(self.articles):
-			relevant_keys_in_title = text_analyser.get_relevant_keys(article.title + ' ' + article.summary)
 			
-			if not relevant_keys_in_title:
-				continue # this article has no information about stuff we are interested in in the title so we can skip it 
+			for vts in ['video','tutorial','seminar']:
+				breakout = False
+				for psg in [article.link,article.title,article.summary]:
+					if vts in psg.lower():
+						self._text_types[i] = TextType.TUTORIAL
+						continue
+			
+			relevancy = text_analyser.get_relevant_keys(article.title + ' ' + article.summary)
+			
+			if not relevancy:
+				continue # this article has no information about stuff we are interested in in the title so we should skip it 
 			
 			article.fetch_full_text() #async from here? 
-			self._relevant_key_info[i] = text_analyser.get_relevant_keys(article.full_text)
+			
+			#self._relevant_key_info[i] = #here is where it gets harder! 
+		
+		#pdb.set_trace()
 	
 	#generate list of SentimentDatum and store in insturment_summary
 	def collect(self,keyword_helper=None):

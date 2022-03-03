@@ -79,12 +79,12 @@ class Article:
 			entry.author = entry.source_title
 
 		try:
-			assert struct_time, "Unable to get the published date from this article"
-			assert entry.author, "No author detected"
-			assert entry.title, "No title detected"
-			assert entry.summary, "No summary detected" 
-			assert entry.link, "No link detected"
-			assert entry.source_title, "No source title detected"
+			assert struct_time is not None, "Unable to get the published date from this article"
+			assert entry.author is not None, "No author detected"
+			assert entry.title is not None, "No title detected"
+			assert entry.summary is not None, "No summary detected" 
+			assert entry.link is not None, "No link detected"
+			assert entry.source_title is not None, "No source title detected"
 			
 			this_article = Article(
 				datetime.datetime.fromtimestamp(time.mktime(struct_time)),
@@ -132,7 +132,7 @@ class Article:
 			self.full_text = scraper.scrape()
 			if self.full_text == '':
 				print("We are not able to get the full_text for "+self.link)
-				pdb.set_trace()
+				#pdb.set_trace()
 				self.full_text = self.title + ' ' + self.summary
 		else:
 			if self.source_ref not in ['forexlive.com']:  #refs that don't need a scraper as their content is very small 
@@ -187,6 +187,7 @@ class FXStreet(Scraper):
 
 
 ##this one doesnt give much info so currently using the title + summary 
+##todo - this is not actually the case! There are commonly some articles that have some useful stuff in them!
 class ForexLive(Scraper):
 	
 	def scrape(self):

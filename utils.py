@@ -138,6 +138,7 @@ class Log:   ##learn how to use logger first
 class ListFileReader:
 	
 	comment_tokens = ['--']
+	errors=None
 	
 	def __init__(self):
 		pass
@@ -145,7 +146,7 @@ class ListFileReader:
 	def read(self,filename):
 		the_list = []
 		lines = []
-		with open(filename,'r') as f:
+		with open(filename,'r',errors=self.errors) as f:
 			lines = f.read().split('\n')
 		for line in lines:
 			for c in self.comment_tokens:

@@ -11,9 +11,10 @@
 #from tests.chart_pattern_support_resistance_test import *
 #from tests.harmonic_pattern_test import *
 
+
 #bat - 213,419,805
 
-import tests.fundamental_test as fun
+from tests.text_analysis_test import *
 
 #from tests.shape_patterns_test import *
 #from tests.candle_offset_test import *

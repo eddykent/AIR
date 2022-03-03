@@ -15,9 +15,11 @@ Partial RNN - use correlation matrix for grouping pairs together before running 
 
 RNN to determine next RSI values? (same thing as full rnn? above?) 
 
-ASYNC all webcalls in the fundmental analysis! -- probably pretty important for faster trade decisions :)
+ASYNC all webcalls in the fundmental analysis! Async for AI too -- probably pretty important for faster trade decisions :)
 
- 
+ForexLive needs to have a scraper - it turns out the rss feed does have full articles
+
+
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs
 stringed together. Ex: first channel is GBP/USD then second is NZD/JPY
@@ -33,10 +35,10 @@ signal generating tactic using anything we have already and can be used
 with multiple timeframes. This will help with screening all the pairs
 
 Fundamental analysis/signals - use RSS feeds and a feed reader to get 
-sentiment for currencies and for currency pairs. Twitter and Reddit
+sentiment for currencies and for currency pairs  - Twitter and Reddit
 
 test chart patterns and practice drawing them - gradient descent for finding params? 
-shape based and harmonic based patterns! - done
+shape based and harmonic based patterns! 
 
 
 ADVANCED: 
@@ -75,4 +77,4 @@ https://www.dukascopy.com/swiss/english/marketwatch/sentiment/ - blocked using <
 
 hour should not be a db query parameter - we can get the hour from the datetime passed into the query
 
-chart patterns need tuning & testing properly 
+all chart patterns need tuning & testing properly :(

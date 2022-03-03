@@ -6,8 +6,8 @@ import re
 import pdb
 
 from scrape.scraper import Scraper
-from scrape.feed_collector import Bias
-from utils import  ListFileReader
+from scrape.feed_collector import TextBias as Bias #although used for text, the mechanism is the same for reporting the bias
+from utils import ListFileReader
 
 ##useful? painful? can refactor out if annoying
 ClientSentimentInfo = namedtuple('ClientSentimentInfo','source_ref instrument timeframe bias net_long net_short error') 

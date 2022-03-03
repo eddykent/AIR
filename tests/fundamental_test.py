@@ -12,6 +12,7 @@ assert __name__ != "__main__", "You must run tests through the run_test.py hoist
 
 	
 lfr = ListFileReader()
+lfr.errors = 'ignore'
 fx_pairs = lfr.read('fx_pairs/fx_mains.txt')
 #cs = ClientSentiment(fx_pairs)##put fx pairs in!
 #cs.fetch()

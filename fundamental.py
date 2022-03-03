@@ -3,6 +3,7 @@ import re
 
 import nltk
 import nltk.sentiment
+import spacy
 from collections import namedtuple
 
 import json
@@ -16,7 +17,7 @@ from utils import ListFileReader, CurrencyPair
 
 import scrape.client_sentiment_scraper as clisps
 import scrape.feed_collector as feedco
-from scrape.feed_collector import Bias
+from scrape.feed_collector import TextBias as Bias, TextType
 
 KeywordMap = namedtuple('KeywordMap','keyword values')
 RelevanceInfo = namedtuple('RelevanceInfo', 'degree direction')
@@ -241,6 +242,36 @@ class KeywordMapHelper:
 	
 
 
+#little class for removing slashes from forex names (eg USD/JPY -> USDJPY) so they are treated as a single token later on in NLP stuff
+class ForexSlashHelper:
+	
+	fx_pairs = [] 
+	
+	def __init__(self,fx_pairs=[]):
+		if not fx_pairs:
+			lfr = ListFileReader()
+			fx_pairs = lfr.read('fx_pairs/fx_mains.txt') # expand to all fx pairs? 
+		self.fx_pairs = fx_pairs
+	
+	#nice crude function :) 
+	#removes all / from FX names, and also adds a space after every \n to ensure words are picked up without them
+	def strip_slashes(self,text):#
+		text = text.replace('\\n','\n') #fix newlines 
+		lines = text.split('\n')
+		new_lines = []
+		for line in lines:
+			words = line.split()
+			new_words = []
+			for word in words:
+				if word.upper() in self.fx_pairs:
+					word = word.replace('/','')
+				new_words.append(word)
+			new_lines.append(' '.join(new_words)) 
+		return ' \n '.join(new_lines) #add spaces after new line characters to cheat a little :) 
+		
+		
+		
+		
 
 #Tool for doing all natural language stuff for passages found online. News storys are articles collected from a feed collector
 #their text is then passed into this tool for further clarification. Is the story actually a buy/sell signal? Is it relevant? 

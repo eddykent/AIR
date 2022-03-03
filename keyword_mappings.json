@@ -9,13 +9,13 @@
 --so we can conclude it all together nicely with a focus on the higher degree 
 {
 	"AUD"    :["AUSTRALIA","AUSRTALIAN DOLLAR", "AUSSIE"],
-	"CAD"    :["CANADA", "CANADIAN DOLLAR", "LOONIE"],
+	"CAD"    :["CANADA", "CANADIAN DOLLAR", "LOONIE", "BOC", "BANK OF CANADA"],  --not sure if loonie is the USD/CAD?
 	"CHF"    :["SWITZERLAND", "SWISS FRANC", "SWISS"],
 	"EUR"    :["EUROPE", "EURO", "EUROPEAN"],
-	"GBP"    :["UK", "BRITAIN", "BRITISH POUND", "POUND"],
+	"GBP"    :["UK", "BRITAIN", "BRITISH POUND", "POUND", "BANK OF ENGLAND"],
 	"JPY"    :["JAPAN","JAPANESE","JAPANESE YEN","YEN"],
 	"NZD"    :["NEW ZEALAND", "NEW ZEALAND DOLLAR", "KIWI"],
-	"USD"    :["USA", "US DOLLAR", "AMERICA", "GREENBACK", "GREEN BACK"],
+	"USD"    :["USA", "US DOLLAR", "AMERICA", "GREENBACK", "GREEN BACK", "FEDERAL RESERVE"],
 	"AUD/CAD":[],  
 	"AUD/CHF":[],
 	"AUD/JPY":[],
