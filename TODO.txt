@@ -69,6 +69,7 @@ sentiment scores - when a positive sell order is given (Eg from fxstreet etc) it
  - need to check article first and see if it is a buy/sell order and not a general news story about a pair/currency
  - if it is a buy/sell order then perhaps it should be added to a separate indicator. Some kind of status is needed 
 	per article to achieve this
+TURN is_tutorial INTO A RATE BASED, NOT COUNT BASED THING?-- might not be that important though since tutorials barely ever have fx names in :)
 
 currency_strength_diff_auto_regression_rsi.sql is not producing enough rows to run in database_tests.py
 
