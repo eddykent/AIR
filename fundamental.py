@@ -3,9 +3,9 @@ import re
 
 import nltk
 import nltk.sentiment
-import spacy
-from collections import namedtuple
-
+#import spacy
+from collections import namedtuple, Counter
+from string import punctuation
 import json
 
 #test change
@@ -284,13 +284,18 @@ class TextAnalysis:
 	#filter_articles = ['seminar','video','tutorial'] #think of any other stuff here! 
 	#may want to do own sentiment analysis - to do so  replace sentiment_analyzer 
 	sentiment_analyzer = None
+	fsh = None
+	text_type_config = {}
 	
-	def __init__(self, keyword_helper):
+	def __init__(self, keyword_helper, text_type_config_file='text_type_words.json'):
 		self.stopwords = nltk.corpus.stopwords.words('english')
 		self.sentiment_analyzer = nltk.sentiment.SentimentIntensityAnalyzer()
 		self.keyword_helper = keyword_helper
 		if callable(self.keyword_helper.bloat):
 			self.keyword_helper.bloat() 
+		lfr = ListFileReader()
+		self.text_type_config = json.loads(lfr.read_full_text(text_type_config_file))
+		self.fsh = ForexSlashHelper()
 	
 	#motivation: https://realpython.com/python-nltk-sentiment-analysis/
 	def get_sentiment(self,passage_text):
@@ -304,16 +309,43 @@ class TextAnalysis:
 	#for fast filtering articles that have no relevant stuff in their title (prevents us doing 100s of web calls)
 	def get_relevant_keys(self,passage_text):
 		return self.keyword_helper.relevant_keys(passage_text)
+	
+	
+	#determine if a passage of text is actually a trading signal 
+	def is_signal(self,some_text):
+		#add to these as we discover more indicators that the text might be a signal
 		
-	def get_type(self,passage_text): 
-		tokens = nltk.word_tokenize(passage_text.lower()) 
-		##need to do something to prevent webinar invites seeping through... 
-		distribution = nltk.FreqDist([t for t in tokens if t not in self.stopwords])
-		#TODO - use the distribution to assess relevance & reject things like values in filter_article
+		some_text = self.fsh.strip_slashes(some_text)
+		words = [w for w in nltk.word_tokenize(some_text.lower()) if w not in punctuation and w not in self.stopwords]
+		new_text = ' '.join(words)
 		
-
-
-
+		if any(' {} '.format(o) in new_text for o in ['buy','sell']):
+			if any(' {} '.format(o) in new_text for o in self.text_type_config['stop_loss_words']):
+				if any(' {} '.format(o) in new_text for o in self.text_type_config['take_profit_words']):
+					#pretty sus! we got a buy or sell together with a take profit and stop loss
+					return True
+		return False
+	
+	#use with is_tutorial - if there is a word in the title + summary then it is probably a tutorial. But check too with is_tutorial
+	def tutorial_title(self,some_title_and_summary):
+		words = [s for s in nltk.word_tokenize(some_title_and_summary.lower())]
+		return any(lw in words for lw in self.text_type_config['tutorial_words']) \
+			or any(' {} '.format(ph) in some_title_and_summary.lower() for ph in self.text_type_config['tutorial_phrases'])
+	
+	#used in conjunction with tutorial_title(). A tutorial has lots of question words in it and has lots of referals to self or you 
+	def is_tutorial(self,some_text): 
+		some_text = self.fsh.strip_slashes(some_text.lower())
+		#words = [w for w in nltk.word_tokenize(some_text.lower()) if w not in punctuation and w not in nlp.Defaults.stop_words]
+		#new_text = ' '.join(words)
+		words = [s for s in nltk.word_tokenize(some_text)]
+		word_count = Counter(words)
+					
+		personifiers = sum(word_count[w] for w in self.text_type_config['personifiers'])
+		questionables = sum(word_count[w] for w in self.text_type_config['question_words'])
+		#lesson_words  = sum(word_count[w] for w in self.text_type_config['tutorial_words']) 
+		#qmarks = len([c for c in some_text if c == '?'])
+		
+		return questionables + personifiers > 14 or questionables > 10 or personifiers > 10   #this should  be done by rate, not by count
 
 
 

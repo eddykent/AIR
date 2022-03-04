@@ -20,7 +20,7 @@ class TextBias(Enum):
 
 class TextType(Enum):
 	UNKNOWN = 0 #initalise to unknown to tell us we havent checked yet 
-	INVITATION = 1 #eg to a webinar or something
+	#INVITATION = 1 #eg to a webinar or something - decided this was a bit pointless... 
 	TUTORIAL = 2 #also include video etc - these are not useful to us and we should avoid them if possible 
 	TRADE_SIGNAL = 3 #we can store the trade signal stories for later if needed! 
 	STORY = 4 #this is the one we actually want! We perform sentiment analysis on stories only. We could use the trade signals though. 
@@ -29,7 +29,6 @@ class TextType(Enum):
 #the_date - date of the article and when it was published 
 #instrument - eg EUR/USD 
 #keyword  - the keyword that was found in the article/story or whatever 
-#category - the category of the article since sometimes they are passages, sometimes they are orders
 #title - the title from the artricle for displaying later & for debugging purposes
 #summary - the summary from the article for displaying later & for debugging purposes
 #source_url - the url where the source is 
@@ -42,12 +41,13 @@ class FeedCollect:
 
 	sources = [] 
 	articles = [] 
-	all_findings = [] #for each instrument, keep the bullish/bearish scores and sources in SentimentDatum objects
-	instrument_summary = []# for each instrument, keep a simple "bullish"/"bearish" score gerneated from the findings 
 	
-	_text_bias = []#keep internal results of sentiment for each article in the form of TextBias values 
-	_relevant_key_info = []#keep internal results of all relevant keys found for all articles 
-	_text_types = []#keep internal results of what type of text the passage was for each article
+	#all_findings = [] #for each instrument, keep the bullish/bearish scores and sources in SentimentDatum objects
+	instrument_summary = {}# for each instrument, keep a simple "bullish"/"bearish" score gerneated from the findings 
+	
+	_article_findings = []#keep results per article of SentimentDatum
+	#_article_signals = [] 
+	_article_types = []#keep internal results of what type of text the passage was for each article
 
 	def __init__(self,sources): 
 		self.sources = sources
@@ -57,37 +57,43 @@ class FeedCollect:
 	def parse_feeds(self):
 		raise NotImplementedError('This method must be overridden')
 	
+	def get_text_type(self,article,text_analyser):
+		the_type = TextType.STORY #default to story
+		if text_analyser.is_signal(article.full_text):
+			the_type = TextType.TRADE_SIGNAL
+		if text_analyser.tutorial_title(article.title + ' ' + article.summary) and text_analyser.is_tutorial(article.full_text):
+			the_type = TextType.TUTORIAL
+		return the_type
+	
 	#walk through each article, decide whether to open it or not and perform analysis on it to gauge 
 	#key words it is talking about as well as sentiment about those words 
 	def analyse_articles(self,text_analyser):
 		#initalise lists 
-		self._text_bias = [TextBias.MIXED for a in self.articles] 
-		self._text_types = [TextType.UNKNOWN for a in self.articles]
-		self._relevant_key_info = [[] for a in self.articles]
+		self._article_types = [TextType.UNKNOWN for a in self.articles]
+		#self._article_signals = [[] for a in self.articles]
+		self._article_findings = [[] for a in self.articles]
 		
 		for i, article in enumerate(self.articles):
 			
-			for vts in ['video','tutorial','seminar']:
-				breakout = False
-				for psg in [article.link,article.title,article.summary]:
-					if vts in psg.lower():
-						self._text_types[i] = TextType.TUTORIAL
-						continue
+			relevant = text_analyser.get_relevant_keys(article.title + ' ' + article.summary)
 			
-			relevancy = text_analyser.get_relevant_keys(article.title + ' ' + article.summary)
+			if not relevant:
+				continue # this article has no information about stuff we are interested in in the title so we should skip it to speed things up
 			
-			if not relevancy:
-				continue # this article has no information about stuff we are interested in in the title so we should skip it 
+			article.fetch_full_text() #async?
 			
-			article.fetch_full_text() #async from here? 
+			the_text_type = self.get_text_type(article,text_analyser)
+			self._article_types[i] = the_text_type
 			
-			#self._relevant_key_info[i] = #here is where it gets harder! 
-		
-		#pdb.set_trace()
+			if the_text_type == TextType.STORY:
+				pass #perform sentiment analysis here on the story and report all findings. 
+			
+			#if the_text_type == TextType.TRADE_SIGNAL:
+			#	pass # perhaps can create a trade signal object here... might require a specialist parser though 
 	
 	#generate list of SentimentDatum and store in insturment_summary
 	def collect(self,keyword_helper=None):
-		self.all_findings = [] 
+		instrument_summary = {}  
 			
 	
 	#def keyword_collect(self):

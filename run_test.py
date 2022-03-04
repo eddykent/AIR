@@ -14,7 +14,10 @@
 
 #bat - 213,419,805
 
-from tests.text_analysis_test import *
+#from tests.text_analysis_test import *
+from tests.fundamental_test import *
+
+#from tests.spacy_test import *
 
 #from tests.shape_patterns_test import *
 #from tests.candle_offset_test import *
