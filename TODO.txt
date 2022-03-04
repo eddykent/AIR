@@ -40,6 +40,10 @@ sentiment for currencies and for currency pairs  - Twitter and Reddit
 test chart patterns and practice drawing them - gradient descent for finding params? 
 shape based and harmonic based patterns! 
 
+match pattern - create a "needle" from current chart and then search all 
+charts for same shape (normalise and use mse) to get what other charts did. then compile
+results into a nice snapshot to seee many lines from that point 
+
 
 ADVANCED: 
 Make a NN that takes a sequence of candlesticks and indicators AND a list of 28  
