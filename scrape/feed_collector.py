@@ -46,6 +46,7 @@ class FeedCollect:
 	instrument_summary = {}# for each instrument, keep a simple "bullish"/"bearish" score gerneated from the findings 
 	
 	_article_findings = []#keep results per article of SentimentDatum
+	_article_topics = []
 	#_article_signals = [] 
 	_article_types = []#keep internal results of what type of text the passage was for each article
 
@@ -72,6 +73,7 @@ class FeedCollect:
 		self._article_types = [TextType.UNKNOWN for a in self.articles]
 		#self._article_signals = [[] for a in self.articles]
 		self._article_findings = [[] for a in self.articles]
+		self._article_topics = [[] for a in self.articles]
 		
 		for i, article in enumerate(self.articles):
 			
@@ -84,9 +86,10 @@ class FeedCollect:
 			
 			the_text_type = self.get_text_type(article,text_analyser)
 			self._article_types[i] = the_text_type
+			self._article_topic[i] = relevant
 			
 			if the_text_type == TextType.STORY:
-				pass #perform sentiment analysis here on the story and report all findings. 
+				pass #perform sentiment analysis on the story and report all findings. 
 			
 			#if the_text_type == TextType.TRADE_SIGNAL:
 			#	pass # perhaps can create a trade signal object here... might require a specialist parser though 

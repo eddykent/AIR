@@ -1,10 +1,12 @@
 import datetime
 import re
 
-import nltk
-import nltk.sentiment
+
 #import spacy
-from collections import namedtuple, Counter
+import nltk
+from textblob import TextBlob
+
+from collections import namedtuple
 from string import punctuation
 import json
 
@@ -139,6 +141,7 @@ class KeywordMapHelper:
 	bloated_keyword_map = []
 	all_words_relevance = []
 	map_file = 'keyword_mappings.json'
+	fsh = None
 	
 	def __init__(self,keyword_map_file=None):
 		if keyword_map_file is not None:
@@ -149,6 +152,7 @@ class KeywordMapHelper:
 		self.input_keyword_map = self.__construct_keyword_map(keyword_maps.items())
 		self.bloated_keyword_map = self.input_keyword_map
 		self.all_words_relevance = self.__generate_all_words(self.input_keyword_map)
+		self.fsh = ForexSlashHelper()
 	
 	#if an article title or an article summary has any words that are interesting to us, it is relevant. 
 	#otherwise we can probably filter it out to save computational resources! 
@@ -156,8 +160,8 @@ class KeywordMapHelper:
 	def relevant_keys(self,summary_text):	
 		#perhaps we should move all author name words from the article first to ensure we don't get false relevances XD
 				
-		words = nltk.word_tokenize(summary_text.lower())
-		intersect = self.all_words_relevance.intersection(words)
+		textblob = TextBlob(self.fsh.strip_slashes(summary_text).lower())
+		intersect = self.all_words_relevance.intersection(textblob.words)
 		
 		if not intersect:
 			return []
@@ -170,16 +174,16 @@ class KeywordMapHelper:
 			keyword = keyword_mapping.keyword
 			values = keyword_mapping.values
 			
-			if keyword.lower() in words or keyword.replace('/','').lower() in words:
+			if keyword.lower() in textblob.words or keyword.replace('/','').lower() in textblob.words:
 				relevant_keys[keyword] = [RelevanceInfo(1,1)] #it is obv bullish if the key is used so sentiment up => this key up 
 			
 			for value in values:
 				direction = 1 if self.bullish(value) else -1
 				pad_val = ' ' + value + ' ' #ensure it is a word and not part of a word
-				if value.lower() in words:
+				if value.lower() in textblob.words:
 					relevant_keys[keyword] = relevant_keys.get(keyword,[]) + [RelevanceInfo(degree,direction)]
 					
-				elif pad_val.lower() in summary_text:
+				elif pad_val.lower() in textblob:
 					relevant_keys[keyword] = relevant_keys.get(keyword,[]) + [RelevanceInfo(degree,direction)]
 					
 					
@@ -193,10 +197,10 @@ class KeywordMapHelper:
 			for value in values:
 				direction = 1 if self.bullish(value) else -1
 				pad_val = ' ' + value + ' '
-				if value.lower() in words:
+				if value.lower() in textblob.words:
 					relevant_keys[keyword] = relevant_keys.get(keyword,[]) + [RelevanceInfo(degree,direction)]
 					
-				elif pad_val.lower() in summary_text:
+				elif pad_val.lower() in textblob:
 					relevant_keys[keyword] = relevant_keys.get(keyword,[]) + [RelevanceInfo(degree,direction)]
 		
 		return relevant_keys
@@ -288,8 +292,8 @@ class TextAnalysis:
 	text_type_config = {}
 	
 	def __init__(self, keyword_helper, text_type_config_file='text_type_words.json'):
-		self.stopwords = nltk.corpus.stopwords.words('english')
-		self.sentiment_analyzer = nltk.sentiment.SentimentIntensityAnalyzer()
+		self.stopwords = set(nltk.corpus.stopwords.words('english'))
+		#self.sentiment_analyzer = nltk.sentiment.SentimentIntensityAnalyzer()
 		self.keyword_helper = keyword_helper
 		if callable(self.keyword_helper.bloat):
 			self.keyword_helper.bloat() 
@@ -302,9 +306,10 @@ class TextAnalysis:
 		if type(passage_text) != str:
 			print("the text is not a string?")
 			pdb.set_trace()
-		#sentences = nltk.sentence_tokenize(article.full_text)
-		score = self.sentiment_analyzer.polarity_scores(passage_text) #we should do this on relevant sentences, not on the full text
-		return score['compound'] # 0 means no sentiment at all (not positive or negative). 1 is good and -1 is  bad 
+		
+		textblob = TextBlob(self.fsh.strip_slashes(passage_text).lower())
+		
+		
 		
 	#for fast filtering articles that have no relevant stuff in their title (prevents us doing 100s of web calls)
 	def get_relevant_keys(self,passage_text):
@@ -315,8 +320,8 @@ class TextAnalysis:
 	def is_signal(self,some_text):
 		#add to these as we discover more indicators that the text might be a signal
 		
-		some_text = self.fsh.strip_slashes(some_text)
-		words = [w for w in nltk.word_tokenize(some_text.lower()) if w not in punctuation and w not in self.stopwords]
+		textblob = TextBlob(self.fsh.strip_slashes(some_text.lower()))
+		words = [w for w in textblob.words if w not in punctuation]
 		new_text = ' '.join(words)
 		
 		if any(' {} '.format(o) in new_text for o in ['buy','sell']):
@@ -328,23 +333,17 @@ class TextAnalysis:
 	
 	#use with is_tutorial - if there is a word in the title + summary then it is probably a tutorial. But check too with is_tutorial
 	def tutorial_title(self,some_title_and_summary):
-		words = [s for s in nltk.word_tokenize(some_title_and_summary.lower())]
-		return any(lw in words for lw in self.text_type_config['tutorial_words']) \
+		textblob = TextBlob(some_title_and_summary.lower()) 
+		return any(lw in textblob.words for lw in self.text_type_config['tutorial_words']) \
 			or any(' {} '.format(ph) in some_title_and_summary.lower() for ph in self.text_type_config['tutorial_phrases'])
 	
 	#used in conjunction with tutorial_title(). A tutorial has lots of question words in it and has lots of referals to self or you 
 	def is_tutorial(self,some_text): 
-		some_text = self.fsh.strip_slashes(some_text.lower())
-		#words = [w for w in nltk.word_tokenize(some_text.lower()) if w not in punctuation and w not in nlp.Defaults.stop_words]
-		#new_text = ' '.join(words)
-		words = [s for s in nltk.word_tokenize(some_text)]
-		word_count = Counter(words)
-					
-		personifiers = sum(word_count[w] for w in self.text_type_config['personifiers'])
-		questionables = sum(word_count[w] for w in self.text_type_config['question_words'])
-		#lesson_words  = sum(word_count[w] for w in self.text_type_config['tutorial_words']) 
-		#qmarks = len([c for c in some_text if c == '?'])
 		
+		textblob = TextBlob(self.fsh.strip_slashes(some_text.lower()))			
+		personifiers = sum(textblob.word_counts[w] for w in self.text_type_config['personifiers'])
+		questionables = sum(textblob.word_counts[w] for w in self.text_type_config['question_words'])
+				
 		return questionables + personifiers > 14 or questionables > 10 or personifiers > 10   #this should  be done by rate, not by count
 
 

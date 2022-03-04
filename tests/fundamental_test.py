@@ -27,6 +27,9 @@ rss = feedco.RSSCollect(lfr.read('sources/rss_feeds.txt'))
 rss.parse_feeds()
 kwh = KeywordMapHelper()
 ta = TextAnalysis(kwh)
+
+#consider pickle.load(f), open('pickles/stories.pkl') to get faster test result
+
 rss.analyse_articles(ta)
 rss.collect()
 

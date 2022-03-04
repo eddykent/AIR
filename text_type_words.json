@@ -5,5 +5,7 @@
 	"tutorial_words":["explain","explanation","explained","explaining","learn","tutorial","lesson","guide","tips","top","discover"],
 	"tutorial_phrases":["find out","learn how","learn which","learn when","learn why","learn what"],
 	"personifiers":["you","i","us","we","our","one","me"],
-	"question_words":["who","what","where","when","why","how"]
+	"question_words":["who","what","where","when","why","how"],
+	"advertising_phrases":["tradingview", "receive timely", "daily chart", "sign up", "subscribe"]
 }
+
