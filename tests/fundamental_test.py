@@ -33,3 +33,9 @@ ta = TextAnalysis(kwh)
 rss.analyse_articles(ta)
 rss.collect()
 
+
+
+def show_articles(rss):
+	for (i,(a,t)) in enumerate(zip(rss.articles,rss._article_types)):
+		print((' ' if i < 10 else '') + str(i) + ' - ' + str(t) + ' - ' + str(a)) 
+		

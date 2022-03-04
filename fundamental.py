@@ -4,6 +4,7 @@ import re
 
 #import spacy
 import nltk
+import nltk.sentiment
 from textblob import TextBlob
 
 from collections import namedtuple
@@ -22,7 +23,7 @@ import web.feed_collector as feedco
 from web.feed_collector import TextBias as Bias, TextType
 
 KeywordMap = namedtuple('KeywordMap','keyword values')
-RelevanceInfo = namedtuple('RelevanceInfo', 'degree direction')
+RelevanceInfo = namedtuple('RelevanceInfo', 'degree direction keyword')
 
 ## TODO:
 ## rss feeds 
@@ -164,45 +165,35 @@ class KeywordMapHelper:
 		intersect = self.all_words_relevance.intersection(textblob.words)
 		
 		if not intersect:
-			return []
-	
-		#Ah! which keys is intersect relevant to? - now check in these the full phrases
-		#deeper checks - check if the actual full token with mutliple words is in the article title/summary 
-		relevant_keys = {} #check for first degree first 
-		degree = 1
+			return {}
+		
+		relevant_keys = {} #check for second degree first 
+		
+		for keyword_mapping in self.bloated_keyword_map:
+			keyword = keyword_mapping.keyword
+			values = keyword_mapping.values		
+			#check bloat values only for degree 2 relationships 
+			for value in values:
+				direction = 1 if self.bullish(value) else -1 if self.bearsh(value) else 0
+				if value.lower() in str(textblob):  #phrase-like not word like
+					relevant_keys[keyword] = RelevanceInfo(2,direction,value)
+		
+		#then check for first degree - overwrite if exists
 		for keyword_mapping in self.input_keyword_map:
 			keyword = keyword_mapping.keyword
 			values = keyword_mapping.values
 			
-			if keyword.lower() in textblob.words or keyword.replace('/','').lower() in textblob.words:
-				relevant_keys[keyword] = [RelevanceInfo(1,1)] #it is obv bullish if the key is used so sentiment up => this key up 
+			if keyword.replace('/','').lower() in textblob.words:
+				relevant_keys[keyword] = RelevanceInfo(1,1,keyword) #it is obv bullish if the key is used so sentiment up => this key up 
 			
-			for value in values:
-				direction = 1 if self.bullish(value) else -1
-				pad_val = ' ' + value + ' ' #ensure it is a word and not part of a word
-				if value.lower() in textblob.words:
-					relevant_keys[keyword] = relevant_keys.get(keyword,[]) + [RelevanceInfo(degree,direction)]
-					
-				elif pad_val.lower() in textblob:
-					relevant_keys[keyword] = relevant_keys.get(keyword,[]) + [RelevanceInfo(degree,direction)]
-					
-					
-		#then check for second degree
-		degree = 2
-		for keyword_mapping in self.bloated_keyword_map:
-			keyword = keyword_mapping.keyword
-			values = keyword_mapping.values
-							
-			#checked key already - check bloat values
-			for value in values:
-				direction = 1 if self.bullish(value) else -1
-				pad_val = ' ' + value + ' '
-				if value.lower() in textblob.words:
-					relevant_keys[keyword] = relevant_keys.get(keyword,[]) + [RelevanceInfo(degree,direction)]
-					
-				elif pad_val.lower() in textblob:
-					relevant_keys[keyword] = relevant_keys.get(keyword,[]) + [RelevanceInfo(degree,direction)]
-		
+			if '/' in keyword:
+				continue #add hack to stop EVERYTHING becoming degree 1 for pairs - BUG TO FIX >:-/
+			if values: 	#values is usually [] for input_keyword_map
+				for value in values:
+					if value and value.lower() in str(textblob):
+						direction = 1 if self.bullish(value) else -1 if self.bearsh(value) else 0
+						relevant_keys[keyword] = RelevanceInfo(1,direction,value)
+			
 		return relevant_keys
 	
 	# set bloated keyword maps to have move values from previous key words etc 
@@ -228,7 +219,7 @@ class KeywordMapHelper:
 	
 	@staticmethod
 	def __generate_all_words(keyword_map):
-		return set([k.keyword.lower() for k in keyword_map] + [v.lower() for k in keyword_map for v in k.values])
+		return set([k.keyword.replace('/','').lower() for k in keyword_map] + [v.lower() for k in keyword_map for v in k.values])
 	
 	@staticmethod
 	def __construct_keyword_map(keyword_map):
@@ -293,7 +284,7 @@ class TextAnalysis:
 	
 	def __init__(self, keyword_helper, text_type_config_file='text_type_words.json'):
 		self.stopwords = set(nltk.corpus.stopwords.words('english'))
-		#self.sentiment_analyzer = nltk.sentiment.SentimentIntensityAnalyzer()
+		self.sentiment_analyzer = nltk.sentiment.SentimentIntensityAnalyzer()
 		self.keyword_helper = keyword_helper
 		if callable(self.keyword_helper.bloat):
 			self.keyword_helper.bloat() 
@@ -307,15 +298,19 @@ class TextAnalysis:
 			print("the text is not a string?")
 			pdb.set_trace()
 		
+		#sa = nltk.sentiment.SentimentIntensityAnalyzer()
 		textblob = TextBlob(self.fsh.strip_slashes(passage_text).lower())
+		polarity = self.sentiment_analyzer.polarity_scores(str(textblob))
+		overall = {'subjectivity':textblob.sentiment.subjectivity,'polarity': polarity['compound']}
+		specifics = []
+		for sentence in textblob.sentences:
+			keys = self.keyword_helper.relevant_keys(sentence)
+			if keys:
+				polarity = self.sentiment_analyzer.polarity_scores(str(sentence))
+				specifics.append((sentence,keys,{'subjectivity':sentence.sentiment.subjectivity,'polarity': polarity['compound']}))
+		return overall, specifics
 		
 		
-		
-	#for fast filtering articles that have no relevant stuff in their title (prevents us doing 100s of web calls)
-	def get_relevant_keys(self,passage_text):
-		return self.keyword_helper.relevant_keys(passage_text)
-	
-	
 	#determine if a passage of text is actually a trading signal 
 	def is_signal(self,some_text):
 		#add to these as we discover more indicators that the text might be a signal

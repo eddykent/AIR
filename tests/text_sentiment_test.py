@@ -6,12 +6,16 @@
 
 
 import nltk
+import nltk.sentiment
 from textblob import TextBlob
 
 import pickle
 
+from utils import ListFileReader
 from fundamental import ForexSlashHelper, KeywordMapHelper, TextAnalysis
+import web.feed_collector as feedco
 
+lfr = ListFileReader()
 
 def load_cached():
 	rss = None
@@ -39,15 +43,18 @@ def load_fresh():
 	
 def perform_sentiment(some_text):
 	fsh = ForexSlashHelper()
+	sa = nltk.sentiment.SentimentIntensityAnalyzer()
 	textblob = TextBlob(fsh.strip_slashes(some_text).lower())
-	overall = textblob.sentiment
-	specific = []
+	polarity = sa.polarity_scores(str(textblob))
+	overall = {'subjectivity':textblob.sentiment.subjectivity,'polarity': polarity['compound']}
+	specifics = []
 	kwh = KeywordMapHelper()
 	for sentence in textblob.sentences:
 		keys = kwh.relevant_keys(sentence)
 		if keys:
-			specific.append((keys,sentence.sentiment))
-	return overall, specific
+			polarity = sa.polarity_scores(str(sentence))
+			specifics.append((sentence,keys,{'subjectivity':sentence.sentiment.subjectivity,'polarity': polarity['compound']}))
+	return overall, specifics
 
 
 
@@ -56,3 +63,14 @@ def perform_sentiment(some_text):
 def show_articles(rss):
 	for (i,(a,t)) in enumerate(zip(rss.articles,rss._article_types)):
 		print((' ' if i < 10 else '') + str(i) + ' - ' + str(t) + ' - ' + str(a)) 
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		

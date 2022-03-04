@@ -11,7 +11,7 @@
 	"AUD"    :["AUSTRALIA","AUSRTALIAN DOLLAR", "AUSSIE"],
 	"CAD"    :["CANADA", "CANADIAN DOLLAR", "LOONIE", "BOC", "BANK OF CANADA"],  --not sure if loonie is the USD/CAD?
 	"CHF"    :["SWITZERLAND", "SWISS FRANC", "SWISS"],
-	"EUR"    :["EUROPE", "EURO", "EUROPEAN"],
+	"EUR"    :["EUROPE", "EURO", "EUROPEAN"], --europe might make false flags?
 	"GBP"    :["UK", "BRITAIN", "BRITISH POUND", "POUND", "BANK OF ENGLAND"],
 	"JPY"    :["JAPAN","JAPANESE","JAPANESE YEN","YEN"],
 	"NZD"    :["NEW ZEALAND", "NEW ZEALAND DOLLAR", "KIWI"],

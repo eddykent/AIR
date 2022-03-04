@@ -35,20 +35,22 @@ class TextType(Enum):
 #degree - 1 if the article is directly related and 2 if the article is indirectly related (eg federal reserve on GBP/USD)
 #bias - BULLISH, BEARISH, MIXED
 #significance - final sentiment score for using when performing fundamental analysis on the instrument 
-SentimentDatum  = namedtuple('SentimentDatum','the_date instrument keyword title summary source_url degree bias significance')
+SentimentData  = namedtuple('SentimentData','the_date instrument keyword title summary source_url degree bias significance')
 
 class FeedCollect:
 
 	sources = [] 
 	articles = [] 
 	
-	#all_findings = [] #for each instrument, keep the bullish/bearish scores and sources in SentimentDatum objects
+	all_findings = [] #SentimentData objects
 	instrument_summary = {}# for each instrument, keep a simple "bullish"/"bearish" score gerneated from the findings 
 	
-	_article_findings = []#keep results per article of SentimentDatum
+	_article_sentiment = []#keep sentiment per article
 	_article_topics = []
 	#_article_signals = [] 
 	_article_types = []#keep internal results of what type of text the passage was for each article
+	
+	sentiment_parameters = {'subjectivity_threshold':0.2,'slight_threshold':0.25,'full_threshold':0.5}
 
 	def __init__(self,sources): 
 		self.sources = sources
@@ -72,31 +74,108 @@ class FeedCollect:
 		#initalise lists 
 		self._article_types = [TextType.UNKNOWN for a in self.articles]
 		#self._article_signals = [[] for a in self.articles]
-		self._article_findings = [[] for a in self.articles]
+		self._article_sentiment = [{} for a in self.articles]
 		self._article_topics = [[] for a in self.articles]
 		
 		for i, article in enumerate(self.articles):
 			
-			relevant = text_analyser.get_relevant_keys(article.title + ' ' + article.summary)
+			#if i == 5:  #WHY THE FUCK ARE LOADS OF CURRENCIES GOING INTO HERE
+			#	pdb.set_trace()
+			relevant = text_analyser.keyword_helper.relevant_keys(article.title + ' ' + article.summary)
 			
 			if not relevant:
+				if text_analyser.tutorial_title(article.title + ' ' + article.summary):
+					self._article_types[i] = TextType.TUTORIAL #may as well note the tutorials :)
 				continue # this article has no information about stuff we are interested in in the title so we should skip it to speed things up
 			
 			article.fetch_full_text() #async?
 			
 			the_text_type = self.get_text_type(article,text_analyser)
 			self._article_types[i] = the_text_type
-			self._article_topic[i] = relevant
+			self._article_topics[i] = relevant
 			
 			if the_text_type == TextType.STORY:
-				pass #perform sentiment analysis on the story and report all findings. 
+				overall, specifics = text_analyser.get_sentiment(article.full_text)
+				self._article_sentiment[i] = {'overview':overall,'specifics':specifics} 
 			
 			#if the_text_type == TextType.TRADE_SIGNAL:
 			#	pass # perhaps can create a trade signal object here... might require a specialist parser though 
 	
-	#generate list of SentimentDatum and store in insturment_summary
-	def collect(self,keyword_helper=None):
-		instrument_summary = {}  
+	def _get_bias(self,value):
+		if value < -self.sentiment_parameters['full_threshold']:
+			return TextBias.BEARISH
+		if value < -self.sentiment_parameters['slight_threshold']:
+			return TextBias.SLIGHT_BEARISH
+		if value > self.sentiment_parameters['full_threshold']:
+			return TextBias.BULLISH
+		if value > self.sentiment_parameters['slight_threshold']:
+			return TextBias.SLIGHT_BULLISH
+		return TextBias.MIXED
+		
+		
+	def _get_signficance(self,sentiment,subjectivity,nkeys,main):
+		base = (abs(sentiment) / (1 + subjectivity)) * (1 / nkeys)
+		return base if main else base / 2.0 #less significance if it is from a sentence in an article 
+		
+	#produce the list of sentiment data
+	def _collect_findings(self):
+			
+		self.all_findings = []
+		for i, article in enumerate(self.articles):
+			if not self._article_types[i] == TextType.STORY:
+				continue 
+			sentiments = self._article_sentiment[i]
+			subjectivity = sentiments['overview']['subjectivity']
+			
+			first_keys = self._article_topics[i]
+			the_date = article.the_date 
+			title = article.title
+			summary = article.summary 
+			source_url = article.link
+			polarity = sentiments['overview']['polarity']
+			n_hits = len(first_keys)
+			
+			if subjectivity < self.sentiment_parameters['subjectivity_threshold']:
+				for instrument,rel in first_keys.items():  #rel = RelevanceInfo(degree,direction,keyword)
+					degree = rel.degree
+					this_sentiment = polarity * rel.direction #negate the score if the relevance goes the other way. always 1 anyway though for first_keys
+					keyword = rel.keyword
+					bias = self._get_bias(this_sentiment)
+					significance = self._get_signficance(this_sentiment,subjectivity,n_hits,degree==1) # perhaps divide by subjectivity, and also reduce if there are more than 1 keys ?
+					sd = SentimentData(the_date,instrument,keyword,title,summary,source_url,degree,bias,significance)
+					self.all_findings.append(sd)
+			
+			for sentence,sentence_keys,sentence_sentiment in sentiments['specifics']:
+				polarity = sentence_sentiment['polarity']
+				subjectivity = sentence_sentiment['subjectivity']
+				n_hits = len(sentence_keys)
+				if subjectivity < self.sentiment_parameters['subjectivity_threshold']:
+				
+					for instrument,rel in sentence_keys.items():
+						degree = rel.degree
+						this_sentiment = polarity * rel.direction
+						keyword = rel.keyword
+						bias = self._get_bias(this_sentiment)
+						significance = self._get_signficance(this_sentiment,subjectivity,n_hits,False)
+						sd = SentimentData(the_date,instrument,keyword,title,summary,source_url,degree,bias,significance)
+						self.all_findings.append(sd)
+			
+	
+#SentimentData  = namedtuple('SentimentData','the_date instrument keyword title summary source_url degree bias significance')		
+		
+	def _reduce_findings(self):	
+		pass #for each article, group and average together sentiment data. set bias to MIXED if there is bullish and bearish to take it out
+	
+	
+	#generate insturment_summary from all articles, and generate SentimentData for storing the reasons 
+	def collect(self):
+		self._collect_findings()
+		self._reduce_findings()
+		self.instrument_summary = {}  
+		
+		
+			
+			
 			
 	
 	#def keyword_collect(self):
