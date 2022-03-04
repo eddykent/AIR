@@ -9,5 +9,6 @@ statsmodels
 tensorflow
 feedparser
 nltk
-spacy
+textblob
+#spacy
 #python -m spacy download en_core_web_lg

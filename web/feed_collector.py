@@ -156,7 +156,7 @@ class FeedCollect:
 						this_sentiment = polarity * rel.direction
 						keyword = rel.keyword
 						bias = self._get_bias(this_sentiment)
-						significance = self._get_signficance(this_sentiment,subjectivity,n_hits,False)
+						significance = self._get_signficance(this_sentiment,subjectivity,n_hits,False) #always since degree=2 OR from sentence
 						sd = SentimentData(the_date,instrument,keyword,title,summary,source_url,degree,bias,significance)
 						self.all_findings.append(sd)
 			
