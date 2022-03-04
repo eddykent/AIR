@@ -17,9 +17,9 @@ import pdb
 
 from utils import ListFileReader, CurrencyPair
 
-import scrape.client_sentiment_scraper as clisps
-import scrape.feed_collector as feedco
-from scrape.feed_collector import TextBias as Bias, TextType
+import web.client_sentiment_scraper as clisps
+import web.feed_collector as feedco
+from web.feed_collector import TextBias as Bias, TextType
 
 KeywordMap = namedtuple('KeywordMap','keyword values')
 RelevanceInfo = namedtuple('RelevanceInfo', 'degree direction')

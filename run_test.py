@@ -14,8 +14,8 @@
 
 #bat - 213,419,805
 
-#from tests.text_analysis_test import *
-from tests.text_sentiment_test import *
+from tests.text_analysis_test import *
+#from tests.text_sentiment_test import *
 
 #from tests.spacy_test import *
 

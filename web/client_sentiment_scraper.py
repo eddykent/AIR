@@ -5,8 +5,8 @@ import re
 
 import pdb
 
-from scrape.scraper import Scraper
-from scrape.feed_collector import TextBias as Bias #although used for text, the mechanism is the same for reporting the bias
+from web.scraper import Scraper
+from web.feed_collector import TextBias as Bias #although used for text, the mechanism is the same for reporting the bias
 from utils import ListFileReader
 
 ##useful? painful? can refactor out if annoying

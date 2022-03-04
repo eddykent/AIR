@@ -20,7 +20,13 @@ def load_cached():
 	with open('pickles/rss_collected_articles.pkl','rb') as f:
 		rss.articles = pickle.load(f)
 	return rss
-		
+
+def save_rss(rss):
+	with open('pickles/rss_collected.pkl','wb') as f:
+		pickle.dump(rss,f)
+	with open('pickles/rss_collected_articles.pkl','wb') as f:
+		pickle.dump(rss.articles,f)
+	
 def load_fresh():
 	rss = feedco.RSSCollect(lfr.read('sources/rss_feeds.txt'))
 	rss.parse_feeds()

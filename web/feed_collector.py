@@ -8,7 +8,7 @@ from collections import namedtuple
 
 import pdb
 
-from scrape.scraper import Article
+from web.scraper import Article
 
 class TextBias(Enum):
 	BEARISH = -2 #filter 

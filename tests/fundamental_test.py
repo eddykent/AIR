@@ -4,7 +4,7 @@ import pdb
 
 from utils import ListFileReader
 from fundamental import *
-import scrape.feed_collector as feedco
+import web.feed_collector as feedco
 
 
 

@@ -7,8 +7,8 @@
 assert __name__ != "__main__", "You must run tests through the run_test.py hoister"
 import pdb 
 from fundamental import TextAnalysis, ForexSlashHelper, KeywordMapHelper  ##we want to keep playing with TextAnalysis until it starts to work for us 
-import scrape.feed_collector as feedco
-from scrape.feed_collector import TextType
+import web.feed_collector as feedco
+from web.feed_collector import TextType
 
 from utils import ListFileReader 
 from collections import Counter
@@ -45,14 +45,17 @@ mock_tutorial1 = lfr.read_full_text('mocks/tutorial1.txt')
 fsh = ForexSlashHelper()
 
 rss = feedco.RSSCollect(lfr.read('sources/rss_feeds.txt'))
-#rss.parse_feeds()
-with open('pickles/stories.pkl','rb') as f:
-	rss.articles = pickle.load(f)
+rss.parse_feeds()
+#with open('pickles/stories.pkl','rb') as f:
+#	rss.articles = pickle.load(f)
 
-#n = len(rss.articles)
-#for (i,a) in enumerate(rss.articles):
-#	print('fetching article '+str(i+1)+'/'+str(n)+ '... ')
-#	a.fetch_full_text()
+n = len(rss.articles)
+for (i,a) in enumerate(rss.articles):
+	print('fetching article '+str(i+1)+'/'+str(n)+ '... ')
+	a.fetch_full_text()
+
+with open('pickles/stories.pkl','wb') as f:
+	pickle.dump(rss.articles,f)
 
 def pad(t):
 	return ' ' + t + ' '
