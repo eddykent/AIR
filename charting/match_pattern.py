@@ -90,7 +90,7 @@ class MatchPattern(ChartPattern):
 		haystack_errors = sorted(haystack_errors,key=lambda m:m[2])
 		
 		shapes = []
-		for he in haystack_errors[1:self.n_projections+1]: #omit first result - this is probably the actual result itself!
+		for he in haystack_errors[:self.n_projections]: 
 			shape = self.haystack[int(he[0]),int(he[1]):int(he[1]+self.memory_window+self.projection_length),self.line_channel]
 			shapes.append(shape)
 		
