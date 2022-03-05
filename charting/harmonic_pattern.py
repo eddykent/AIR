@@ -10,7 +10,7 @@ import charting.chart_viewer as chv
 
 #tuple for holding indexs of harmonic patterns 
 XABCD = namedtuple('XABCD','direction x a b c d')
-HarmonicLeg = namedtuple('HarmonicLeg','name tool min max touch_max')
+HarmonicRule = namedtuple('HarmonicRule','name tool min max touch_max')
 
 class HarmonicDirection(Enum):
 	BEARISH = -1
@@ -53,8 +53,8 @@ retractments = [
 class HarmonicPattern(ChartPattern):
 	
 	
-	harmonic_legs = []
-	__harmonic_legs_map = {} 
+	harmonic_rules = []
+	__harmonic_rules_map = {} 
 	
 	bullish_wicks = {
 		'X':csf.low,
@@ -73,7 +73,7 @@ class HarmonicPattern(ChartPattern):
 	}
 	
 	def __init__(self):
-		self.__construct_harmonic_legs_map()
+		self.__construct_harmonic_rules_map()
 	
 	def get_xabcd(self,candle_stream,candle_stream_index):
 		extremes = self._get_extremes(candle_stream_index)
@@ -98,17 +98,17 @@ class HarmonicPattern(ChartPattern):
 		return 0
 	
 	@classmethod
-	def __construct_harmonic_legs_map(cls):
-		cls.__harmonic_legs_map = {}
-		for hl in cls.harmonic_legs:
+	def __construct_harmonic_rules_map(cls):
+		cls.__harmonic_rules_map = {}
+		for hl in cls.harmonic_rules:
 			key = hl.name[2]
-			legs = cls.__harmonic_legs_map.get(key,[])
+			legs = cls.__harmonic_rules_map.get(key,[])
 			legs.append(hl)
-			cls.__harmonic_legs_map[key] = legs
+			cls.__harmonic_rules_map[key] = legs
 	
 	#can optimise with dict?
-	def _get_legs_for(self,point):
-		return self.__harmonic_legs_map[point.upper()]
+	def _get_rules_for(self,point):
+		return self.__harmonic_rules_map[point.upper()]
 	
 	
 	def _height_check(self,value1,value2,direction):
@@ -151,9 +151,9 @@ class HarmonicPattern(ChartPattern):
 			'D':None
 		}
 				
-		b_leg =  self._get_legs_for('B')[0] #usually only 1 leg for B
-		c_leg =  self._get_legs_for('C')[0] #usually only 1 leg for C
-		d_legs = self._get_legs_for('D')  #do 0th then 1st 
+		b_leg =  self._get_rules_for('B')[0] #usually only 1 leg for B
+		c_leg =  self._get_rules_for('C')[0] #usually only 1 leg for C
+		d_legs = self._get_rules_for('D')  #do 0th then 1st 
 		
 		
 		wicks = {}
@@ -263,21 +263,21 @@ class HarmonicPattern(ChartPattern):
 	
 class Butterfly(HarmonicPattern):
 	
-	harmonic_legs = [
-		HarmonicLeg('XAB',HarmonicPattern.retracement,0.786,1.0,False),
-		HarmonicLeg('ABC',HarmonicPattern.retracement,0.382,0.886,True),
-		HarmonicLeg('XAD',HarmonicPattern.retracement,1.27,None,True),
-		HarmonicLeg('ABD',HarmonicPattern.extension,1.618,2.24,False)
+	harmonic_rules = [
+		HarmonicRule('XAB',HarmonicPattern.retracement,0.786,1.0,False),
+		HarmonicRule('ABC',HarmonicPattern.retracement,0.382,0.886,True),
+		HarmonicRule('XAD',HarmonicPattern.retracement,1.27,None,True),
+		HarmonicRule('ABD',HarmonicPattern.extension,1.618,2.24,False)
 	]
 	
 	
 class Gartley(HarmonicPattern):
 	
-	harmonic_legs = [
-		HarmonicLeg('XAB',HarmonicPattern.retracement,0.618,0.886,False),
-		HarmonicLeg('ABC',HarmonicPattern.retracement,0.382,0.886,True),
-		HarmonicLeg('XAD',HarmonicPattern.retracement,0.786,None,True),
-		HarmonicLeg('ABD',HarmonicPattern.extension,1.13,1.618,False)
+	harmonic_rules = [
+		HarmonicRule('XAB',HarmonicPattern.retracement,0.618,0.886,False),
+		HarmonicRule('ABC',HarmonicPattern.retracement,0.382,0.886,True),
+		HarmonicRule('XAD',HarmonicPattern.retracement,0.786,None,True),
+		HarmonicRule('ABD',HarmonicPattern.extension,1.13,1.618,False)
 	]
 	
 	def _get_abcd(self,start_point,candle_stream, candle_stream_index):

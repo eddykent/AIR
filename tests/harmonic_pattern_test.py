@@ -127,5 +127,3 @@ def draw(snapshot_index):
 
 
 
-
-
