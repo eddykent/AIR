@@ -20,17 +20,18 @@ import charting.chart_viewer as chv
 class MatchPattern(ChartPattern):
 	
 	memory_window = 20 #standard from ChartPattern - used fof needle size & comparing in haystack
-	haystack_window = 250 #length back to look in haystack
+	haystack_window = 400 #length back to look in haystack
 	haystack = np.array([]) #list of other candle streams (including this one) 
 	#can be handled from the test/point of usage
 	projection_length = 8 #number of candles after the haystack index to use as guide for the trad
-	n_projections = 20 #select top 10 best candles from the haystack for use in projecting price
+	n_projections = 20 #select top x best candles from the haystack for use in projecting price
 	
-	endings_to_check = 3
+	endings_to_check = 5
 	
 	line_channel = csf.close #csf.open? 
-	step = 1 #same some computation by checking every other one 
-	std_multiplier = 2.1
+	
+	best_std_multiplier = 2.1
+	other_std_multiplier = 0.5
 	
 	def __init__(self):
 		pass
@@ -40,22 +41,19 @@ class MatchPattern(ChartPattern):
 		haystack = np.array(candle_haystack)[:,:,:4]#get all candles but chop all datetime off 
 		self.haystack = np.float64(haystack)
 	
-	def normalise(self,candles):
-		mins = np.expand_dims(np.min(candles,axis=1),axis=1)
-		maxs = np.expand_dims(np.max(candles,axis=1),axis=1)
-		return (candles - mins) / (maxs - mins) , mins, maxs
+	def normalise(self,hay):
+		mins = np.expand_dims(np.min(hay[:,:self.memory_window],axis=1),axis=1) #NOTE - hay  > window size since it has projection 
+		maxs = np.expand_dims(np.max(hay[:,:self.memory_window],axis=1),axis=1)
+		return (hay - mins) / (maxs - mins) , mins, maxs
 	
-	def rescale(self,shapes,new_min,new_max):
-		mins = np.expand_dims(np.min(shapes[:,:self.memory_window],axis=1),axis=1) #only take the scale from the memory window so the 
-		maxs = np.expand_dims(np.max(shapes[:,:self.memory_window],axis=1),axis=1) #projection is preserved
-		normed_shapes = (shapes - mins) / (maxs - mins)
+	def rescale(self,normed_shapes,new_min,new_max):
 		new_shapes = (normed_shapes * (new_max - new_min)) + new_min
 		return new_shapes
 		
-	def calc_errors(self,needle,hay):
-		return (np.square(needle - hay)).mean(axis=1)
+	def calc_distance(self,needle,hay):
+		return (np.square(needle - hay[:,:self.memory_window])).mean(axis=1)
 	
-	def haystack_matching_errors(self,needle,candle_stream_index):
+	def haystack_matchings(self,normed_needle,candle_stream_index):
 		#error_values = []
 		#for haystack_index,candle_stream in enumerate(self.haystack):
 		#	for candle_index in range(len(candle_stream) - self.memory_window - self.projection_length):
@@ -64,18 +62,23 @@ class MatchPattern(ChartPattern):
 		#		the_error = self.calc_errors(needle,other_needle)
 		#		error_values.append(Matching(haystack_index,candle_index,the_error))
 		#return error_values 
-		error_values = []
+		
 		nhays = self.haystack.shape[0]
 		hay_end = candle_stream_index - self.memory_window - self.projection_length
 		hay_start = max(hay_end - self.haystack_window,0)
-		for ci in range(hay_start,hay_end,self.step):
-			hay = self.haystack[:,ci:ci+self.memory_window:,self.line_channel]
-			hay,_,_ = self.normalise(hay)
-			errors = self.calc_errors(needle,hay)
-			cis = np.full((nhays,),ci)
-			his = np.arange(0,nhays)
-			error_values.append(np.stack([his,cis,errors],axis=1))
-		return np.concatenate(error_values)
+		
+		slideable_hay = self.haystack[:,hay_start:hay_end,self.line_channel]
+		windowed_hay = np.lib.stride_tricks.sliding_window_view(slideable_hay,(nhays,self.memory_window+self.projection_length))
+		
+		y_dim = windowed_hay.shape[1] * windowed_hay.shape[2]
+		x_dim = windowed_hay.shape[3]
+		windowed_hay = windowed_hay.reshape((y_dim,x_dim))
+		
+		#this will also have some of its values at the end non-normed since they will be used later for fitness & drawing
+		normed_hay,_,_ = self.normalise(windowed_hay)
+		distances = self.calc_distance(normed_needle,normed_hay)
+		
+		return normed_hay,distances 
 		
 	
 	def _get_closest_paths(self,candle_stream,candle_stream_index):
@@ -86,14 +89,12 @@ class MatchPattern(ChartPattern):
 		needle = np.expand_dims(needle,axis=0) #so we can apply it to some hay
 		normed_needle, this_min, this_max = self.normalise(needle)
 		
-		haystack_errors = self.haystack_matching_errors(normed_needle,candle_stream_index)
-		haystack_errors = sorted(haystack_errors,key=lambda m:m[2])
+		normed_hay, distances = self.haystack_matchings(normed_needle,candle_stream_index)
+		sorted_hay = sorted(zip(normed_hay,distances),key=lambda m:m[1])
 		
-		shapes = []
-		for he in haystack_errors[:self.n_projections]: 
-			shape = self.haystack[int(he[0]),int(he[1]):int(he[1]+self.memory_window+self.projection_length),self.line_channel]
-			shapes.append(shape)
-		
+		top_hay = sorted_hay[:self.n_projections]
+		shapes = list(zip(*top_hay))[0]
+
 		new_shapes = self.rescale(np.stack(shapes,axis=0),this_min,this_max)
 		return new_shapes
 	
@@ -120,12 +121,14 @@ class MatchPattern(ChartPattern):
 		
 		mean_end = np.mean(endings) 
 		last_close = candle_stream[candle_stream_index][self.line_channel]
-		movement = standard_dev * self.std_multiplier #make highly significant for normal dist 
+		movement = standard_dev * self.best_std_multiplier #make highly significant for normal dist 
 		
 		#if we moved more than the sd then consider it a good choice
 		direction = 1 if mean_end > last_close + movement else -1 if mean_end < last_close - movement else 0
 		
-		best_ending_directions = [1 if some_end > last_close else -1 if some_end < last_close else 0 for some_end in endings[:self.endings_to_check]]
+		other_movement = standard_dev * self.other_std_multiplier
+		
+		best_ending_directions = [1 if some_end > last_close + other_movement else -1 if some_end < last_close - other_movement else 0 for some_end in endings[:self.endings_to_check]]
 		best_ending_directions.append(direction)
 		
 		agreement = all(ed == 1 for ed in best_ending_directions) or all(ed == -1 for ed in best_ending_directions)
@@ -145,8 +148,6 @@ class MatchPattern(ChartPattern):
 		base_view = super().draw_snapshot(candle_stream,snapshot_index)
 		#build a view of this chart pattern
 		this_view = chv.ChartView()
-		
-		
 		
 		best_path = []
 		for (x,y) in zip(x_axis,paths[0]):

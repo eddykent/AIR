@@ -39,6 +39,11 @@ results into a nice snapshot to seee many lines from that point
 
 ForexLive needs to have a scraper - it turns out the rss feed does have full articles
 
+
+pluralize windows in match_pattern and use cKDtree whatever that is for faster search
+ - kdtree is good for cached searches but we get the data right away so no point I don't think?
+
+
 BUGS:
 (FIXED) Possible RSI calculation bug - using SMA in the place of SMMA (Smoothed modified moving average) 
 An EMA might be better in its place but it will be very bad for early trades without significant data

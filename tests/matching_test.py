@@ -23,8 +23,8 @@ parameters = {
 	'chart_resolution':240,
 	'the_date':the_date,
 	'hour':the_date.hour,
-	'days_back':100,
-	'candle_offset':0,
+	'days_back':400,
+	'candle_offset':120,
 	'currencies':currencies	
 }
 

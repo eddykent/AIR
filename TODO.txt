@@ -40,7 +40,6 @@ sentiment for currencies and for currency pairs  - Twitter and Reddit
 test chart patterns and practice drawing them - gradient descent for finding params? 
 shape based and harmonic based patterns! 
 
-pluralize windows in match_pattern and use cKDtree whatever that is for faster search
 
 ADVANCED: 
 Make a NN that takes a sequence of candlesticks and indicators AND a list of 28  
