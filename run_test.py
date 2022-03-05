@@ -9,8 +9,9 @@
 #from tests.candle_stick_tests import *
 
 #from tests.chart_pattern_support_resistance_test import *
-from tests.harmonic_pattern_test import *
+#from tests.matching_test import *
 
+from tests.harmonic_pattern_test import *
 
 #bat - 213,419,805
 
