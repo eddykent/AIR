@@ -32,6 +32,13 @@ to see if the exchange rate is the same (for common exchanges)
 Extend trades to be able to have entry, stop loss and take profit price values - refactored trade_schedule.py to be nicer to work with and 
 have a TradeSignal class which is much nicer! 
 
+
+match pattern - create a "needle" from current chart and then search all 
+charts for same shape (normalise and use mse) to get what other charts did. then compile
+results into a nice snapshot to seee many lines from that point 
+
+ForexLive needs to have a scraper - it turns out the rss feed does have full articles
+
 BUGS:
 (FIXED) Possible RSI calculation bug - using SMA in the place of SMMA (Smoothed modified moving average) 
 An EMA might be better in its place but it will be very bad for early trades without significant data

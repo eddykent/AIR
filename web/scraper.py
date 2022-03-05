@@ -122,8 +122,8 @@ class Article:
 				specialist_scraper = DailyFXNews
 			if self.source_ref == 'fxstreet.com':
 				specialist_scraper = FXStreet
-			#if self.source_ref == 'fxstreet.com':   #TODO - but the news is very small! 
-			#	specialist_scraper = FXStreet
+			if self.source_ref == 'forexlive.com':   #TODO - but the news is very small! 
+				specialist_scraper = ForexLive
 			if self.source_ref == 'forexcrunch.com':
 				specialist_scraper = ForexCrunch
 		
@@ -135,9 +135,8 @@ class Article:
 				#pdb.set_trace()
 				self.full_text = self.title + ' ' + self.summary
 		else:
-			if self.source_ref not in ['forexlive.com']:  #refs that don't need a scraper as their content is very small 
-				print("We are not able to get the full_text for "+self.link)
-				pdb.set_trace()
+			print("We are not able to get the full_text for "+self.link)
+			pdb.set_trace()
 			self.full_text = self.title + ' ' + self.summary #crude but will do for now
 	
 	#no idea why ever this function would  be used 
@@ -191,7 +190,13 @@ class FXStreet(Scraper):
 class ForexLive(Scraper):
 	
 	def scrape(self):
-		pdb.set_trace()
+		article_elems = self.html.xpath("//article")
+		if not article_elems:
+			return ''
+		ps = article_elems[0].xpath("//p")
+		return '\n'.join([p.text for p in ps])
+		
+		
 
 #this one again was a bit weird
 class ForexCrunch(Scraper):

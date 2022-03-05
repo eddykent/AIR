@@ -19,8 +19,6 @@ RNN to determine next RSI values? (same thing as full rnn? above?)
 
 ASYNC all webcalls in the fundmental analysis! Async for AI too -- probably pretty important for faster trade decisions :)
 
-ForexLive needs to have a scraper - it turns out the rss feed does have full articles
-
 
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs
@@ -42,10 +40,7 @@ sentiment for currencies and for currency pairs  - Twitter and Reddit
 test chart patterns and practice drawing them - gradient descent for finding params? 
 shape based and harmonic based patterns! 
 
-match pattern - create a "needle" from current chart and then search all 
-charts for same shape (normalise and use mse) to get what other charts did. then compile
-results into a nice snapshot to seee many lines from that point 
-
+pluralize windows in match_pattern and use cKDtree whatever that is for faster search
 
 ADVANCED: 
 Make a NN that takes a sequence of candlesticks and indicators AND a list of 28  
@@ -62,7 +57,7 @@ BUGS:
 Perhaps using pandas data frames will be more efficient and better for the whole thing? 
 Practice will also land you a high paying datascience role if you move jobs... 
 
-Use logging to report issues found when scraping websites as it will probably be way easier
+Use logging to report issues found especially when scraping websites as it will probably be way easier
 
 Getting stuff from multiple websites should be async so we can query em all at the same time
 
