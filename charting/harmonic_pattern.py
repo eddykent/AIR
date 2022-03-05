@@ -125,14 +125,18 @@ class HarmonicPattern(ChartPattern):
 			return value2 < value1
 		return False
 	
-	def _perform_leg_tool(self,leg,wicks,points,candle,candle_stream,min_max):
+	def _perform_leg_tool(self,leg,wicks,points,candle,candle_stream,check_max):
 		point0 = points.get(leg.name[0])
 		point1 = points.get(leg.name[1])
 		wick0 = wicks[leg.name[0]]
 		wick1 = wicks[leg.name[1]]
 		wick2 = wicks[leg.name[2]]
+		if not check_max:
+			tool_value = leg.tool(candle_stream[point0][wick0], candle_stream[point1][wick1], candle[wick2]) 
+			return tool_value > leg.min
+		wick2 = csf.close if leg.touch_max else wick2 
 		tool_value = leg.tool(candle_stream[point0][wick0], candle_stream[point1][wick1], candle[wick2]) 
-		
+		return tool_value > leg.max
 	
 	def _get_abcd(self,start_point,candle_stream, candle_stream_index):
 		
@@ -179,40 +183,40 @@ class HarmonicPattern(ChartPattern):
 				points['C'] = None
 			
 			#finding B
-			elif points.get('A') is not None and b_leg.tool(candle_stream[points.get(b_leg.name[0])][wicks[b_leg.name[0]]],candle_stream[points.get(b_leg.name[1])][wicks[b_leg.name[1]]],candle[wicks['B']]) > b_leg.min and points.get('C') is None:
+			elif points.get('A') is not None and self._perform_leg_tool(b_leg,wicks,points,candle,candle_stream,check_max=False) and points.get('C') is None:
 								
 				if points.get('B') is None or self._height_check_against(candle[wicks['B']],candle_stream[points.get('B')][wicks['B']],direction):
 					points['B'] = index
 				
-				if b_leg.tool(candle_stream[points.get(b_leg.name[0])][wicks[b_leg.name[0]]],candle_stream[points.get(b_leg.name[1])][wicks[b_leg.name[1]]],candle[wicks['B'] if b_leg.touch_max else csf.close]) > b_leg.max: #pattern is off if the market closes after this value
+				if self._perform_leg_tool(b_leg,wicks,points,candle,candle_stream,check_max=True): #pattern is off if the market closes after this value
 					#A = None #pattern is invalidated
 					points['B'] = None
 					points['C'] = None
 					break
 			
 			#finding C
-			elif points.get('B') is not None and c_leg.tool(candle_stream[points.get(c_leg.name[0])][wicks[c_leg.name[0]]],candle_stream[points.get(c_leg.name[1])][wicks[c_leg.name[1]]],candle[wicks['C']]) > c_leg.min:  
+			elif points.get('B') is not None and self._perform_leg_tool(c_leg,wicks,points,candle,candle_stream,check_max=False):  
 				if points.get('C') is None or self._height_check(candle[wicks['C']],candle_stream[points.get('C')][wicks['C']],direction):
 					points['C'] = index
 				
-				if c_leg.tool(candle_stream[points.get(c_leg.name[0])][wicks[c_leg.name[0]]],candle_stream[points.get(c_leg.name[1])][wicks[c_leg.name[1]]],candle[wicks['C'] if c_leg.touch_max else csf.close]) > c_leg.max:  
+				if self._perform_leg_tool(c_leg,wicks,points,candle,candle_stream,check_max=True):  
 					#A = None #pattern is invalidated
 					points['B'] = None
 					points['C'] = None
 					#break - #nope, continue from A 
 			
 			#finding D
-			elif points.get('C') is not None and d_legs[0].tool(candle_stream[points.get(d_legs[0].name[0])][wicks[d_legs[0].name[0]]],candle_stream[points.get(d_legs[0].name[1])][wicks[d_legs[0].name[1]]],candle[wicks['D']]) > d_legs[0].min: 
+			elif points.get('C') is not None and self._perform_leg_tool(d_legs[0],wicks,points,candle,candle_stream,check_max=False): 
 				#no d_legs[0] max 
 														
-				if d_legs[1].tool(candle_stream[points.get(d_legs[1].name[0])][wicks[d_legs[1].name[0]]],candle_stream[points.get(d_legs[1].name[1])][wicks[d_legs[1].name[1]]],candle[wicks['D']]) > d_legs[1].max:
+				if self._perform_leg_tool(d_legs[1],wicks,points,candle,candle_stream,check_max=True):
 					#A = None #pattern is invalidated
 					points['B'] = None
 					points['C'] = None
 					points['D'] = None
 					break#pattern is invalidated
 				
-				elif d_legs[1].tool(candle_stream[points.get(d_legs[1].name[0])][wicks[d_legs[1].name[0]]],candle_stream[points.get(d_legs[1].name[1])][wicks[d_legs[1].name[1]]],candle[wicks['D']]) > d_legs[1].min:
+				elif self._perform_leg_tool(d_legs[1],wicks,points,candle,candle_stream,check_max=False):
 					points['D'] = index
 					return XABCD(direction,points['X'],points['A'],points['B'],points['C'],points['D']) #return as soon as we identity D 		
 		
