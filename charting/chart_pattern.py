@@ -254,7 +254,10 @@ class ChartPattern(CandleStickPattern): #a chart pattern is a very long candlest
 		min_points = [chv.Point(x,y) for (x,y) in zip(xmins,ymins)]
 		max_points = [chv.Point(x,y) for (x,y) in zip(xmaxs,ymaxs)]
 		
-		this_view.draw('carets keyinfo lines', chv.Line(candle_stream_index,min(ymins),candle_stream_index,max(ymaxs)) )
+		caret_ymin = min([candle[csf.low] for candle in candle_stream])
+		caret_ymax = max([candle[csf.low] for candle in candle_stream])
+		
+		this_view.draw('caret keyinfo lines', chv.Line(candle_stream_index,caret_ymin,candle_stream_index,caret_ymax) )
 		this_view.draw('debug bullish points',min_points)
 		this_view.draw('debug bearish points',max_points)
 		

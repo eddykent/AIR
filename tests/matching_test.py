@@ -1,4 +1,5 @@
 import datetime
+import time
 
 import numpy as np
 
@@ -19,10 +20,10 @@ cur = Database()
 
 query = 'querys/candle_stick_selector.sql'
 parameters = {
-	'chart_resolution':60,
+	'chart_resolution':240,
 	'the_date':the_date,
 	'hour':the_date.hour,
-	'days_back':20,
+	'days_back':100,
 	'candle_offset':0,
 	'currencies':currencies	
 }
@@ -37,12 +38,13 @@ database_response = cur.fetchall()
 match_pattern = MatchPattern()
 
 haystack = [match_pattern.to_candles(database_response,pair) for pair in fx_pairs]
-
 match_pattern.set_haystack(haystack)
-
 candle_stream = match_pattern.to_candles(database_response,'EUR/USD')
 
+t0  = time.time()
 chart_result = match_pattern.detect(candle_stream)
+t1 = time.time()
+print(f"Drawing time for {match_pattern.__class__.__name__} was {t1-t0}")
 
 def draw(snapshot_index):
 	chart_view = match_pattern.draw_snapshot(candle_stream,snapshot_index)

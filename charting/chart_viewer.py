@@ -193,6 +193,9 @@ class ChartView:
 		#support lines and resistance lines - eg at top of a chart pattern or below price action etc 
 		self.boundaries = ChartLayer([DrawingMode.LINES,DrawingMode.POINTS]) #support,resistance, 
 		
+		#faint background lines 
+		self.faint_traces = ChartLayer([DrawingMode.PATHS])
+		
 		#shapes we might want to draw that covers the candles showing a chart pattern eg a candle stick highlight box or a wedge
 		self.patterns = ChartLayer(DrawingMode.ALL)
 		
@@ -212,9 +215,9 @@ class ChartView:
 		#any lines that we want to use to show that a trend is happening
 		self.trends = ChartLayer(DrawingMode.LINES)
 		
-		#can also be used for fundamental bullish/bearish 
-		self.carets = ChartLayer(DrawingMode.LINES)
-		
+		#can also be used for fundamental bullish/bearish thin lines but should mainly be for "point in time" stuff
+		self.carets = ChartLayer([DrawingMode.LINES,DrawingMode.PATHS])
+				
 		#anything that needs pointing to!
 		self.arrows = ChartLayer(DrawingMode.LINES)
 		
@@ -352,6 +355,12 @@ class ChartPainter:
 			'bullish':{'fill':'rgba(0,255,0,0.2)'},
 			'bearish':{'fill':'rgba(255,0,0,0.2)'},
 			'keyinfo':{'fill':'rgba(0,255,255,0.3)'}
+		},
+		'faint_traces':{
+			'neutral':{'stroke':'rgba(200,200,200,1)'},
+			'bullish':{'stroke':'rgba(0,255,0,1)'},
+			'bearish':{'stroke':'rgba(255,0,0,1)'},
+			'keyinfo':{'stroke':'rgba(0,255,255,1)'}
 		},
 		'boundaries':{
 			'neutral':{'stroke':'rgba(200,200,200,1)'},
@@ -580,7 +589,11 @@ class PlotlyChartPainter(ChartPainter):
 		self.__paint_plotly_boxes(chart_layer,'backgrounds')
 	
 	def _paint_carets(self, chart_layer):
-		self.__paint_plotly_lines(chart_layer,'carets',1)
+		self.__paint_plotly_lines(chart_layer,'carets',2) #lines are usually the actual time piece so lets add thinkness
+		self.__paint_plotly_paths(chart_layer,'carets',1)
+		
+	def _paint_faint_traces(self, chart_layer):
+		self.__paint_plotly_paths(chart_layer,'faint_traces',1)
 			
 	def _paint_boundaries(self, chart_layer):
 		self.__paint_plotly_lines(chart_layer,'boundaries',3)
