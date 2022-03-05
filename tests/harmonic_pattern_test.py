@@ -62,7 +62,8 @@ database_response = cur.fetchall()
 #OurChartPattern = SupportAndResistance
 #OurChartPattern = ParallelChannelBreakout
 
-OurChartPattern = Bat
+OurChartPattern = Cypher
+#OurChartPattern = Gartley
 
 chart_pattern = OurChartPattern()
 
@@ -117,8 +118,6 @@ def draw(snapshot_index):
 	pcp = PlotlyChartPainter()
 	pcp.paint(chart_view)
 	pcp.show()
-
-
 
 
 

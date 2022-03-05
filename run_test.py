@@ -9,13 +9,13 @@
 #from tests.candle_stick_tests import *
 
 #from tests.chart_pattern_support_resistance_test import *
-#from tests.harmonic_pattern_test import *
+from tests.harmonic_pattern_test import *
 
 
 #bat - 213,419,805
 
 #from tests.text_analysis_test import *
-from tests.fundamental_test import *
+#from tests.fundamental_test import *
 
 #from tests.spacy_test import *
 
