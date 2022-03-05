@@ -31,10 +31,10 @@ currencies = lfr.read('fx_pairs/currencies.txt')
 fx_pairs = lfr.read('fx_pairs/fx_mains.txt')
 sorted(fx_pairs)
 
-the_date = datetime.datetime(2022,2,14,18,0)
+the_date = datetime.datetime(2022,2,23,8,0)
 
 parameters = {
-	'chart_resolution':60,
+	'chart_resolution':240,
 	'the_date':the_date,
 	'hour':the_date.hour,
 	'days_back':20,
@@ -69,7 +69,7 @@ chart_pattern = OurChartPattern()
 
 #chart_pattern.bounce_size = 2
 #chart_pattern.memory_window = 250
-pair = 'GBP/USD'
+pair = 'AUD/JPY'
 candle_stream = chart_pattern.to_candles(database_response,pair)
 
 
@@ -254,6 +254,7 @@ def show_result(result,candles)	:
 	
 	
 snapshot_index = len(result) - 1
+fig.show()
 
 def draw_all(snapshot_index):
 	

@@ -22,10 +22,11 @@ with open('queries/candle_stick_selector.sql','r') as f:
 	query = f.read()
 
 params = {
-	'chart_resolution':1440,
+	'chart_resolution':240,
 	'the_date':the_date,
 	'hour':the_date.hour,
 	'days_back':150,
+	'candle_offset':120,
 	'currencies':['EUR','USD']
 }
 

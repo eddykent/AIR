@@ -2,8 +2,6 @@ from collections import namedtuple
 from enum import Enum
 
 
-
-
 import pdb
 
 import charting.candle_stick_functions as csf

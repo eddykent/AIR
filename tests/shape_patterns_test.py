@@ -64,7 +64,8 @@ database_response = cur.fetchall()
 
 
 #OurChartPattern = DoubleTopAndBottom
-OurChartPattern = TripleTopAndBottom
+#OurChartPattern = TripleTopAndBottom
+OurChartPattern = HeadAndShoulders
 
 
 
@@ -105,7 +106,6 @@ print(f"Drawing time for {candle_pattern.__class__.__name__} was {t1-t0}")
 
 
 
-
 def draw(snapshot_index):
 	
 	chart_view = chart_pattern.draw_snapshot(candle_stream,snapshot_index)
@@ -119,7 +119,8 @@ def draw(snapshot_index):
 	pcp.show()
 
 
-
+snapshot_index = len(chart_result) - 1
+draw(snapshot_index)
 
 
 
