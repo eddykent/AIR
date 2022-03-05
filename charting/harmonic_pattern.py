@@ -54,16 +54,26 @@ class HarmonicPattern(ChartPattern):
 	
 	
 	harmonic_legs = []
+	__harmonic_legs_map = {} 
 	
+	bullish_wicks = {
+		'X':csf.low,
+		'A':csf.high,
+		'B':csf.low,
+		'C':csf.high,
+		'D':csf.low #replace with close?
+	}
 	
-	@staticmethod
-	def retracement(value1,value2,the_value):
-		return ((the_value - value2) / (value1 - value2)) if value1 != value2 else 0
+	bearish_wicks = {
+		'X':csf.high,
+		'A':csf.low,
+		'B':csf.high,
+		'C':csf.low,
+		'D':csf.high
+	}
 	
-	@staticmethod
-	def extension(value1,value2,the_value):  
-		return ((the_value - value1) / (value2 - value1)) if value1 != value2 else 0
-	
+	def __init__(self):
+		self.__construct_harmonic_legs_map()
 	
 	def get_xabcd(self,candle_stream,candle_stream_index):
 		extremes = self._get_extremes(candle_stream_index)
@@ -87,9 +97,18 @@ class HarmonicPattern(ChartPattern):
 		
 		return 0
 	
+	@classmethod
+	def __construct_harmonic_legs_map(cls):
+		cls.__harmonic_legs_map = {}
+		for hl in cls.harmonic_legs:
+			key = hl.name[2]
+			legs = cls.__harmonic_legs_map.get(key,[])
+			legs.append(hl)
+			cls.__harmonic_legs_map[key] = legs
+	
 	#can optimise with dict?
 	def _get_legs_for(self,point):
-		return [hl for hl in self.harmonic_legs if hl.name[2] == point.upper()]
+		return self.__harmonic_legs_map[point.upper()]
 	
 	
 	def _height_check(self,value1,value2,direction):
@@ -106,6 +125,15 @@ class HarmonicPattern(ChartPattern):
 			return value2 < value1
 		return False
 	
+	def _perform_leg_tool(self,leg,wicks,points,candle,candle_stream,min_max):
+		point0 = points.get(leg.name[0])
+		point1 = points.get(leg.name[1])
+		wick0 = wicks[leg.name[0]]
+		wick1 = wicks[leg.name[1]]
+		wick2 = wicks[leg.name[2]]
+		tool_value = leg.tool(candle_stream[point0][wick0], candle_stream[point1][wick1], candle[wick2]) 
+		
+	
 	def _get_abcd(self,start_point,candle_stream, candle_stream_index):
 		
 		#assume start_point is a minimum
@@ -118,38 +146,21 @@ class HarmonicPattern(ChartPattern):
 			'C':None,
 			'D':None
 		}
-		X = start_point.index
-		A = None #high candle
-		B = None #low candle#store the candles that we find when checking this window
-		C = None #new high candle
-		D = None #new low candle
-		
-		b_leg =  self._get_legs_for('B')[0]
-		c_leg =  self._get_legs_for('C')[0]
-		d_legs = self._get_legs_for('D')
+				
+		b_leg =  self._get_legs_for('B')[0] #usually only 1 leg for B
+		c_leg =  self._get_legs_for('C')[0] #usually only 1 leg for C
+		d_legs = self._get_legs_for('D')  #do 0th then 1st 
 		
 		
 		wicks = {}
 		direction = HarmonicDirection.VOID
 		
 		if start_point.type == ExtremityType.MINIMUM: #looking for bullish harmonics
-			wicks = {
-				'X':csf.low,
-				'A':csf.high,
-				'B':csf.low,
-				'C':csf.high,
-				'D':csf.low #replace with close?
-			}
+			wicks = self.bullish_wicks
 			direction = HarmonicDirection.BULLISH
 		
 		if start_point.type == ExtremityType.MAXIMUM:
-			wicks = {
-				'X':csf.high,
-				'A':csf.low,
-				'B':csf.high,
-				'C':csf.low,
-				'D':csf.high
-			}
+			wicks = self.bearish_wicks
 			direction = HarmonicDirection.BEARISH
 		
 		
@@ -159,52 +170,54 @@ class HarmonicPattern(ChartPattern):
 				continue
 			index = i + start_point.index
 			
+			#need to cache things to speed up search
+			
 			#finding A
-			if A is None or (self._height_check(candle[wicks['A']],candle_stream[A][wicks['A']],direction) and B is None): 
-				A = index  
-				B = None
-				C = None
+			if points.get('A') is None or (self._height_check(candle[wicks['A']],candle_stream[points.get('A')][wicks['A']],direction) and points.get('B') is None): 
+				points['A'] = index  
+				points['B'] = None
+				points['C'] = None
 			
 			#finding B
-			elif A is not None and b_leg.tool(candle_stream[X][wicks['X']],candle_stream[A][wicks['A']],candle[wicks['B']]) > b_leg.min and C is None:
+			elif points.get('A') is not None and b_leg.tool(candle_stream[points.get(b_leg.name[0])][wicks[b_leg.name[0]]],candle_stream[points.get(b_leg.name[1])][wicks[b_leg.name[1]]],candle[wicks['B']]) > b_leg.min and points.get('C') is None:
 								
-				if B is None or self._height_check_against(candle[wicks['B']],candle_stream[B][wicks['B']],direction):
-					B = index
+				if points.get('B') is None or self._height_check_against(candle[wicks['B']],candle_stream[points.get('B')][wicks['B']],direction):
+					points['B'] = index
 				
-				if b_leg.tool(candle_stream[X][wicks['X']],candle_stream[A][wicks['A']],candle[wicks['B'] if b_leg.touch_max else csf.close]) > b_leg.max: #pattern is off if the market closes after this value
+				if b_leg.tool(candle_stream[points.get(b_leg.name[0])][wicks[b_leg.name[0]]],candle_stream[points.get(b_leg.name[1])][wicks[b_leg.name[1]]],candle[wicks['B'] if b_leg.touch_max else csf.close]) > b_leg.max: #pattern is off if the market closes after this value
 					#A = None #pattern is invalidated
-					B = None
-					C = None
+					points['B'] = None
+					points['C'] = None
 					break
 			
 			#finding C
-			elif B is not None and c_leg.tool(candle_stream[A][wicks['A']],candle_stream[B][wicks['B']],candle[wicks['C']]) > c_leg.min:  
-				if C is None or self._height_check(candle[wicks['C']],candle_stream[C][wicks['C']],direction):
-					C = index
+			elif points.get('B') is not None and c_leg.tool(candle_stream[points.get(c_leg.name[0])][wicks[c_leg.name[0]]],candle_stream[points.get(c_leg.name[1])][wicks[c_leg.name[1]]],candle[wicks['C']]) > c_leg.min:  
+				if points.get('C') is None or self._height_check(candle[wicks['C']],candle_stream[points.get('C')][wicks['C']],direction):
+					points['C'] = index
 				
-				if c_leg.tool(candle_stream[A][wicks['A']],candle_stream[B][wicks['B']],candle[wicks['C'] if c_leg.touch_max else csf.close]) > c_leg.max:  
+				if c_leg.tool(candle_stream[points.get(c_leg.name[0])][wicks[c_leg.name[0]]],candle_stream[points.get(c_leg.name[1])][wicks[c_leg.name[1]]],candle[wicks['C'] if c_leg.touch_max else csf.close]) > c_leg.max:  
 					#A = None #pattern is invalidated
-					B = None
-					C = None
+					points['B'] = None
+					points['C'] = None
 					#break - #nope, continue from A 
 			
 			#finding D
-			elif C is not None and d_legs[0].tool(candle_stream[X][wicks['X']],candle_stream[A][wicks['A']],candle[wicks['D']]) > d_legs[0].min: 
+			elif points.get('C') is not None and d_legs[0].tool(candle_stream[points.get(d_legs[0].name[0])][wicks[d_legs[0].name[0]]],candle_stream[points.get(d_legs[0].name[1])][wicks[d_legs[0].name[1]]],candle[wicks['D']]) > d_legs[0].min: 
 				#no d_legs[0] max 
 														
-				if d_legs[1].tool(candle_stream[A][wicks['A']],candle_stream[B][wicks['B']],candle[wicks['D']]) > d_legs[1].max:
+				if d_legs[1].tool(candle_stream[points.get(d_legs[1].name[0])][wicks[d_legs[1].name[0]]],candle_stream[points.get(d_legs[1].name[1])][wicks[d_legs[1].name[1]]],candle[wicks['D']]) > d_legs[1].max:
 					#A = None #pattern is invalidated
-					B = None
-					C = None
-					D = None
+					points['B'] = None
+					points['C'] = None
+					points['D'] = None
 					break#pattern is invalidated
 				
-				elif d_legs[1].tool(candle_stream[A][wicks['A']],candle_stream[B][wicks['B']],candle[wicks['D']]) > d_legs[1].min:
-					D = index
-					return XABCD(direction,X,A,B,C,D) #return as soon as we identity D 		
+				elif d_legs[1].tool(candle_stream[points.get(d_legs[1].name[0])][wicks[d_legs[1].name[0]]],candle_stream[points.get(d_legs[1].name[1])][wicks[d_legs[1].name[1]]],candle[wicks['D']]) > d_legs[1].min:
+					points['D'] = index
+					return XABCD(direction,points['X'],points['A'],points['B'],points['C'],points['D']) #return as soon as we identity D 		
 		
 							
-		return XABCD(HarmonicDirection.VOID,X,A,B,C,D)
+		return XABCD(HarmonicDirection.VOID,points['X'],points['A'],points['B'],points['C'],points['D'])
 	
 	
 	
@@ -235,6 +248,14 @@ class HarmonicPattern(ChartPattern):
 			base_view.draw('patterns bearish path',[X,A,B,C,D])
 		
 		return base_view
+	
+	@staticmethod
+	def retracement(value1,value2,the_value):
+		return ((the_value - value2) / (value1 - value2)) if value1 != value2 else 0
+	
+	@staticmethod
+	def extension(value1,value2,the_value):  
+		return ((the_value - value1) / (value2 - value1)) if value1 != value2 else 0
 	
 class Butterfly(HarmonicPattern):
 	
