@@ -1,6 +1,8 @@
 TODO: 
 extend test_trades.sql or use another sql to test full tradesignal types 
 
+create explain() functions in various places similar to draw_snapshot() for use when generating trade setup documents
+
 Create & test full RNN with candles_and_indicators.sql, currency_strengths, correlations etc & get_y_values.sql 
 
 Write testing framework (to run a bunch of tests sequentially) and 
