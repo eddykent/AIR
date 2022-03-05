@@ -138,6 +138,10 @@ class HarmonicPattern(ChartPattern):
 		tool_value = leg.tool(candle_stream[point0][wick0], candle_stream[point1][wick1], candle[wick2]) 
 		return tool_value > leg.max
 	
+	
+	def _harmonic_post_checks(self,xabcd,candle_stream,candle_stream_index):
+		return xabcd is not None
+	
 	def _get_abcd(self,start_point,candle_stream, candle_stream_index):
 		
 		#assume start_point is a minimum
@@ -208,6 +212,7 @@ class HarmonicPattern(ChartPattern):
 			#finding D
 			elif points.get('C') is not None and self._perform_leg_tool(d_legs[0],wicks,points,candle,candle_stream,check_max=False): 
 				#no d_legs[0] max 
+				xabcd = None
 				if len(d_legs) > 1:
 					if self._perform_leg_tool(d_legs[1],wicks,points,candle,candle_stream,check_max=True):
 						#A = None #pattern is invalidated
@@ -218,11 +223,17 @@ class HarmonicPattern(ChartPattern):
 					
 					elif self._perform_leg_tool(d_legs[1],wicks,points,candle,candle_stream,check_max=False):
 						points['D'] = index
-						return XABCD(direction,points['X'],points['A'],points['B'],points['C'],points['D']) #return as soon as we identity D 
+						xabcd =  XABCD(direction,points['X'],points['A'],points['B'],points['C'],points['D']) 
 				else:
 					points['D'] = index
-					return XABCD(direction,points['X'],points['A'],points['B'],points['C'],points['D'])
-		
+					
+					xabcd= XABCD(direction,points['X'],points['A'],points['B'],points['C'],points['D'])
+				
+				if self._harmonic_post_checks(xabcd,candle_stream,candle_stream_index):	
+					return xabcd
+				
+				
+				
 							
 		return XABCD(HarmonicDirection.VOID,points['X'],points['A'],points['B'],points['C'],points['D'])
 	
@@ -320,8 +331,16 @@ class Cypher(HarmonicPattern):
 		HarmonicRule('XCD',HarmonicPattern.retracement,0.786,None,True)#,
 		#HarmonicRule('XCBD',HarmonicPattern.retracement,-1,0.786,False) #this rule breaks :(
 	]
-
-
+	
+	#override
+	def _harmonic_post_checks(self,xabcd, candle_stream,candle_stream_index):
+		if xabcd is not None:
+			if xabcd.direction == HarmonicDirection.BULLISH:
+				return self.retracement(candle_stream[xabcd.x][csf.low],candle_stream[xabcd.c][csf.high],candle_stream[xabcd.b][csf.low]) < 0.786
+			if xabcd.direction == HarmonicDirection.BEARISH:
+				return self.retracement(candle_stream[xabcd.x][csf.high],candle_stream[xabcd.c][csf.low],candle_stream[xabcd.b][csf.high]) < 0.786
+		return False
+		
 ##if we need more harmonic patterns then we can implement these. Otherwise lets move onto something else!
 class Shark(HarmonicPattern):
 	def __init__(self):
