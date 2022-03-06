@@ -2,6 +2,7 @@
 
 import psycopg2
 import datetime
+import time
 import hashlib
 import pickle
 import os
@@ -14,7 +15,6 @@ import numpy as np
 from configparser import ConfigParser
 
 import pdb
-
 
 	
 #turn type saftey on and off - useful for ensuring we get the correct type everywhere
@@ -66,7 +66,51 @@ class DictUpdater:
 	
 	#def save() 
 
-
+#tool for annoying and cumbersome time/date stuff
+#handle timezone, get time/data from string. make string of date/time
+class TimeHandler:
+	
+	#histdata_timezone = 5 ## their data is in EST so we need to adjust it to GMT
+	
+	@staticmethod
+	def from_numeric_string(timestr):
+	
+		if len(timestr) == 15:
+			#usual format YYYYMMDD HHMMSS
+			yyyy = timestr[0:4]
+			mm = timestr[4:6]
+			dd = timestr[6:8]
+			hh = timestr[9:11]
+			nn = timestr[11:13] #minute
+			ss = timestr[13:]
+			
+			return datetime.datetime(int(yyyy),int(mm),int(dd),int(hh),int(nn))
+		else:
+			pdb.set_trace()
+	
+	#def handle_timezone(self,est_time):
+	#	d = self.handle(est_time)
+	#	d += datetime.timedelta(hours=self.histdata_timezone)
+	#	return d
+	#
+	#def toDateTime(self,timestr):
+	#	return self.handle_timezone(timestr)
+	#
+	
+	@staticmethod
+	def timestamp(the_time=None):
+		if the_time is None:
+			the_time = time.time()
+		#get timestamp
+		return datetime.datetime.utcfromtimestamp(the_time).strftime('%Y-%m-%d@%Hh%Mm%Ss')
+		
+	@staticmethod
+	def datestamp(the_date=None):
+		if the_date is None:
+			the_date = datetime.datetime.now()
+		#get datestamp
+		return the_date.strftime('%Y-%m-%d@%Hh%Mm%Ss')
+		
 class TypedList:
 	
 	def __init__(self, type, *args): #extend to multiple types?
