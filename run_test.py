@@ -4,7 +4,7 @@
 # for example, to run chart_tests.py run this: 
 # from tests.chart_tests import *
 
-from tests.utils_tests import *
+from tests.web_crawling_tests import *
 
 
 #from tests.typedlist_test import *

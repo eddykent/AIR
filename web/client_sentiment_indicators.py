@@ -6,7 +6,7 @@ import re
 import pdb
 
 from web.scraper import Scraper
-from web.crawler import Crawler
+from web.crawler import Crawler, By
 from web.feed_collector import TextBias as Bias #although used for text, the mechanism is the same for reporting the bias
 from utils import ListFileReader
 
@@ -44,15 +44,16 @@ class ClientSentimentScraper(Scraper):
 		#simple analysis - see if netshort/netlong is below our tollerance 
 		analysed_these = []
 		for csi in analyse_these:
+			new_bias = Bias.MIXED
 			if csi.net_long == csi.net_short:
-				bias = Bias.MIXED #catches 0 0 error when we couldnt read the numbers
+				new_bias = Bias.MIXED #catches 0 0 error when we couldnt read the numbers
 			elif csi.net_long < self.tollerance:
-				bias = Bias.SLIGHT_BULLISH
+				new_bias = Bias.SLIGHT_BULLISH
 			elif csi.net_short < self.tollerance:
-				bias = Bias.SLIGHT_BEARISH
+				new_bias = Bias.SLIGHT_BEARISH
 			else:
-				bias = Bias.MIXED #sucks - no real significant info for this pair
-			analysed_these.append(ClientSentimentInfo('',csi.instrument,csi.timeframe,bias,csi.net_long,csi.net_short,False))
+				new_bias = Bias.MIXED #sucks - no real significant info for this pair
+			analysed_these.append(ClientSentimentInfo(csi.source_ref,csi.instrument,csi.timeframe,new_bias,csi.net_long,csi.net_short,False))
 			
 		return keep_these + analysed_these 
 
@@ -69,24 +70,25 @@ class ClientSentimentCrawler(Crawler):
 	
 	def get_client_sentiment_info(self):
 		crawled_data = self.crawl()
-		keep_these = [csi for csi in scraped_data if csi.bias != Bias.MIXED]
+		keep_these = [csi for csi in crawled_data if csi.bias != Bias.MIXED]
 		
 		#find slightly bullish and slightly bearish setups!
 		##do some kind of analysis on these to get a better "slight" consensus 
-		analyse_these = [csi for csi in scraped_data if csi.bias == Bias.MIXED and not csi.error] #we can't do anything about the errors :( 
+		analyse_these = [csi for csi in crawled_data if csi.bias == Bias.MIXED and not csi.error] #we can't do anything about the errors :( 
 		
 		#simple analysis - see if netshort/netlong is below our tollerance 
 		analysed_these = []
 		for csi in analyse_these:
+			new_bias = Bias.MIXED
 			if csi.net_long == csi.net_short:
-				bias = Bias.MIXED #catches 0 0 error when we couldnt read the numbers
+				new_bias = Bias.MIXED #catches 0 0 error when we couldnt read the numbers
 			elif csi.net_long < self.tollerance:
-				bias = Bias.SLIGHT_BULLISH
+				new_bias = Bias.SLIGHT_BULLISH
 			elif csi.net_short < self.tollerance:
-				bias = Bias.SLIGHT_BEARISH
+				new_bias = Bias.SLIGHT_BEARISH
 			else:
-				bias = Bias.MIXED #sucks - no real significant info for this pair
-			analysed_these.append(ClientSentimentInfo('',csi.instrument,csi.timeframe,bias,csi.net_long,csi.net_short,False))
+				new_bias = Bias.MIXED #sucks - no real significant info for this pair
+			analysed_these.append(ClientSentimentInfo(csi.source_ref,csi.instrument,csi.timeframe,new_bias,csi.net_long,csi.net_short,False))
 		return keep_these + analysed_these
 		
 #class ClientCurrencySentiment(Scraper):
@@ -128,53 +130,6 @@ class DailyFX(ClientSentimentScraper):
 				info.append(ClientSentimentInfo('dailyfx',instrument,timeframe,src_bias,netlong,netshort,parse_error))
 		return info	
 		
-
-class ForexClientSentiment(ClientSentimentScraper):
-	@staticmethod
-	def __decode_number(num_str):
-		num_str = num_str.replace('%','')
-		return float(num_str)
-
-	def scrape(self):
-		info = []
-		#log a warning here
-		timeframe = 1440
-		sentiment_boxes = self.html.xpath("//a[@class='sentiment']")
-		for box in sentiment_boxes:
-			inst = box.find('h3')
-			if not inst:
-				continue
-			instrument = inst[0].text
-			if instrument not in self.instruments:
-				continue
-			parse_error = False
-			bias = box.find('fxcs-contrarian-indicator')
-			if bias:
-				bias = bias[0].text.upper()
-			else:
-				parse_error = True
-				bias = 'Mixed'
-				
-			long_box = box.xpath("//*[@class='sentiment--values--numbers--long']") #grr!
-			short_box = box.xpath("//*[@class='sentiment--values--numbers--short']")
-			if not (long_box and short_box):
-				continue
-				
-			netlong = long_box[0].full_text
-			netshort = short_box[0].full_text
-			
-			try:
-				netlong = self.__decode_number(netlong)
-				netshort = self.__decode_number(netshort)
-			except ValueError:
-				#parse_error = True 
-				#lets hack this through since these guys don't want us reading their numbers! but don't mind their sentiment! 
-				netlong = 0
-				netshort = 0
-			src_bias = Bias.BULLISH if bias == 'BULLISH' else Bias.BEARISH if bias == 'BEARISH' else Bias.MIXED
-			info.append(ClientSentimentInfo('forexclientsentiment',instrument,timeframe,src_bias,netlong,netshort,parse_error))
-		return info
-
 
 class MyFXBook(ClientSentimentScraper):
 	
@@ -220,21 +175,70 @@ class MyFXBook(ClientSentimentScraper):
 			info.append(ClientSentimentInfo('myfxbook',instrument,timeframe,src_bias,netlong,netshort,parse_error))
 		return info
 
-#preferred class here for forexclientsentiment since it will get the numbers too! 
-class ForexClientSentimentCrawler(ClientSentimentCrawler):
+#use crawlers for harder websites
+class ForexClientSentiment(ClientSentimentCrawler):
 	
+	@staticmethod
+	def __decode_number(num_str):
+		num_str = num_str.replace('%','')
+		return float(num_str)
+
 	def crawl(self):
-		#self.browser.do_something()
-		pass
-	
+		info = []
+		#log a warning here
+		timeframe = 1440 #from the chart on the website we can probably conclude it is daily - but might want to report 4h as we saw it change!
+		#timeframe can be used to indicate how recent the signal is/how long it will be reported for
+		sentiment_boxes = self.browser.find_elements(By.XPATH,"//a[@class='sentiment']")
+		
+		for box in sentiment_boxes:
+			inst = box.find_elements(By.TAG_NAME,'h3')
+			
+			if not inst:
+				continue
+			instrument = inst[0].text
+			if instrument not in self.instruments:
+				continue
+			parse_error = False
+			bias = box.find_elements(By.TAG_NAME,'fxcs-contrarian-indicator')
+			if bias:
+				bias = bias[0].text.upper()
+			else:
+				parse_error = True
+				bias = 'Mixed'
+				
+			long_box = box.find_elements(By.XPATH,".//*[@class='sentiment--values--numbers--long']") 
+			short_box = box.find_elements(By.XPATH,".//*[@class='sentiment--values--numbers--short']")
+			if not (long_box and short_box):
+				continue
+			
+			netlong = long_box[0].text
+			netshort = short_box[0].text
+			
+			try:
+				netlong = self.__decode_number(netlong)
+				netshort = self.__decode_number(netshort)
+			except ValueError:
+				#parse_error = True 
+				#lets hack this through since these guys don't want us reading their numbers! but don't mind their sentiment! 
+				netlong = None
+				netshort = None
+				parse_error = True
+				
+			src_bias = Bias.BULLISH if bias == 'BULLISH' else Bias.BEARISH if bias == 'BEARISH' else Bias.MIXED
+			info.append(ClientSentimentInfo('forexclientsentiment',instrument,timeframe,src_bias,netlong,netshort,parse_error))
+		return info
 
 
-
+#use selenium to get currency pairs and/or currency sentiments from Dukascopy
 class Dukascopy(ClientSentimentCrawler):
 
 	def crawl(self):
-		#self.browser.do_something()
+		
+		pdb.set_trace()
+		
+		self.browser
 		pass
+		
 	
 
 

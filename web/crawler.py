@@ -1,0 +1,103 @@
+
+
+from selenium import webdriver
+from selenium.webdriver import ChromeOptions
+from selenium.webdriver.chrome.service import Service
+
+
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webelement import WebElement
+
+from webdriver_manager.chrome import ChromeDriverManager
+
+
+import os 
+import time
+
+from utils import Configuration, TimeHandler
+
+
+#crawler is a special case of scraper that uses selenium to get information. This is required for some websites 
+#that we get news/info from since their front end has been obfuscated in some way. There's no escaping selenium ;)
+
+#expose selenium first so it can be used in other apps across the base 
+class SeleniumHandler:
+	
+	browser = None #main selenium handle constructed in this class 
+	
+	chrome_options = None
+	
+	screenshot_dir = ''
+	downloads_dir = ''
+	#WINDOW_SIZE = "1920,1080"
+	
+	def __init__(self,hidden=False,chrome_options=None):
+		config = Configuration()
+		self.downloads_dir = config.get('webdriver','downloads')
+		self.screenshot_dir = config.get('webdriver','screenshots')
+		
+		if not chrome_options:
+			chrome_options = ChromeOptions()
+		#location = config.get('chrome_driver','location') #handled with ChromeDriverManager
+		prefs = {"download.default_directory":self.downloads_dir}
+		chrome_options.add_experimental_option("prefs",prefs)
+		if hidden:
+			chrome_options.add_argument('--headless')
+		
+		self.chrome_options = chrome_options
+		
+			
+	
+	#allow for use with with
+	def __enter__(self):
+		self.start()
+		return self
+	
+	def __exit__(self, exc_type, exc_val, exc_tb):
+		self.finish()
+	
+	def start(self):
+		self.browser = webdriver.Chrome(\
+			service=Service(ChromeDriverManager().install()),\
+			chrome_options=self.chrome_options\
+		)
+	
+	def finish(self):
+		self.browser.close()
+	
+	def screenshot(self):
+		timestamp = TimeHandle.timestamp()
+		#get number for fast screenshotting 
+		number = 0
+		stringnumber = str(number) if number > 9 else ('0'+str(number))  ##no more than 99 per second as that is just silly :) 
+		timefilename = timestamp+'#'+stringnumber
+		self.browser.get_screenshot_as_file(os.path.join(self.screenshot_dir,timefilename,'.png'))
+		return timefilename
+
+#wrapper for SeleniumHandler and used as base for any crawlers
+class Crawler:
+
+	#get from initialisation - we don't want to run 20 copies of selenium
+	browser = None
+	source = ''
+	
+	def __init__(self,selenium_handle,source):
+		self.source = source
+		self.browser = selenium_handle.browser
+		self.goto(self.source)
+	
+	def goto(self,url): #handle any other protos? 
+		if not url.startswith('http'):
+			url = 'http://' + url 
+		self.browser.get(url)
+
+	def loading_wait(self):
+		return True  #some advanced method to determine if page has finished loading and we can begin crawling? - perhaps not needed!
+		
+		
+	def crawl(self):
+		raise NotImplementedError('This method must be overridden')
+
+	
+	

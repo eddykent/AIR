@@ -58,21 +58,23 @@ class ClientSentiment: #a client sentiment is just how many are buying/selling. 
 	
 	def fetch(self):
 		result = []
-		for source in self.sources:
-			source_split = re.split('/|\.',source)
-			scraper = None
-			if 'dailyfx' in source_split:
-				scraper = clisps.DailyFX(source,self.instruments)
-			elif 'forexclientsentiment' in source_split:
-				scraper = clisps.ForexClientSentiment(source,self.instruments)
-			elif 'myfxbook' in source_split:
-				scraper = clisps.MyFXBook(source,self.instruments)
-			elif 'dukascopy' in  source_split:
-				scraper = clisps.Dukascopy(source,self.instruments)
-			else:
-				print('Parser not implemented for source: \n'+source)
-				pdb.set_trace()
-			result += scraper.get_client_sentiment_info() if scraper else []
+		
+		with SeleniumHandler(hidden=True) as handle:  #a selenium handler for any crawlers (scrapers won't need it though) 
+			for source in self.sources:
+				source_split = re.split('/|\.',source)
+				client_sentiment_indicator = None
+				if 'dailyfx' in source_split:
+					client_sentiment_indicator = clisps.DailyFX(source,self.instruments)  #scraper
+				elif 'forexclientsentiment' in source_split:
+					client_sentiment_indicator = clisps.ForexClientSentiment(handle,source,self.instruments)  #crawler
+				elif 'myfxbook' in source_split:
+					client_sentiment_indicator = clisps.MyFXBook(source,self.instruments) #scraper
+				elif 'dukascopy' in  source_split:
+					client_sentiment_indicator = clisps.Dukascopy(handle,source,self.instruments) #crawler
+				else:
+					print('Parser not implemented for source: \n'+source)
+					pdb.set_trace()
+				result += client_sentiment_indicator.get_client_sentiment_info() if client_sentiment_indicator else []
 		self.__process_findings(result)
 	
 	def fetch_historic(self):  ##get data from ages ago & cache in a database if we want to use in RNN

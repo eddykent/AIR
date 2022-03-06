@@ -23,6 +23,7 @@ ASYNC all webcalls in the fundmental analysis! Async for AI too -- probably pret
 
 jupyter for presenting front end trade setups and ideas
 
+
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs
 stringed together. Ex: first channel is GBP/USD then second is NZD/JPY
@@ -45,6 +46,7 @@ test chart patterns and practice drawing them - gradient descent for finding par
 shape based and harmonic based patterns! 
 
 
+
 ADVANCED: 
 Make a NN that takes a sequence of candlesticks and indicators AND a list of 28  
 trades (1 per fx) and attempt to predict a confidence score (0 = lose, 1 = win) per
@@ -54,6 +56,7 @@ Make another NN that takes only the chart data and attempts to create trade valu
 which have an E, TP, SL and Confidence level for each. This will require a trading 
 loss function with something like 
 	loss = logloss(confidence_y,confidence_pred) + confidence_y * (mse(E,TP,SL) + direction loss)
+
 
 
 BUGS:
@@ -82,4 +85,7 @@ https://www.dukascopy.com/swiss/english/marketwatch/sentiment/ - blocked using <
 
 hour should not be a db query parameter - we can get the hour from the datetime passed into the query
 
+selenium chrome driver - webdriver-manager cant auto detect chrome version - possibly permissions error
+
 all chart patterns need tuning & testing properly :(
+
