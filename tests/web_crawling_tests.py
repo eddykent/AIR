@@ -5,7 +5,7 @@ import time
 
 
 from web.crawler import Crawler, SeleniumHandler
-from web.client_sentiment_indicators import ForexClientSentiment
+from web.client_sentiment_indicators import Dukascopy
 from utils import ListFileReader
 
 
@@ -20,13 +20,13 @@ def wait_for_me():
 	input()
 
 
-url = 'forexclientsentiment.com/client-sentiment'
-#url = 'https://www.dukascopy.com/swiss/english/marketwatch/sentiment/'
+#url = 'forexclientsentiment.com/client-sentiment'
+url = 'https://www.dukascopy.com/swiss/english/marketwatch/sentiment/'
 lfr = ListFileReader()
-fx_pairs = lfr.read('fx_pairs/fx_mains.txt')
+fx_pairs = lfr.read('fx_pairs/fx_mains.txt') + lfr.read('fx_pairs/currencies.txt')
 
 with SeleniumHandler(hidden=True) as sh:
-	fcsc = ForexClientSentiment(sh,url,fx_pairs)
+	fcsc = Dukascopy(sh,url,fx_pairs)
 	client_sentiment = fcsc.get_client_sentiment_info()
 	#wait_for_me()
 

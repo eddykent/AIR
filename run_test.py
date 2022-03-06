@@ -4,7 +4,7 @@
 # for example, to run chart_tests.py run this: 
 # from tests.chart_tests import *
 
-from tests.web_crawling_tests import *
+#from tests.web_crawling_tests import *
 
 
 #from tests.typedlist_test import *
@@ -19,7 +19,7 @@ from tests.web_crawling_tests import *
 #bat - 213,419,805
 
 #from tests.text_analysis_test import *
-#from tests.fundamental_test import *
+from tests.fundamental_test import *
 
 #from tests.spacy_test import *
 

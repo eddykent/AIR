@@ -19,7 +19,7 @@ ClientSentimentInfo = namedtuple('ClientSentimentInfo','source_ref instrument ti
 class ClientSentimentScraper(Scraper):
 
 	instruments = ['all fx pairs we want to check for, including stem branches']
-	tollerance = 30 #percentage 
+	tolerance = 30 #percentage 
 	
 	def __init__(self,source,instruments):
 		super().__init__(source)
@@ -41,15 +41,15 @@ class ClientSentimentScraper(Scraper):
 		##do some kind of analysis on these to get a better "slight" consensus 
 		analyse_these = [csi for csi in scraped_data if csi.bias == Bias.MIXED and not csi.error] #we can't do anything about the errors :( 
 		
-		#simple analysis - see if netshort/netlong is below our tollerance 
+		#simple analysis - see if netshort/netlong is below our tolerance 
 		analysed_these = []
 		for csi in analyse_these:
 			new_bias = Bias.MIXED
 			if csi.net_long == csi.net_short:
 				new_bias = Bias.MIXED #catches 0 0 error when we couldnt read the numbers
-			elif csi.net_long < self.tollerance:
+			elif csi.net_long < self.tolerance:
 				new_bias = Bias.SLIGHT_BULLISH
-			elif csi.net_short < self.tollerance:
+			elif csi.net_short < self.tolerance:
 				new_bias = Bias.SLIGHT_BEARISH
 			else:
 				new_bias = Bias.MIXED #sucks - no real significant info for this pair
@@ -61,7 +61,7 @@ class ClientSentimentScraper(Scraper):
 class ClientSentimentCrawler(Crawler):
 	
 	instruments = ['all fx pairs we want to check for, including stem branches']
-	tollerance = 30 #percentage 
+	tolerance = 30 #percentage 
 	
 	def __init__(self,selenium_handle,source,instruments):
 		
@@ -76,32 +76,21 @@ class ClientSentimentCrawler(Crawler):
 		##do some kind of analysis on these to get a better "slight" consensus 
 		analyse_these = [csi for csi in crawled_data if csi.bias == Bias.MIXED and not csi.error] #we can't do anything about the errors :( 
 		
-		#simple analysis - see if netshort/netlong is below our tollerance 
+		#simple analysis - see if netshort/netlong is below our tolerance 
 		analysed_these = []
 		for csi in analyse_these:
 			new_bias = Bias.MIXED
 			if csi.net_long == csi.net_short:
 				new_bias = Bias.MIXED #catches 0 0 error when we couldnt read the numbers
-			elif csi.net_long < self.tollerance:
+			elif csi.net_long < self.tolerance:
 				new_bias = Bias.SLIGHT_BULLISH
-			elif csi.net_short < self.tollerance:
+			elif csi.net_short < self.tolerance:
 				new_bias = Bias.SLIGHT_BEARISH
 			else:
 				new_bias = Bias.MIXED #sucks - no real significant info for this pair
 			analysed_these.append(ClientSentimentInfo(csi.source_ref,csi.instrument,csi.timeframe,new_bias,csi.net_long,csi.net_short,False))
 		return keep_these + analysed_these
 		
-#class ClientCurrencySentiment(Scraper):
-#
-#	instruments = ['AUD','GBP']
-#	tollerance = 30 #percentage 
-#	
-#	def __init__(self,source,instruments):
-#		super().__init__(source)
-#		self.instruments = instruments	
-#	
-#	def scrape(self):
-#		#able to use directly?
 
 class DailyFX(ClientSentimentScraper):
 	
@@ -232,12 +221,81 @@ class ForexClientSentiment(ClientSentimentCrawler):
 #use selenium to get currency pairs and/or currency sentiments from Dukascopy
 class Dukascopy(ClientSentimentCrawler):
 
+	row_identifier = 'F-qb-Ab'
+	instrument_select_identifier = 'F-qb-Qb-c'
+	iframe_identifier = 'realtime_sentiment_index'
+	source_ref = 'dukascopy'
+	
+	change_threshold = 30 #if the sentiment changed by about this AND it is below tolerance then we can report the bias as fully bullish/bearish
+	diff_tolerance = 35 #use this tolerance for finding BULLISH/BEARISH bias and the parent one for slight biases 
+	
+	timeframe = 30 #they update every 30 mins apparently 
+	
+	def _process_text(self,text):
+		
+		bits = text.split('\n')
+		if len(bits) == 1:
+			pdb.set_trace()
+		inst = bits[0]
+		long_str = bits[-1]
+		short_str = bits[1]   #they flip the thingys around (read from right to left)
+		change = 0
+			
+		parse_error = False
+		
+		try:
+			plus_minus = bits[2]
+			change_momentum = bits[3]#
+			change_str = change_momentum.replace('%','')
+			change = float(change_str)
+			if plus_minus == '-' or plus_minus == '−': #check '-' != '−' so we should check for both :)
+				change = change * -1
+		except Exception as e:
+			parse_error = True
+		
+		netlong = float(long_str.replace('%',''))
+		netshort = float(short_str.replace('%',''))
+		
+		bias = Bias.MIXED
+		if abs(change) > self.change_threshold:
+			if change < 0 and netlong < self.diff_tolerance:
+				bias = Bias.BULLISH
+			if change > 0 and netshort < self.diff_tolerance:
+				bias = Bias.BEARISH
+		
+		#change would be nice - perhaps if there's been large change we can reflect in the bias 
+		return ClientSentimentInfo(self.source_ref,inst,self.timeframe,bias,netlong,netshort,parse_error)
+		
+		
+	
 	def crawl(self):
+		#this is in an iframe so we got to switch to it. It is also clever enough to figure out if we are connecting to the 
+		#iframe directly so got to go by the source link
+		the_iframe = self.browser.find_element(By.XPATH,"//iframe[contains(@src,'"+self.iframe_identifier+"')]")
+		self.browser.switch_to.frame(the_iframe)
 		
-		pdb.set_trace()
+		select_buttons = self.browser.find_elements(By.XPATH,"//*[contains(@class,'"+self.instrument_select_identifier+"')]")	
+		instrument_button = [s for s in select_buttons if s.text == 'INSTRUMENTS'][0]
+		currencies_button = [s for s in select_buttons if s.text == 'CURRENCIES'][0]
 		
-		self.browser
-		pass
+		instrument_button.click() #go to instruments first  --might need to do a wait or something
+		
+		all_pairs_rows = self.browser.find_elements(By.XPATH,"//*[contains(@class,'"+self.row_identifier+"')]") #change when their site changes
+		pair_texts = [pr.text for pr in all_pairs_rows]
+		
+		currencies_button.click()
+		all_currencies_rows = self.browser.find_elements(By.XPATH,"//*[contains(@class,'"+self.row_identifier+"')]")
+		currency_texts = [cr.text for cr in all_currencies_rows]
+		
+		#for tt in pair_texts:
+			#if tt:
+			
+		info = [self._process_text(tt) for tt in pair_texts if tt] + [self._process_text(tt) for tt in currency_texts if tt]
+		return [csi for csi in info if csi.instrument in self.instruments and not csi.error]
+		
+		
+		
+	
 		
 	
 

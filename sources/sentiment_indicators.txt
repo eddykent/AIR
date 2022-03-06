@@ -3,4 +3,4 @@
 https://www.dailyfx.com/sentiment-report -- need to cancel the modal? 
 https://forexclientsentiment.com/client-sentiment --might be malicious? 
 https://www.myfxbook.com/community/outlook --also has subpages that might be easier to use
---https://www.dukascopy.com/swiss/english/marketwatch/sentiment/ -- Contains sentiment on currencies! (TODO)
+https://www.dukascopy.com/swiss/english/marketwatch/sentiment/ --use selenium (web.crawler) for this. Gets currencies too! 

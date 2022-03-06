@@ -20,6 +20,7 @@ from utils import ListFileReader, CurrencyPair
 
 import web.client_sentiment_indicators as clisps
 import web.feed_collector as feedco
+from web.crawler import SeleniumHandler
 from web.feed_collector import TextBias as Bias, TextType
 
 KeywordMap = namedtuple('KeywordMap','keyword values')
@@ -52,7 +53,8 @@ class ClientSentiment: #a client sentiment is just how many are buying/selling. 
 		lfr = ListFileReader()
 		if not instruments:
 			instruments = lfr.read('fx_pairs/fx_mains.txt')
-		self.instruments = instruments #currencies too?
+			instruments += lfr.read('fx_pairs/currencies.txt')
+		self.instruments = instruments 
 		self.sources = lfr.read('sources/sentiment_indicators.txt')
 		self.findings = {pair:[] for pair in self.instruments}
 	
@@ -89,7 +91,8 @@ class ClientSentiment: #a client sentiment is just how many are buying/selling. 
 				instrument_result = self.findings.get(r.instrument,[])
 				instrument_result.append(r)
 				self.findings[r.instrument] = instrument_result
-		for instrument in self.findings:  #might want to include something about the timeframe or the date? 
+		for instrument in self.findings: 
+			#might want to include something about the timeframe? or the date? especially if we are reading anything historic
 			csinfos = self.findings[instrument]
 			tally = {} 
 			for csi in csinfos:

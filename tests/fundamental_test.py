@@ -14,8 +14,8 @@ assert __name__ != "__main__", "You must run tests through the run_test.py hoist
 lfr = ListFileReader()
 lfr.errors = 'ignore'
 fx_pairs = lfr.read('fx_pairs/fx_mains.txt')
-#cs = ClientSentiment(fx_pairs)##put fx pairs in!
-#cs.fetch()
+cs = ClientSentiment()##put fx pairs in!
+cs.fetch()
 	
 
 rss = feedco.RSSCollect(lfr.read('sources/rss_feeds.txt'))
@@ -38,4 +38,6 @@ rss.collect()
 def show_articles(rss):
 	for (i,(a,t)) in enumerate(zip(rss.articles,rss._article_types)):
 		print((' ' if i < 10 else '') + str(i) + ' - ' + str(t) + ' - ' + str(a)) 
-		
+
+
+
