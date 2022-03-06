@@ -7,7 +7,7 @@ import datetime
 import pdb 
 
 from utils import CurrencyPair, ListFileReader
-from trade_schedule import TradeSignal, TradeDirection 
+from trade_setup import TradeSignal, TradeDirection 
 
 
 #abstract class for laying out a trade filter - attempt to stop "stupid" trades! - move to trade_filter.py? 

@@ -13,12 +13,15 @@ SCREENING - candle stick scanner for candle stick patterns and chart patterns. U
 	- chart breakout patterns at lower timeframes (eg 4h) 
 	- chart breakout patterns again at lowest (15m?) timeframes to identify entry points 
 
+every candlestick and chart pattern should have a get_setups() function to return TradeSignals 
+
 Partial RNN - use correlation matrix for grouping pairs together before running through an RNN
 
 RNN to determine next RSI values? (same thing as full rnn? above?) 
 
 ASYNC all webcalls in the fundmental analysis! Async for AI too -- probably pretty important for faster trade decisions :)
 
+jupyter for presenting front end trade setups and ideas
 
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs
@@ -27,6 +30,7 @@ and so on. The idea is that concepts from other currencies can be found
 across all currencies. 
 Then run it on all 28 by running 7 networks at once (7*4 = 28)
 
+---correlation tool for this
 Cross correlation matrix - get which pairs are high correlated to work 
 out which ones to train together with. 
 

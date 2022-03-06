@@ -1,49 +1,21 @@
 
+##perhaps this should  be renamed to trade_backtester.py 
+
+
 import psycopg2
 import pdb #? 
 import datetime
 from collections import namedtuple
-from enum import Enum
-from utils import CurrencyPair, ListFileReader
 
 from psycopg2.extensions import AsIs, register_adapter, adapt
 
-class TradeDirection(Enum):
-	SELL = -1
-	VOID = 0 
-	BUY = 1
+from enum import Enum
 
-##A tuple representing a trade that has been taken that has some bounds on it (stop_loss & take_profit)
-class TradeSignal:
-	the_date = None   #datetime - the time the signal was created 
-	instrument = None  #the instrument that is being traded
-	direction = TradeDirection.VOID  # a buy or sell (void means to be ignored/deleted)
-	entry = None #the entry price to start the trade at. If null, start immediately
-	take_profit = 0  #the value to exit the trade at when it wins
-	stop_loss = 0 #the value to exit the trade at when it loses
-	length = 1440 #1440 minutes in 24 hours
-	
-	def __init__(self):
-		pass  #not sure what to put here yet
-		
-	@staticmethod
-	def from_simple(instrument,direction):
-		this_signal = TradeSignal()
-		this_signal.instrument = instrument
-		this_signal.direction = direction
-		return this_signal
-	
-	@staticmethod
-	def from_full(datetime,instrument,direction,entry,take_profit,stop_loss,length=1440):
-		this_signal = TradeSignal()
-		this_signal.datetime = datetime 
-		this_signal.instrument = instrument
-		this_signal.direction = direction
-		this_signal.entry = entry 
-		this_signal.take_profit = take_profit
-		this_signal.stop_loss = stop_loss
-		this_signal.length = length
-		return this_signal
+
+from utils import CurrencyPair, ListFileReader
+from trade_setup import TradeDirection, TradeSignal
+
+
 
 #class for holding trade signals that can be filtered by filters. TradeSignal types are generated using setups in trade_setup 
 class TradeSchedule:
