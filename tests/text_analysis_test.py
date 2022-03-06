@@ -15,7 +15,7 @@ from collections import Counter
 from string import punctuation
 #import spacy
 
-#import nltk
+import nltk
 import time
 import pickle
 
@@ -46,23 +46,25 @@ fsh = ForexSlashHelper()
 
 rss = feedco.RSSCollect(lfr.read('sources/rss_feeds.txt'))
 rss.parse_feeds()
-#with open('pickles/stories.pkl','rb') as f:
-#	rss.articles = pickle.load(f)
+with open('pickles/stories.pkl','rb') as f:
+	rss.articles = pickle.load(f)
 
-n = len(rss.articles)
-for (i,a) in enumerate(rss.articles):
-	print('fetching article '+str(i+1)+'/'+str(n)+ '... ')
-	a.fetch_full_text()
+#n = len(rss.articles)
+#for (i,a) in enumerate(rss.articles):
+#	print('fetching article '+str(i+1)+'/'+str(n)+ '... ')
+#	a.fetch_full_text()
+#
+#with open('pickles/stories.pkl','wb') as f:
+#	pickle.dump(rss.articles,f)
 
-with open('pickles/stories.pkl','wb') as f:
-	pickle.dump(rss.articles,f)
+stopwords = set(nltk.corpus.stopwords.words('english'))
 
 def pad(t):
 	return ' ' + t + ' '
 
 def keyworded(some_text):
 	some_text = fsh.strip_slashes(some_text)
-	keywords = [w for w in nltk.word_tokenize(some_text.lower()) if w not in punctuation and w not in nlp.Defaults.stop_words]
+	keywords = [w for w in nltk.word_tokenize(some_text.lower()) if w not in punctuation and w not in stopwords]
 	return Counter(keywords) 
 
 #def spacy_keyworded(some_text):
@@ -79,7 +81,7 @@ def is_signal(some_text):
 	stop_losss = ['stop loss','sl']
 	
 	some_text = fsh.strip_slashes(some_text)
-	words = [w for w in nltk.word_tokenize(some_text.lower()) if w not in punctuation and w not in nlp.Defaults.stop_words]
+	words = [w for w in nltk.word_tokenize(some_text.lower()) if w not in punctuation and w not in stopwords]
 	new_text = ' '.join(words)
 	
 	if any(pad(o) in new_text for o in ['buy','sell']):

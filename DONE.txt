@@ -45,6 +45,12 @@ pluralize windows in match_pattern and use cKDtree whatever that is for faster s
 
 
 BUGS:
+(FIXED)
+Currency strength from sentiment indicator! see:
+https://www.dukascopy.com/swiss/english/marketwatch/sentiment/ - blocked using <noscript> and <iframe>
+
+(FIXED) can't read numbers from forexcleintsentiment.com 
+
 (FIXED) Possible RSI calculation bug - using SMA in the place of SMMA (Smoothed modified moving average) 
 An EMA might be better in its place but it will be very bad for early trades without significant data
 EMA is faster though - so RSI will be improved if this is fixed. 

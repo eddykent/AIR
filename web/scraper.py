@@ -150,6 +150,8 @@ class Article:
 class DailyFXNews(Scraper):
 	
 	def scrape(self):
+		
+		pdb.set_trace()
 		article_body = self.html.xpath("//*[@class='dfx-articleBody']") #change if website changes!
 		full_text = ''
 		

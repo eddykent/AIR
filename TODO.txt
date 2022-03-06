@@ -31,7 +31,7 @@ and so on. The idea is that concepts from other currencies can be found
 across all currencies. 
 Then run it on all 28 by running 7 networks at once (7*4 = 28)
 
----correlation tool for this
+create a correlation tool for this 
 Cross correlation matrix - get which pairs are high correlated to work 
 out which ones to train together with. 
 
@@ -43,7 +43,7 @@ Fundamental analysis/signals - use RSS feeds and a feed reader to get
 sentiment for currencies and for currency pairs  - Twitter and Reddit
 
 test chart patterns and practice drawing them - gradient descent for finding params? 
-shape based and harmonic based patterns! 
+shape based and trending are pretty broken and need fixing up 
 
 
 
@@ -67,7 +67,6 @@ Use logging to report issues found especially when scraping websites as it will 
 
 Getting stuff from multiple websites should be async so we can query em all at the same time
 
-can't read numbers from forexcleintsentiment.com 
 
 some sources are not working quite so well - eg forexcrunch 
 need to test for fulltexts in the sentiment analyser. Keep running it and figure out how to improve the scrapers
@@ -78,10 +77,9 @@ sentiment scores - when a positive sell order is given (Eg from fxstreet etc) it
 	per article to achieve this
 TURN is_tutorial INTO A RATE BASED, NOT COUNT BASED THING?-- might not be that important though since tutorials barely ever have fx names in :)
 
-currency_strength_diff_auto_regression_rsi.sql is not producing enough rows to run in database_tests.py
+feed collector - finish the collection of results stage
 
-Currency strength from sentiment indicator! see:
-https://www.dukascopy.com/swiss/english/marketwatch/sentiment/ - blocked using <noscript> and <iframe>
+currency_strength_diff_auto_regression_rsi.sql is not producing enough rows to run in database_tests.py
 
 hour should not be a db query parameter - we can get the hour from the datetime passed into the query
 

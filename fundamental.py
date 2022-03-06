@@ -343,8 +343,21 @@ class TextAnalysis:
 		textblob = TextBlob(self.fsh.strip_slashes(some_text.lower()))			
 		personifiers = sum(textblob.word_counts[w] for w in self.text_type_config['personifiers'])
 		questionables = sum(textblob.word_counts[w] for w in self.text_type_config['question_words'])
-				
+		
 		return questionables + personifiers > 14 or questionables > 10 or personifiers > 10   #this should  be done by rate, not by count
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
