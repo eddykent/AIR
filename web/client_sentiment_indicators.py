@@ -6,6 +6,7 @@ import re
 import pdb
 
 from web.scraper import Scraper
+from web.crawler import Crawler
 from web.feed_collector import TextBias as Bias #although used for text, the mechanism is the same for reporting the bias
 from utils import ListFileReader
 
@@ -13,6 +14,8 @@ from utils import ListFileReader
 ClientSentimentInfo = namedtuple('ClientSentimentInfo','source_ref instrument timeframe bias net_long net_short error') 
 ##add additional info such as changes and popularity/io etc? -perhaps this info is just volume? 
 
+
+#consider combining together into multi-inheritance 
 class ClientSentimentScraper(Scraper):
 
 	instruments = ['all fx pairs we want to check for, including stem branches']
@@ -26,6 +29,7 @@ class ClientSentimentScraper(Scraper):
 	def scrape(self):
 		raise NotImplementedError('This method must be overridden')
 	
+		
 	#this is what is called to get ClientSentimentInfo tuples
 	def get_client_sentiment_info(self):
 		scraped_data = self.scrape()
@@ -52,6 +56,39 @@ class ClientSentimentScraper(Scraper):
 			
 		return keep_these + analysed_these 
 
+#use for pulling stuff from harder websites 
+class ClientSentimentCrawler(Crawler):
+	
+	instruments = ['all fx pairs we want to check for, including stem branches']
+	tollerance = 30 #percentage 
+	
+	def __init__(self,selenium_handle,source,instruments):
+		
+		super().__init__(selenium_handle,source)
+		self.instruments = instruments + [pair.replace('/','') for pair in instruments] #add the non-slash versions too 
+	
+	def get_client_sentiment_info(self):
+		crawled_data = self.crawl()
+		keep_these = [csi for csi in scraped_data if csi.bias != Bias.MIXED]
+		
+		#find slightly bullish and slightly bearish setups!
+		##do some kind of analysis on these to get a better "slight" consensus 
+		analyse_these = [csi for csi in scraped_data if csi.bias == Bias.MIXED and not csi.error] #we can't do anything about the errors :( 
+		
+		#simple analysis - see if netshort/netlong is below our tollerance 
+		analysed_these = []
+		for csi in analyse_these:
+			if csi.net_long == csi.net_short:
+				bias = Bias.MIXED #catches 0 0 error when we couldnt read the numbers
+			elif csi.net_long < self.tollerance:
+				bias = Bias.SLIGHT_BULLISH
+			elif csi.net_short < self.tollerance:
+				bias = Bias.SLIGHT_BEARISH
+			else:
+				bias = Bias.MIXED #sucks - no real significant info for this pair
+			analysed_these.append(ClientSentimentInfo('',csi.instrument,csi.timeframe,bias,csi.net_long,csi.net_short,False))
+		return keep_these + analysed_these
+		
 #class ClientCurrencySentiment(Scraper):
 #
 #	instruments = ['AUD','GBP']
@@ -91,9 +128,8 @@ class DailyFX(ClientSentimentScraper):
 				info.append(ClientSentimentInfo('dailyfx',instrument,timeframe,src_bias,netlong,netshort,parse_error))
 		return info	
 		
-		
+
 class ForexClientSentiment(ClientSentimentScraper):
-	
 	@staticmethod
 	def __decode_number(num_str):
 		num_str = num_str.replace('%','')
@@ -101,6 +137,7 @@ class ForexClientSentiment(ClientSentimentScraper):
 
 	def scrape(self):
 		info = []
+		#log a warning here
 		timeframe = 1440
 		sentiment_boxes = self.html.xpath("//a[@class='sentiment']")
 		for box in sentiment_boxes:
@@ -183,28 +220,34 @@ class MyFXBook(ClientSentimentScraper):
 			info.append(ClientSentimentInfo('myfxbook',instrument,timeframe,src_bias,netlong,netshort,parse_error))
 		return info
 
-
-#blocked! :( - will need a special case of selenium 
-class Dukascopy(ClientSentimentScraper):
-
-	def scrape(self):
-		#bit of a hack to determine if we want the pairs or the currencies... 
-		lfr = ListFileReader ()
-		currencies = lfr.read('fx_pairs/currencies.txt')
-		if set(self.instruments) == set(currencies):
-			return self.__scrape_currencies()
-		else:
-			return self.__scrape_usual()
-		
-		
-	def __scrape_currencies(self):
-		return []
-
-	def __scrape_usual(self):
-		self.html.xpath("")
-		return []
+#preferred class here for forexclientsentiment since it will get the numbers too! 
+class ForexClientSentimentCrawler(ClientSentimentCrawler):
+	
+	def crawl(self):
+		#self.browser.do_something()
+		pass
+	
 
 
+
+class Dukascopy(ClientSentimentCrawler):
+
+	def crawl(self):
+		#self.browser.do_something()
+		pass
+	
+
+
+
+
+
+#bit of a hack to determine if we want the pairs or the currencies... 
+#lfr = ListFileReader ()
+#currencies = lfr.read('fx_pairs/currencies.txt')
+#if set(self.instruments) == set(currencies):
+#	return self.__scrape_currencies()
+#else:
+#	return self.__scrape_usual()
 
 
 ##any more sentiment indicators here

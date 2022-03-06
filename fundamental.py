@@ -18,7 +18,7 @@ import pdb
 
 from utils import ListFileReader, CurrencyPair
 
-import web.client_sentiment_scraper as clisps
+import web.client_sentiment_indicators as clisps
 import web.feed_collector as feedco
 from web.feed_collector import TextBias as Bias, TextType
 

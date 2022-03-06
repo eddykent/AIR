@@ -12,3 +12,5 @@ https://www.forexlive.com/feed/
 
 --think of other news feeds! - we could scan these too for relevant news and apply to the keys :D 
 --eg: http://feeds.bbci.co.uk/news/world/rss.xml
+--other things we might want to use here:
+--investing.com
