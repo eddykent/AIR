@@ -26,7 +26,9 @@
 #from tests.shape_patterns_test import *
 #from tests.candle_offset_test import *
 
-from tests.broker_test import *
+#from tests.broker_test import *
+from tests.indicators_test import *
+
 
 
 #from currency_strength_nn import *
