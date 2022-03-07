@@ -188,13 +188,15 @@ class FeedCollect:
 			
 	
 #SentimentData  = namedtuple('SentimentData','the_date instrument keyword title summary source_url degree bias significance')		
+	
 	#consider improving by removing all degree=2 and allow for less significant degree=1 findings to be used
+	#maybe also only key by instrument and get latest etc 
 	def _reduce_findings(self,expire=1440):	
 		findings_by_title = {}
 		self.reduced_findings = []
 		for sd in set(self.all_findings): 
 			if sd.the_date > DateTime.datetime.now() - DateTime.timedelta(minutes=expire):  #1440 = 1 day. Article is less than 1 day old 
-				findings_by_title.setdefault(sd.title,[]).append(sd)
+				findings_by_title.setdefault(sd.title,[]).append(sd) #why?
 		for title,sds in findings_by_title.items():
 			findings_by_instrument = {}
 			[findings_by_instrument.setdefault(sd.instrument,[]).append(sd) for sd in sds]

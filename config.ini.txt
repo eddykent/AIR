@@ -8,7 +8,8 @@ dbname=TradeData
 [trading212]
 username=[your T212 email]
 password=[your T212 password]
-
+demo_url=https://demo.trading212.com/
+live_url=https://live.trading212.com/
 
 [alpha_vantage_keys]
 keys=['your api key','another if you have one etc',...]
