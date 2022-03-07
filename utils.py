@@ -223,9 +223,6 @@ class Configuration:
 		connection_keys = ['host','user','password','dbname']
 		connection_details = {key:self.get('postgres',key) for key in connection_keys}
 		return ' '.join(["%(key)s='%%(%(key)s)s'" % {'key':key} for key in connection_details]) % connection_details
-	
-	def get_default_parameters(self): #because it is annoying creating this fat dict to get the query to work :) 
-		
 
 
 #hold a currency pair more formally
