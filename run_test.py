@@ -18,13 +18,16 @@
 
 #bat - 213,419,805
 
-from tests.text_sentiment_test import *
+#from tests.text_sentiment_test import *
 #from tests.fundamental_test import *
 
 #from tests.spacy_test import *
 
 #from tests.shape_patterns_test import *
 #from tests.candle_offset_test import *
+
+from tests.broker_test import *
+
 
 #from currency_strength_nn import *
 ##447 doesnt work? 

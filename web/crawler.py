@@ -3,7 +3,9 @@
 from selenium import webdriver
 from selenium.webdriver import ChromeOptions
 from selenium.webdriver.chrome.service import Service
-
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions
+from selenium.common.exceptions import TimeoutException
 
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
@@ -64,9 +66,10 @@ class SeleniumHandler:
 		)
 	
 	def finish(self):
-		self.browser.close()
+		self.browser.close() 
 	
-	def screenshot(self):
+	#might be useful oneday! 
+	def screenshot(self): 
 		timestamp = TimeHandle.timestamp()
 		#get number for fast screenshotting 
 		number = 0
@@ -74,6 +77,29 @@ class SeleniumHandler:
 		timefilename = timestamp+'#'+stringnumber
 		self.browser.get_screenshot_as_file(os.path.join(self.screenshot_dir,timefilename,'.png'))
 		return timefilename
+	
+	#wrappers for ease of use (from the root node only - once they are called we lose the support of this class)
+	def get(self,url):
+		return self.browser.get(url)
+		
+	def switch_to_frame(self,iframe):
+		return self.browser.switch_to.frame(iframe) 
+	
+	#handy method for waiting for elements to be present
+	def perform_wait(self,by,query_str,expire=10):
+		try:
+			return WebDriverWait(self.browser,expire).until(
+				expected_conditions.presence_of_element_located((by,query_str))
+			)
+		except TimeoutException as e:  #if element doesnt exist return None
+			return None
+	
+	def find_element(self,by,query_str):
+		return self.browser.find_element(by,query_str)
+	
+	def find_elements(self,by,query_str):
+		return self.browser.find_elements(by,query_str)
+		
 
 #wrapper for SeleniumHandler and used as base for any crawlers
 class Crawler:

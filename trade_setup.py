@@ -1,6 +1,6 @@
 ## setups are trades that have been produced from signals from various sources. A TradeSetup class finds trades on a given date 
 #that have a high probabily of winning based on their backtest results.  TradeSetup classes need to be backtestable 
-
+from enum import Enum
 
 
 

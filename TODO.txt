@@ -4,6 +4,7 @@ extend test_trades.sql or use another sql to test full tradesignal types
  	- perfrom analysis to see if/when the candle gets high enough/low enough 
 	- report win/lose/finish percentage 
 
+DEFENSIVE CODING: documentation, type hints and overrides for all non-testing python scripts. (use typecheck?)
 
 indicators in python using numpy for speed
 

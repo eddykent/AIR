@@ -111,6 +111,7 @@ class TimeHandler:
 		#get datestamp
 		return the_date.strftime('%Y-%m-%d@%Hh%Mm%Ss')
 		
+#refactor to use typecheck? 
 class TypedList:
 	
 	def __init__(self, type, *args): #extend to multiple types?
@@ -491,7 +492,11 @@ class SplitAndPrepare:
 		
 		
 
-
+def overrides(interface_class):
+    def overrider(method):
+        assert(method.__name__ in dir(interface_class)), "method {} is not overriden by {}".format(method.__name__,interface_class.__name__)
+        return method
+    return overrider
 
 
 
