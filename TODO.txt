@@ -2,12 +2,12 @@ TODO:
 extend test_trades.sql or use another sql to test full tradesignal types
 	- select all candles for the trade
  	- perfrom analysis to see if/when the candle gets high enough/low enough 
-	- report win/lose/finish percentage
+	- report win/lose/finish percentage 
 
 
 indicators in python using numpy for speed
 
-t212 handler - functions "query trades", "place trade", "get trade", pull the plug" etc. keep journal of trades?
+t212 handler - functions "query trades", "place trade", "get trade", "clear charts", "pull the plug" etc. keep journal of trades?
 
 create explain() functions in various places similar to draw_snapshot() for use when generating trade setup documents
 create setup() function on chart/candle patterns to be able to run backtests
@@ -25,6 +25,7 @@ Create & test full RNN with candles_and_indicators.sql, currency_strengths, corr
 
 Write testing framework (to run a bunch of tests sequentially) and 
 store the results. Then leave it running to find best param settings 
+report % wins, streaks etc 
 after making an autonomous trading bot - keep all trades in a table called trade_journal
 
 Partial RNN - use correlation matrix for grouping pairs together before running through an RNN
@@ -78,9 +79,7 @@ Practice will also land you a high paying datascience role if you move jobs...
 
 Use logging to report issues found especially when scraping websites as it will probably be way easier
 
-Getting stuff from multiple websites should be async so we can query em all at the same time
-
-feed collector - finish the collection of results stage
+Getting stuff from multiple websites should be async so we can query em all at the same tim
 
 currency_strength_diff_auto_regression_rsi.sql is not producing enough rows to run in database_tests.py
 
@@ -88,5 +87,15 @@ hour should not be a db query parameter - we can get the hour from the datetime 
 
 selenium chrome driver - webdriver-manager cant auto detect chrome version - possibly permissions error
 
-all chart patterns need tuning & testing properly :(
+draw snapshot should have default candle index parameter to None. - if none, draw all candles 
+
+
+ONGOING: - stuff that might not ever have an end to it because it can always be made better
+fundamental stuff needs more testing to get it better - perhaps collecting results should be done by date not significance, and only use degree=1
+
+all chart patterns need tuning & testing properly
+
+
+
+
 

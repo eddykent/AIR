@@ -2,7 +2,7 @@
 import feedparser
 import re
 import time
-import datetime
+import datetime as DateTime
 from enum import Enum
 from collections import namedtuple
 
@@ -16,7 +16,6 @@ class TextBias(Enum):
 	MIXED = 0
 	SLIGHT_BULLISH = 1 #setup
 	BULLISH = 2 #filter
-
 
 class TextType(Enum):
 	UNKNOWN = 0 #initalise to unknown to tell us we havent checked yet 
@@ -37,13 +36,37 @@ class TextType(Enum):
 #significance - final sentiment score for using when performing fundamental analysis on the instrument 
 SentimentData  = namedtuple('SentimentData','the_date instrument keyword title summary source_url degree bias significance')
 
+class TallyBias:
+	
+	@staticmethod
+	def collect(tally):
+		collected_result = TextBias.MIXED
+				
+		has_bull = TextBias.BULLISH in tally or TextBias.SLIGHT_BULLISH in tally
+		has_bear = TextBias.BEARISH in tally or TextBias.SLIGHT_BEARISH in tally
+		
+		if not (has_bull and has_bear): #if we are not bullish AND bearish
+			
+			if TextBias.BULLISH in tally:
+				collected_result = TextBias.BULLISH
+			elif TextBias.SLIGHT_BULLISH in tally:
+				collected_result = TextBias.SLIGHT_BULLISH
+					
+			if TextBias.BEARISH in tally:
+				collected_result = TextBias.BEARISH
+			elif TextBias.SLIGHT_BEARISH in tally:
+				collected_result = TextBias.SLIGHT_BEARISH
+				
+		return collected_result
+	
+
 class FeedCollect:
 
 	sources = [] 
 	articles = [] 
 	
 	all_findings = [] #SentimentData objects
-	reduced_findings = []
+	_reduced_findings = []
 	instrument_summary = {}# for each instrument, keep a simple "bullish"/"bearish" score gerneated from the findings 
 	
 	_article_sentiment = []#keep sentiment per article
@@ -51,7 +74,7 @@ class FeedCollect:
 	#_article_signals = [] 
 	_article_types = []#keep internal results of what type of text the passage was for each article
 	
-	sentiment_parameters = {'subjectivity_threshold':0.2,'slight_threshold':0.25,'full_threshold':0.5}
+	parameter_settings = {'subjectivity_threshold':0.2,'slight_threshold':0.25,'full_threshold':0.5,'significance_threshold':0.0}
 
 	def __init__(self,sources): 
 		self.sources = sources
@@ -105,13 +128,13 @@ class FeedCollect:
 			#	pass # perhaps can create a trade signal object here... might require a specialist parser though 
 	
 	def _get_bias(self,value):
-		if value < -self.sentiment_parameters['full_threshold']:
+		if value < -self.parameter_settings['full_threshold']:
 			return TextBias.BEARISH
-		if value < -self.sentiment_parameters['slight_threshold']:
+		if value < -self.parameter_settings['slight_threshold']:
 			return TextBias.SLIGHT_BEARISH
-		if value > self.sentiment_parameters['full_threshold']:
+		if value > self.parameter_settings['full_threshold']:
 			return TextBias.BULLISH
-		if value > self.sentiment_parameters['slight_threshold']:
+		if value > self.parameter_settings['slight_threshold']:
 			return TextBias.SLIGHT_BULLISH
 		return TextBias.MIXED
 		
@@ -138,13 +161,13 @@ class FeedCollect:
 			polarity = sentiments['overview']['polarity']
 			n_hits = len(first_keys)
 			
-			if subjectivity < self.sentiment_parameters['subjectivity_threshold']:
+			if subjectivity < self.parameter_settings['subjectivity_threshold']:
 				for instrument,rel in first_keys.items():  #rel = RelevanceInfo(degree,direction,keyword)
 					degree = rel.degree
 					this_sentiment = polarity * rel.direction #negate the score if the relevance goes the other way. always 1 anyway though for first_keys
 					keyword = rel.keyword
 					bias = self._get_bias(this_sentiment)
-					significance = self._get_signficance(this_sentiment,subjectivity,n_hits,degree==1) # perhaps divide by subjectivity, and also reduce if there are more than 1 keys ?
+					significance = self._get_signficance(this_sentiment,subjectivity,n_hits,degree==1)#if degree is 1 it is quite significant
 					sd = SentimentData(the_date,instrument,keyword,title,summary,source_url,degree,bias,significance)
 					self.all_findings.append(sd)
 			
@@ -152,7 +175,7 @@ class FeedCollect:
 				polarity = sentence_sentiment['polarity']
 				subjectivity = sentence_sentiment['subjectivity']
 				n_hits = len(sentence_keys)
-				if subjectivity < self.sentiment_parameters['subjectivity_threshold']:
+				if subjectivity < self.parameter_settings['subjectivity_threshold']:
 				
 					for instrument,rel in sentence_keys.items():
 						degree = rel.degree
@@ -165,18 +188,23 @@ class FeedCollect:
 			
 	
 #SentimentData  = namedtuple('SentimentData','the_date instrument keyword title summary source_url degree bias significance')		
-		
-	def _reduce_findings(self):	
+	#consider improving by removing all degree=2 and allow for less significant degree=1 findings to be used
+	def _reduce_findings(self,expire=1440):	
 		findings_by_title = {}
 		self.reduced_findings = []
-		for sd in self.all_findings:
-			findings_by_title.setdefault(sd.title,[]).append(sd)
+		for sd in set(self.all_findings): 
+			if sd.the_date > DateTime.datetime.now() - DateTime.timedelta(minutes=expire):  #1440 = 1 day. Article is less than 1 day old 
+				findings_by_title.setdefault(sd.title,[]).append(sd)
 		for title,sds in findings_by_title.items():
-			#for some rules, remove articles if they conflict etc. also filter by other things like time/degree etc 
-			pass
-		#findings_by_instrument = ...    - ..now lets compare across articles 
-		#finally, construct self.reduced_findings
-		#self.reduced_findings = ... 
+			findings_by_instrument = {}
+			[findings_by_instrument.setdefault(sd.instrument,[]).append(sd) for sd in sds]
+			for instrument, ssds in findings_by_instrument.items():
+				#latest! not significance!
+				collected_bias = TallyBias.collect([sd.bias for sd in ssds if sd.significance > self.parameter_settings['significance_threshold']]) 
+				most_significant = [sd for sd in ssds if sd.significance == max([sd.significance for sd in ssds])]
+				if most_significant:
+					md = most_significant[0]
+					self._reduced_findings.append(SentimentData(md.the_date,md.instrument,md.keyword,md.title,md.summary,md.source_url,md.degree,collected_bias,md.significance))
 		
 	
 	
@@ -185,11 +213,13 @@ class FeedCollect:
 		self._collect_findings()
 		self._reduce_findings()
 		self.instrument_summary = {}  
-		#use self.reduced_findings to build summary for each instrument
 		
-			
-			
-			
+		findings_by_instrument = {} 
+		#use self.reduced_findings to build summary for each instrument
+		[findings_by_instrument.setdefault(sd.instrument,[]).append(sd) for sd in self._reduced_findings]
+		
+		for instrument, sds in findings_by_instrument.items():
+			self.instrument_summary[instrument] = TallyBias.collect([sd.bias for sd in sds])
 	
 	#def keyword_collect(self):
 	def parse_historic(self):

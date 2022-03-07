@@ -29,7 +29,7 @@ to see if the exchange rate is the same (for common exchanges)
  --Deemed not significant enough - the discrepancy rarely reaches above 0.1% and when it does, the market doesnt really move much. 
  --this sort of feature would probably suit very low timeframes like 1s
 
-Extend trades to be able to have entry, stop loss and take profit price values - refactored trade_schedule.py to be nicer to work with and 
+Extend trades to be able to have entry, stop loss and take profit price values - refactored trade_schedule.py to work with and 
 have a TradeSignal class which is much nicer! 
 
 
@@ -39,9 +39,10 @@ results into a nice snapshot to seee many lines from that point
 
 ForexLive needs to have a scraper - it turns out the rss feed does have full articles
 
-
 pluralize windows in match_pattern and use cKDtree whatever that is for faster search
  - kdtree is good for cached searches but we get the data right away so no point I don't think?
+
+feed collector - finish the collection of results stage
 
 
 BUGS:

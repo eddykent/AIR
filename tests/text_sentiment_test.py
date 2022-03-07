@@ -23,7 +23,13 @@ def load_cached():
 		rss = pickle.load(f)
 	with open('pickles/rss_collected_articles.pkl','rb') as f:
 		rss.articles = pickle.load(f)
+	rss.parse_feeds()
+	kwh = KeywordMapHelper()
+	ta = TextAnalysis(kwh)
+	rss.analyse_articles(ta)
+	#rss.collect()
 	return rss
+	
 
 def save_rss(rss):
 	with open('pickles/rss_collected.pkl','wb') as f:

@@ -21,7 +21,7 @@ from utils import ListFileReader, CurrencyPair
 import web.client_sentiment_indicators as clisps
 import web.feed_collector as feedco
 from web.crawler import SeleniumHandler
-from web.feed_collector import TextBias as Bias, TextType
+from web.feed_collector import TextBias as Bias, TextType, TallyBias
 
 KeywordMap = namedtuple('KeywordMap','keyword values')
 RelevanceInfo = namedtuple('RelevanceInfo', 'degree direction keyword')
@@ -100,27 +100,11 @@ class ClientSentiment: #a client sentiment is just how many are buying/selling. 
 				score += 1
 				tally[csi.bias] = score
 			
-			collected_result = Bias.MIXED
-			
-			has_bull = Bias.BULLISH in tally or Bias.SLIGHT_BULLISH in tally
-			has_bear = Bias.BEARISH in tally or Bias.SLIGHT_BEARISH in tally
-			
-			if not (has_bull and has_bear): #if we are not bullish AND bearish
-				
-				if Bias.BULLISH in tally:
-					collected_result = Bias.BULLISH
-				elif Bias.SLIGHT_BULLISH in tally:
-					collected_result = Bias.SLIGHT_BULLISH
-						
-				if Bias.BEARISH in tally:
-					collected_result = Bias.BEARISH
-				elif Bias.SLIGHT_BEARISH in tally:
-					collected_result = Bias.SLIGHT_BEARISH
+			collected_result = TallyBias.collect(tally)
 					
 			self.collected_result[instrument] = collected_result
 
 
-	
 ##not sure how this will work yet - could just be something that prevents trading at choppy times when 
 ##big news is about to comeresults out 
 ##OR it could be something that suggests a trade based on the economic calendar prediction - or both
@@ -306,13 +290,13 @@ class TextAnalysis:
 		#sa = nltk.sentiment.SentimentIntensityAnalyzer()
 		textblob = TextBlob(self.fsh.strip_slashes(passage_text).lower())
 		polarity = self.sentiment_analyzer.polarity_scores(str(textblob))
-		overall = {'subjectivity':textblob.sentiment.subjectivity,'polarity': polarity['compound']}
+		overall = {'subjectivity':float(textblob.sentiment.subjectivity),'polarity': float(polarity['compound'])}
 		specifics = []
 		for sentence in textblob.sentences:
 			keys = self.keyword_helper.relevant_keys(sentence)
 			if keys:
 				polarity = self.sentiment_analyzer.polarity_scores(str(sentence))
-				specifics.append((sentence,keys,{'subjectivity':sentence.sentiment.subjectivity,'polarity': polarity['compound']}))
+				specifics.append((sentence,keys,{'subjectivity':float(sentence.sentiment.subjectivity),'polarity': float(polarity['compound'])}))
 		return overall, specifics
 		
 		
