@@ -225,32 +225,7 @@ class Configuration:
 		return ' '.join(["%(key)s='%%(%(key)s)s'" % {'key':key} for key in connection_details]) % connection_details
 	
 	def get_default_parameters(self): #because it is annoying creating this fat dict to get the query to work :) 
-		return {
-			'take_profit_factor':10, #movement required (in multiples of average true range) to hit a take profit
-			'stop_loss_factor':7, #movement required (in multiples of average true range) to hit a stop loss
-			'spread_penalty':3, #penalty added (in multiples of average true range) that change the price at 10pm to account for crazy spread times
-			'normalisation_window':200, #where to find max and min values for normalising data to between 0 and 1
-			'starting_candle':2,#which 15 minute candle to start from when evaluating trading schedules (to account for computation time)
-			'the_date':None,#date in which the trade will happen (and all learning is from subsequent candles before etc) 
-			'hour':None, #the time in which the trade will happen 
-			'candle_offset':0, #if using 4h chart, this needs to be 120 minutes (2 hours)
-			'days_back':1500, #rough estimate of how much data needs to be read to get enough to generate all sequences
-			'trade_length_days':1, #the length a trade is expected to last (close the trade if it elapses this time)
-			'currencies':[], #list of contributing currencies for currency strength and other calculations 
-			'chart_resolution':60, #use the 1h chart (15mins, 30mins, 1h and 4h available!) 
-			'average_true_range_period':14,
-			'relative_strength_index_period':14,
-			'stochastic_oscillator_period':14,
-			'stochastic_oscillator_fast_d':3,
-			'stochastic_oscillator_slow_d':3,
-			'macd_slow_period':23,
-			'macd_fast_period':12,
-			'macd_signal_period':8,
-			'custom_sma_period':10, 
-			'custom_ema_period':10,
-			'bollinger_band_period':20,
-			'bollinger_band_k':2
-		}
+		
 
 
 #hold a currency pair more formally
@@ -295,13 +270,48 @@ class Database:
 	rows = [] 
 	query_cache_dir = 'pickles/datacache'
 	
+	default_parameters = {
+		'take_profit_factor':10, #movement required (in multiples of average true range) to hit a take profit
+		'stop_loss_factor':7, #movement required (in multiples of average true range) to hit a stop loss
+		'spread_penalty':3, #penalty added (in multiples of average true range) that change the price at 10pm to account for crazy spread times
+		'normalisation_window':200, #where to find max and min values for normalising data to between 0 and 1
+		'starting_candle':2,#which 15 minute candle to start from when evaluating trading schedules (to account for computation time)
+		'the_date':None,#date in which the trade will happen (and all learning is from subsequent candles before etc) 
+		'hour':None, #the time in which the trade will happen 
+		'candle_offset':0, #if using 4h chart, this needs to be 120 minutes (2 hours)
+		'days_back':1500, #rough estimate of how much data needs to be read to get enough to generate all sequences
+		'trade_length_days':1, #the length a trade is expected to last (close the trade if it elapses this time)
+		'currencies':[], #list of contributing currencies for currency strength and other calculations 
+		'chart_resolution':60, #use the 1h chart (15mins, 30mins, 1h and 4h available!) 
+		'average_true_range_period':14,
+		'relative_strength_index_period':14,
+		'stochastic_oscillator_period':14,
+		'stochastic_oscillator_fast_d':3,
+		'stochastic_oscillator_slow_d':3,
+		'macd_slow_period':23,
+		'macd_fast_period':12,
+		'macd_signal_period':8,
+		'custom_sma_period':10, 
+		'custom_ema_period':10,
+		'bollinger_band_period':20,
+		'bollinger_band_k':2
+	}
+	
+	
+	
 	def __init__(self):
 		cfg = Configuration()
 		self.con = psycopg2.connect(cfg.database_connection_string())
 		self.cur = self.con.cursor()
 	
+	
+	def get_default_parameters(self,params):
+		all_params = {k:v for k,v in self.default_parameters.items()} #copy dictionary
+		all_params.update(params)
+		return all_params
+	
 	def mogrify(self,query,params):
-		return self.cur.mogrify(query,params)
+		return self.cur.mogrify(query,self.get_default_parameters(params))
 		
 	def execute(self,query,params):
 		self.query = self.mogrify(query,params) #already in bytes
@@ -313,12 +323,12 @@ class Database:
 				with open(fullfilename,'rb') as f:
 					self.rows = pickle.load(f)
 			else:
-				self.cur.execute(query,params)
+				self.cur.execute(query,self.get_default_parameters(params))
 				self.rows = self.cur.fetchall()
 				with open(fullfilename,'wb') as f:
 					pickle.dump(self.rows,f)
 		else:
-			self.cur.execute(query,params)
+			self.cur.execute(query,self.get_default_parameters(params))
 			self.rows = self.cur.fetchall()
 			
 	def fetchall(self):
