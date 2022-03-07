@@ -22,7 +22,7 @@ class TradeResult(Enum):
 	WON = 2 
 
 #trades should be "fire and forget" 
-LiveTrade = namedtuple('LiveTrade','trade_id, entry_date, instrument, quantity, direction, entry_price, current_price, take_profit, stop_loss, result')
+LiveTrade = namedtuple('LiveTrade','trade_id entry_date instrument quantity direction entry_price current_price take_profit stop_loss result')
 
 class Broker:
 	
@@ -64,7 +64,7 @@ class Broker:
 		"""		
 		raise NotImplementedError("This method must be overridden")
 	
-	def get_live_trades(self)  -> list:
+	def get_live_trades(self)  -> Sequence[LiveTrade]:
 		"""
 		Get all trades that are currently open
 		
