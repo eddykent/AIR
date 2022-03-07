@@ -46,16 +46,20 @@ fsh = ForexSlashHelper()
 
 rss = feedco.RSSCollect(lfr.read('sources/rss_feeds.txt'))
 rss.parse_feeds()
-with open('pickles/stories.pkl','rb') as f:
-	rss.articles = pickle.load(f)
+#with open('pickles/stories.pkl','rb') as f:
+#	rss.articles = pickle.load(f)
 
-#n = len(rss.articles)
-#for (i,a) in enumerate(rss.articles):
-#	print('fetching article '+str(i+1)+'/'+str(n)+ '... ')
-#	a.fetch_full_text()
-#
-#with open('pickles/stories.pkl','wb') as f:
-#	pickle.dump(rss.articles,f)
+n = len(rss.articles)
+for (i,a) in enumerate(rss.articles):
+	print('fetching article '+str(i+1)+'/'+str(n)+ '... ')
+	a.fetch_full_text()
+
+with open('pickles/stories.pkl','wb') as f:
+	pickle.dump(rss.articles,f)
+
+#failed articles: 
+#34, 41, 42, 44, 45, 46, 47, 48, 49, 50, 53
+
 
 stopwords = set(nltk.corpus.stopwords.words('english'))
 
@@ -105,6 +109,7 @@ def is_tutorial(some_text,db=False): #use in conjunction with title? "find out",
 	#words = [w for w in nltk.word_tokenize(some_text.lower()) if w not in punctuation and w not in nlp.Defaults.stop_words]
 	#new_text = ' '.join(words)
 	words = [s for s in nltk.word_tokenize(some_text)]
+	n_words = len(words)
 	word_count = Counter(words)
 	
 	all_lesson_words = ['explain','explanation','explained','explaining','learn','tutorial','lesson','guide','tips','top','discover']

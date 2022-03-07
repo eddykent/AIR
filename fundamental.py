@@ -344,7 +344,9 @@ class TextAnalysis:
 		personifiers = sum(textblob.word_counts[w] for w in self.text_type_config['personifiers'])
 		questionables = sum(textblob.word_counts[w] for w in self.text_type_config['question_words'])
 		
-		return questionables + personifiers > 14 or questionables > 10 or personifiers > 10   #this should  be done by rate, not by count
+		divizor = len(textblob.words) ** 0.5
+		
+		return ((questionables + personifiers) / divizor) > 0.75 or (questionables / divizor) > 0.5 or (personifiers / divizor) > 0.5 
 
 
 

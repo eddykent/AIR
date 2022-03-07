@@ -1,19 +1,31 @@
 TODO: 
-extend test_trades.sql or use another sql to test full tradesignal types 
+extend test_trades.sql or use another sql to test full tradesignal types
+	- select all candles for the trade
+ 	- perfrom analysis to see if/when the candle gets high enough/low enough 
+	- report win/lose/finish percentage
+
+
+indicators in python using numpy for speed
+
+t212 handler - functions "query trades", "place trade", "get trade", pull the plug" etc. keep journal of trades?
 
 create explain() functions in various places similar to draw_snapshot() for use when generating trade setup documents
+create setup() function on chart/candle patterns to be able to run backtests
 
-Create & test full RNN with candles_and_indicators.sql, currency_strengths, correlations etc & get_y_values.sql 
+every candlestick and chart pattern should have a get_setups() function to return TradeSignals 
 
-Write testing framework (to run a bunch of tests sequentially) and 
-store the results. Then leave it running to find best param settings 
+setup object using bbs, ketner channels and RSI to test the backtester
 
 SCREENING - candle stick scanner for candle stick patterns and chart patterns. Use to determine entry points
 	- candlestick patterns at high timeframes 
 	- chart breakout patterns at lower timeframes (eg 4h) 
 	- chart breakout patterns again at lowest (15m?) timeframes to identify entry points 
 
-every candlestick and chart pattern should have a get_setups() function to return TradeSignals 
+Create & test full RNN with candles_and_indicators.sql, currency_strengths, correlations etc & get_y_values.sql 
+
+Write testing framework (to run a bunch of tests sequentially) and 
+store the results. Then leave it running to find best param settings 
+after making an autonomous trading bot - keep all trades in a table called trade_journal
 
 Partial RNN - use correlation matrix for grouping pairs together before running through an RNN
 
@@ -57,6 +69,7 @@ which have an E, TP, SL and Confidence level for each. This will require a tradi
 loss function with something like 
 	loss = logloss(confidence_y,confidence_pred) + confidence_y * (mse(E,TP,SL) + direction loss)
 
+python->Cython integration for some chart patterns to speed them up
 
 
 BUGS:
@@ -66,16 +79,6 @@ Practice will also land you a high paying datascience role if you move jobs...
 Use logging to report issues found especially when scraping websites as it will probably be way easier
 
 Getting stuff from multiple websites should be async so we can query em all at the same time
-
-
-some sources are not working quite so well - eg forexcrunch 
-need to test for fulltexts in the sentiment analyser. Keep running it and figure out how to improve the scrapers
-
-sentiment scores - when a positive sell order is given (Eg from fxstreet etc) it shows as a positive sentiment 
- - need to check article first and see if it is a buy/sell order and not a general news story about a pair/currency
- - if it is a buy/sell order then perhaps it should be added to a separate indicator. Some kind of status is needed 
-	per article to achieve this
-TURN is_tutorial INTO A RATE BASED, NOT COUNT BASED THING?-- might not be that important though since tutorials barely ever have fx names in :)
 
 feed collector - finish the collection of results stage
 

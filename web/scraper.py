@@ -151,13 +151,15 @@ class DailyFXNews(Scraper):
 	
 	def scrape(self):
 		
-		pdb.set_trace()
 		article_body = self.html.xpath("//*[@class='dfx-articleBody']") #change if website changes!
 		full_text = ''
 		
 		if article_body:
 			full_text = article_body[0].text
-			
+			if full_text == '':
+				possible_video = article_body[0].xpath(".//*[contains(@class,'youTubeVideo')]")
+				if possible_video:
+					full_text = 'VIDEO'
 		return full_text
 
 class FXStreet(Scraper):

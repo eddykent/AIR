@@ -20,7 +20,7 @@ class TextBias(Enum):
 
 class TextType(Enum):
 	UNKNOWN = 0 #initalise to unknown to tell us we havent checked yet 
-	#INVITATION = 1 #eg to a webinar or something - decided this was a bit pointless... 
+	MEDIA = 1# if it is a youtube video or something
 	TUTORIAL = 2 #also include video etc - these are not useful to us and we should avoid them if possible 
 	TRADE_SIGNAL = 3 #we can store the trade signal stories for later if needed! 
 	STORY = 4 #this is the one we actually want! We perform sentiment analysis on stories only. We could use the trade signals though. 
@@ -43,6 +43,7 @@ class FeedCollect:
 	articles = [] 
 	
 	all_findings = [] #SentimentData objects
+	reduced_findings = []
 	instrument_summary = {}# for each instrument, keep a simple "bullish"/"bearish" score gerneated from the findings 
 	
 	_article_sentiment = []#keep sentiment per article
@@ -62,6 +63,8 @@ class FeedCollect:
 	
 	def get_text_type(self,article,text_analyser):
 		the_type = TextType.STORY #default to story
+		if article.full_text == 'VIDEO':
+			the_type = TextType.MEDIA
 		if text_analyser.is_signal(article.full_text):
 			the_type = TextType.TRADE_SIGNAL
 		if text_analyser.tutorial_title(article.title + ' ' + article.summary) and text_analyser.is_tutorial(article.full_text):
@@ -164,7 +167,17 @@ class FeedCollect:
 #SentimentData  = namedtuple('SentimentData','the_date instrument keyword title summary source_url degree bias significance')		
 		
 	def _reduce_findings(self):	
-		pass #for each article, group and average together sentiment data. set bias to MIXED if there is bullish and bearish to take it out
+		findings_by_title = {}
+		self.reduced_findings = []
+		for sd in self.all_findings:
+			findings_by_title.setdefault(sd.title,[]).append(sd)
+		for title,sds in findings_by_title.items():
+			#for some rules, remove articles if they conflict etc. also filter by other things like time/degree etc 
+			pass
+		#findings_by_instrument = ...    - ..now lets compare across articles 
+		#finally, construct self.reduced_findings
+		#self.reduced_findings = ... 
+		
 	
 	
 	#generate insturment_summary from all articles, and generate SentimentData for storing the reasons 
@@ -172,7 +185,7 @@ class FeedCollect:
 		self._collect_findings()
 		self._reduce_findings()
 		self.instrument_summary = {}  
-		
+		#use self.reduced_findings to build summary for each instrument
 		
 			
 			

@@ -3,7 +3,7 @@
 	"stop_loss_words":["stop loss","sl"],
 	"take_profit_words":["take profit","tp","tp1","tp2"],
 	"tutorial_words":["explain","explanation","explained","explaining","learn","tutorial","lesson","guide","tips","top","discover"],
-	"tutorial_phrases":["find out","learn how","learn which","learn when","learn why","learn what"],
+	"tutorial_phrases":["find out","learn how","learn which","learn when","learn why","learn what", "how traders can", "what traders can"],
 	"personifiers":["you","i","us","we","our","one","me"],
 	"question_words":["who","what","where","when","why","how"],
 	"advertising_phrases":["tradingview", "receive timely", "daily chart", "sign up", "subscribe"]
