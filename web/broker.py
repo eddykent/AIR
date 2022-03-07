@@ -64,7 +64,7 @@ class Broker:
 		"""		
 		raise NotImplementedError("This method must be overridden")
 	
-	def get_live_trades(self)  -> Sequence[LiveTrade]:
+	def get_live_trades(self)  -> list:
 		"""
 		Get all trades that are currently open
 		
