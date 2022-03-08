@@ -16,8 +16,8 @@ import charting.candle_stick_functions as csf
 from trade_setup import TradeSignal, TradeDirection
 from utils import overrides 
 
-
-SetupCriteria = namedtuple('SetupCriteria','key directon value') #if "x exceeds y"? need to figure this out :) 
+#move to trade_setup?
+SetupCriteria = namedtuple('SetupCriteria','key1 key2 directon value') #if "x exceeds y"? need to figure this out :) 
 
 class Indicator:
 	
@@ -99,7 +99,7 @@ class Indicator:
 		
 		chart_view = chv.ChartView()
 		
-		for key in self.channel_keys:
+		for key in self.channel_styles:
 			style = self.channel_styles[key]
 			channel_key = self.channel_keys[key]
 			y_axis = result[:,channel_key]
@@ -194,8 +194,8 @@ class Indicator:
 	
 	def _sliding_windows(self,np_candles):
 		np_candles = self._pad_start(np_candles)
-		np_closes = np_candles[:,:,self.candle_channel]
-		return np.lib.stride_tricks.sliding_window_view(np_closes,window_shape=self.period,axis=1)	
+		return np.lib.stride_tricks.sliding_window_view(np_candles,window_shape=self.period,axis=1)	
+		
 		
 	#def _produce_block(self,candle_streams):
 	#	pass#produce convenient block of numbers from 
@@ -203,12 +203,11 @@ class Indicator:
 class SMA(Indicator):
 	
 	channel_keys = {'SMA':0}
-	channel_styles = {'SMA':'keyinfo'}
+	channel_styles = {'SMA':'bearish'}
 
 	@overrides(Indicator)
 	def _perform(self,candles):
-		
-		windows = self._sliding_windows(candles)
+		windows = self._sliding_windows(candles)[:,:,self.candle_channel,:] #select the correct candle channel
 		return np.nanmean(windows,axis=2)[:,:,np.newaxis]
 		
 		
@@ -219,7 +218,7 @@ class STDDEV(SMA):
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
-		windows = self._sliding_windows(candles)
+		windows = self._sliding_windows(candles)[:,:,self.candle_channel,:]
 		return np.nanstd(windows,axis=2)[:,:,np.newaxis]
 	
 
@@ -263,7 +262,7 @@ class BollingerBands(Indicator):
 		stds = std._perform(candles)
 		upper = smas + (self.k * stds)
 		lower = smas - (self.k * stds)
-		pdb.set_trace()
+		
 		return np.concatenate([smas,upper,lower],axis=2)
 
 class MultiMovingAverage(Indicator):
@@ -383,7 +382,6 @@ class RSI(Indicator):
 	def _perform(self,candles):
 		closes = candles[:,:,self.candle_channel]
 		rate_of_change = closes[:,1:] - closes[:,:-1]
-		zeros = np.zeros(rate_of_change.shape)
 		up_moves = np.maximum(rate_of_change,0)
 		down_moves = np.abs(np.minimum(rate_of_change,0))
 		ema = EMA()
@@ -394,21 +392,287 @@ class RSI(Indicator):
 		rsi = 1.0 - (1.0 / (1.0 + (ave_up_move / ave_down_move)))
 		rsi[np.isnan(rsi)] = 1.0
 		return np.concatenate([rsi,np.full(rsi.shape,self.overbought),np.full(rsi.shape,self.oversold)],axis=2)
-
 	
 	
-class StochasticOscillator(Indicator):
-	pass 
+class Stochastic(Indicator):
+	
+	channel_keys = {'K':0, 'D':1, 'SLOW_K':1, 'SLOW_D':2, 'OVERBOUGHT':3, 'OVERSOLD':4}  #d = slow_k
+	channel_styles = {'K':'keyinfo', 'SLOW_K':'bullish', 'SLOW_D':'bearish', 'OVERBOUGHT':'neutral', 'OVERSOLD':'neutral'}
+	
+	period = 14	
+	slow_k_period = 3
+	d_period = 3
+	
+	overbought = 0.8
+	oversold = 0.2
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		closes = candles[:,:,csf.close]
+		windows = self._sliding_windows(candles)
+		highs = np.nanmax(windows[:,:,csf.high,:],axis=2)
+		lows = np.nanmin(windows[:,:,csf.low,:],axis=2)
+		
+		percent_k = (closes - lows) / (highs - lows) #without percent
+		ema = EMA()
+		ema.period = self.slow_k_period
+		ema.candle_channel = 0
+		
+		percent_k = percent_k[:,:,np.newaxis]
+		slow_k = ema._perform(percent_k)
+		ema.period = self.d_period
+		percent_d = ema._perform(slow_k)
+		
+		return np.concatenate([percent_k,slow_k,percent_d],axis=2)
 
+class StochasticRSI(Indicator):
+	
+	period = 14
+	channel_keys = {'STOCHASTIC_RSI':0, 'OVERBOUGHT':1, 'OVERSOLD':2}
+	channel_styles = {'STOCHASTIC_RSI':'bearish', 'OVERBOUGHT':'neutral', 'OVERSOLD':'neutral'}
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		rsi = RSI()
+		rsi_result = rsi._perform(candles)
+		
+		rsi_windows = self._sliding_windows(rsi_result)[:,:,rsi.channel_keys['RSI'],:] #confirm shape = (28, 346, 14)?
+		rsi_maxs = np.nanmax(rsi_windows,axis=2)
+		rsi_mins = np.nanmin(rsi_windows,axis=2)
+		stochastic_rsi = (rsi_result[:,:,rsi.channel_keys['RSI']] - rsi_mins) / (rsi_maxs - rsi_mins)
+		stochastic_rsi[np.isnan(stochastic_rsi)] = 0.5 
+		stochastic_rsi = stochastic_rsi[:,:,np.newaxis]
+		overbought = np.full(stochastic_rsi.shape,self.overbought)
+		oversold = np.full(stochastic_rsi.shape,self.oversold)
+		return np.concatenate([stochastic_rsi,overbought,oversold],axis=2)
+		
+		
 class MassIndex(Indicator):
-	pass
 	
-class ADI(Indicator):
-	pass
+	period = 9
+	channel_keys = {'MASS':0}
+	channel_styles = {'MASS':'neutral'}
+	mass_period = 25
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		diffs = candles[:,:,csf.high] - candles[:,:,csf.low]
+		ema = EMA()
+		ema.period = self.period 
+		ema.candle_channel = 0
+		ema_1 = ema._perform(diffs[:,:,np.newaxis])
+		ema_2 = ema._perform(ema_1)
+		ratios = ema_1 / ema_2
+		mass = np.nansum(self._sliding_windows(ratios)[:,:,0,:],axis=2)
+		return mass[:,:,np.newaxis]
+		
+#this is buggy - ADX should not range to 100 and pdi and ndi should not go below 0 
+class ADX(Indicator):
+	
+	period = 14
+	channel_keys = {'ADX':0,'PDI':1,'NDI':2}
+	channel_styles = {'ADX':'keyinfo','PDI':'bullish','NDI':'bearish'}
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		atr = ATR()
+		ema = EMA()
+		atr.period = self.period
+		ema.period = self.period
+		ema.candle_channel = 0
+		
+		atrs = atr._perform(candles)
+		
+		upmoves = candles[:,1:,csf.high] - candles[:,:-1,csf.high]
+		downmoves = candles[:,:-1,csf.low] - candles[:,1:,csf.low]
+		
+		#pdm and ndm have 1 less - so repeat first value
+		upmoves = np.concatenate([upmoves[:,0:1],upmoves],axis=1)
+		downmoves = np.concatenate([downmoves[:,0:1],downmoves],axis=1)
+		
+		pdm = np.copy(upmoves)
+		ndm = np.copy(downmoves)
+		
+		pdm[pdm < 0] = 0
+		ndm[ndm < 0] - 0
+		
+		pdm[np.where(upmoves < downmoves)] = 0  #fill with 0s at points where pdm < ndm or pdm is 0
+		ndm[np.where(downmoves < upmoves)] = 0
+		
+		
+		pdi = ema._perform(pdm[:,:,np.newaxis]) / atrs
+		ndi = ema._perform(ndm[:,:,np.newaxis]) / atrs
+		di = np.abs((pdi - ndi) / (pdi + ndi))
+		
+		pdi = pdi * 100
+		ndi = ndi * 100
+		
+		adx = ema._perform(di) * 100
+		return np.concatenate([adx,pdi,ndi],axis=2)
+		
 
 class Awesome(Indicator):
-	pass
 	
+	fast_period = 5
+	slow_period = 24
+	channel_keys = {'AWESOME':0}
+	channel_styles = {'AWESOME':'keyinfo'}
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		medians = (candles[:,:,csf.high] + candles[:,:,csf.low]) / 2.0
+		medians = medians[:,:,np.newaxis]
+		sma = SMA()
+		sma.candle_channel = 0
+		sma.period = self.fast_period
+		fast_sma = sma._perform(medians)
+		sma.period = self.slow_period
+		slow_sma = sma._perform(medians)
+		return fast_sma - slow_sma
+
+
+class Accelerator(Indicator):
+
+	fast_period = 5
+	slow_period = 24
+	period = 5
+	channel_keys = {'ACCELERATOR':0}
+	channel_styles = {'ACCELERATOR':'keyinfo'} 
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		awesome = Awesome()
+		sma = SMA()
+		awesome.fast_period = self.fast_period
+		awesome.slow_period = self.slow_period
+		sma.candle_channel = 0
+		sma.period = self.period
+		
+		ao = awesome._perform(candles)
+		return ao - sma._perform(ao)
+
+
+class Momentum(Indicator):
+	
+	period = 12
+	channel_keys = {'MOMENTUM':0}
+	channel_styles = {'MOMENTUM':'bearish'}
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		
+		momentum = candles[:,self.period:,csf.close] / candles[:,:-self.period,csf.close]
+		#pad with ones 
+		pad = np.ones((candles.shape[0],self.period))
+		momentum = np.concatenate([pad,momentum],axis=1)
+		return momentum[:,:,np.newaxis]
+	
+class Aroon(Indicator):
+	
+	period = 25
+	channel_keys = {'AROON':0,'AROON_UP':1,'AROON_DOWN':2}
+	channel_styles = {'AROON':'neutral','AROON_UP':'bullish','AROON_DOWN':'bearish'}
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		windows = self._sliding_windows(candles)
+		aroon_up = np.nanargmax(windows[:,:,csf.high,:],axis=2) / (self.period-1)
+		aroon_down = np.nanargmin(windows[:,:,csf.low,:],axis=2) / (self.period-1)
+		aroon = aroon_up - aroon_down
+		aroon = (aroon / 2.0) + 0.5  #scale
+		return np.stack([aroon,aroon_up,aroon_down],axis=2)
+
+class CCI(Indicator):
+	
+	period = 5
+	channel_keys = {'CCI':0}
+	channel_styles = {'CCI':'bearish'}
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		typical = np.mean(np.stack([candles[:,:,csf.high],candles[:,:,csf.low],candles[:,:,csf.close]],axis=2),axis=2)
+		typical = typical[:,:,np.newaxis]
+		sma = SMA()
+		sma.period = self.period
+		ma = sma._perform(candles)
+		deviation = np.abs(typical - ma)
+		sma.candle_channel = 0
+		mean_deviation = sma._perform(deviation)
+		cci = (typical - ma) / (1.5 * mean_deviation)  #use closer to 1.0 than 100 
+		return cci
+	
+#same as macd with subtle difference - macd / long period
+class PPO(Indicator):
+	
+	channel_keys = {'PPO':0,'SIGNAL':1,'DEVIATION':2,'DIRECTION':3} 
+	channel_styles = {'PPO':'keyinfo','SIGNAL':'bearish'}#,'DEVIATION':'neutral','DIRECTION':'neutral'}#requires specialist draw_snapshot anyway
+	slow_period = 26
+	fast_period = 12
+	signal_period = 9
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		slow = EMA()
+		fast = EMA()
+		signal = EMA()
+		
+		slow.period = self.slow_period
+		fast.period = self.fast_period
+		signal.period = self.signal_period
+		slow.candle_channel = self.candle_channel
+		fast.candle_channel = self.candle_channel
+		signal.candle_channel = signal.channel_keys['EMA']
+		
+		slow_ema = slow._perform(candles)
+		fast_ema = fast._perform(candles)
+		
+		macd = (fast_ema - slow_ema) / slow_ema
+		
+		signal_line = signal._perform(macd)
+		deviation = macd - signal_line
+		direction = np.sign(deviation[:,1:] - deviation[:,:-1])
+		
+		pad_0s = np.zeros((direction.shape[0],1,1))
+		direction = np.concatenate([pad_0s,direction],axis=1) #add 0 at start
+		return np.concatenate([macd,signal_line,deviation,direction],axis=2)
+		
+	
+class ParabolicSAR(Indicator):
+	pass
+
+class IchimokuCloud(Indicator):
+	pass
+
+#if there's time
+class DonchianChannel(Indicator):
+	pass
+
+class WilliamsPercentRange(Indicator):
+	pass
+
+class SuperTrend(Indicator):
+	pass
+
+class RVI(Indicator):
+	pass
+
+class Alligator(Indicator):
+	pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
