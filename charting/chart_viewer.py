@@ -347,6 +347,7 @@ class ChartPainter:
 	
 	fig = None
 	activated = {} #all layers are activated by default. If deactivate(layer) is called then this dict should have a False in it for that layer as the key
+	config = {} #any configuration options stored in the class that are passed to fig
 	
 	colour_palette = {
 		#for shapes, we might want to fill them with a nice colour!
@@ -411,6 +412,7 @@ class ChartPainter:
 		self.activated = {}
 		self.colour_palette = {} 
 		self.load_colours()
+		self.options = {}
 	
 	def load_colours(self,file_name="default"):
 		if file_name == 'default':
@@ -614,10 +616,15 @@ class PlotlyChartPainter(ChartPainter):
 	def _paint_price_actions(self,chart_layer):
 		self.__paint_plotly_paths(chart_layer,'price_actions',2)
 	
+	def __get_config(self):
+		config = {}
+		config.update({'scrollZoom': True}) #window zoom
+		config.update(self.config) #all passed in config
+	
 	#override
 	def show(self):
 		self.fig.data = self.fig_data #force the data to be drawn in the right order - makes no difference... 
-		self.fig.show()
+		self.fig.show(config=self.__get_config())
 	
 	
 	
