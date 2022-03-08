@@ -111,7 +111,7 @@ class TradeSetup:
 	
 
 #https://medium.com/codex/trading-stocks-using-bollinger-bands-keltner-channel-and-rsi-in-python-980e87e8109d
-class BB_KC_RSI()
+class BB_KC_RSI(TradeSetup):
 	pass
 
 
