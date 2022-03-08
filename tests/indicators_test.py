@@ -46,7 +46,8 @@ database_response = cur.fetchall()
 #OurIndicator = IchimokuCloud
 #OurIndicator = RVI
 #OurIndicator = DonchianChannel
-OurIndicator = WilliamsPercentRange
+#OurIndicator = WilliamsPercentRange
+OurIndicator = SuperTrend
 
 
 

@@ -10,7 +10,7 @@ import pdb
 
 #an indicator takes in a list of candles (usually with an index) and outputs list of values. There may of course be more than 1 value per indicator output (eg bollinger bands)
 #so a keys dictionary is used to hold names of each channel of the indicator output 
-
+#possibly organise/split this file into oscillators, volatility, trend followers and trend reversals ?
 import charting.chart_viewer as chv #get all chart viewing elements so we can also draw nice charts. The view can  be "added" to a candlestick chart where appropriate
 import charting.candle_stick_functions as csf
 from trade_setup import TradeSignal, TradeDirection, SetupCriteria
@@ -872,9 +872,85 @@ class WilliamsPercentRange(Indicator):
 		
 		
 #todo if desired:
-#class SuperTrend(Indicator):
-#	pass
-#
+class SuperTrend(Indicator):
+	
+	channel_keys = {'LOWER':0}#,'UPPER':1}
+	channel_styles = {'LOWER':'bullish'}#,'UPPER':'bearish'}
+	period = 10 
+	atr_period = 14
+	multiplier = 2
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		atr = ATR()
+		atr.period = self.atr_period
+		atr_values = atr._perform(candles)[:,:,0] #shave off one dim
+		
+		midpoints = (candles[:,:,csf.high] + candles[:,:,csf.low]) / 2.0
+		basic_upper = midpoints + (atr_values*self.multiplier)
+		basic_lower = midpoints - (atr_values*self.multiplier)
+		
+		final_upper = basic_upper[:,0:1]
+		final_lower = basic_lower[:,0:1]
+		super_trend = basic_lower[:,0:1]
+		
+		upper_conditions = np.full(final_upper.shape,1==0)
+		lower_conditions = np.full(final_lower.shape,1==0)
+		
+		for row_index in range(1,candles.shape[1]):
+			prev_final_upper = final_upper[:,row_index-1:row_index]
+			prev_final_lower = final_lower[:,row_index-1:row_index]
+			current_basic_upper = basic_upper[:,row_index:row_index+1]
+			current_basic_lower = basic_lower[:,row_index:row_index+1]
+			
+			prev_close = 	candles[:,row_index-1:row_index,csf.close]
+			current_close = candles[:,row_index:row_index+1,csf.close]
+			
+			prev_super_trend = super_trend[:,row_index-1:row_index]
+			
+			preserve_basic_upper = (current_basic_upper < prev_final_upper) | (prev_close > prev_final_upper)
+			preserve_basic_lower = (current_basic_lower > prev_final_lower) | (prev_close < prev_final_lower)
+			
+			new_final_upper = np.full(prev_final_upper.shape,np.nan)
+			new_final_lower = np.full(prev_final_lower.shape,np.nan)
+			
+			new_final_upper[preserve_basic_upper] = current_basic_upper[preserve_basic_upper]
+			new_final_upper[~preserve_basic_upper] = prev_final_upper[~preserve_basic_upper]
+			
+			new_final_lower[preserve_basic_lower] = current_basic_lower[preserve_basic_lower]
+			new_final_lower[~preserve_basic_lower] = prev_final_lower[~preserve_basic_lower]
+			
+			final_upper = np.concatenate([final_upper,new_final_upper],axis=1)
+			final_lower = np.concatenate([final_lower,new_final_lower],axis=1)
+			
+			upper_cond1 = (prev_super_trend == prev_final_upper) & (current_close < new_final_upper)
+			upper_cond2 = (prev_super_trend == prev_final_lower) & (current_close < new_final_lower)
+			
+			lower_cond1 = (prev_super_trend == prev_final_upper) & (current_close > new_final_upper)
+			lower_cond2 = (prev_super_trend == prev_final_lower) & (current_close > new_final_lower)
+			
+			
+			upper_cond = upper_cond1 & upper_cond2
+			lower_cond = lower_cond1 & lower_cond2
+			
+			new_super_trend = np.full(prev_super_trend.shape,np.nan)
+			new_super_trend = np.full(prev_super_trend.shape,np.nan)
+			new_super_trend[upper_cond] = new_final_upper[upper_cond]
+			new_super_trend[lower_cond] = new_final_lower[lower_cond]
+			
+			super_trend = np.concatenate([super_trend,new_super_trend],axis=1)
+			upper_conditions = np.concatenate([upper_conditions,upper_cond],axis=1)
+			lower_conditions = np.concatenate([lower_conditions,lower_cond],axis=1)
+		
+		#delete as appropriate
+		pdb.set_trace()
+		final_upper[lower_conditions] = np.nan
+		final_lower[upper_conditions] = np.nan
+		#return np.stack([final_upper,final_lower],axis=2)
+		return super_trend[:,:,np.newaxis]
+	
+
+
 #class Alligator(Indicator):
 #	channel_keys = {'VALUE':0,'OVERBOUGHT':1,'OVERSOLD':2}
 #	channel_styles = {'VALUE':'bearish','OVERBOUGHT':'neutral','OVERSOLD':'neutral'}

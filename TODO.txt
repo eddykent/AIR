@@ -9,11 +9,11 @@ DEFENSIVE CODING: documentation, type hints and overrides for all non-testing py
 t212 handler - functions "query trades", "place trade", "get trade", "clear charts", "pull the plug" etc. keep journal of trades?
 
 create explain() functions in various places similar to draw_snapshot() for use when generating trade setup documents
+	-this might be able to be done through the documentation
 create setup() function on chart/candle patterns to be able to run backtests
-
 every candlestick and chart pattern should have a get_setups() function to return TradeSignals. 
 
-setup object using bbs, ketner channels and RSI to test the backtester
+setup object using bbs, keltner channels and RSI to test the backtester
 
 SCREENING - candle stick scanner for candle stick patterns and chart patterns. Use to determine entry points
 	- candlestick patterns at high timeframes 
@@ -95,9 +95,14 @@ fundamental stuff needs more testing to get it better - perhaps collecting resul
 all chart patterns need tuning & testing properly
 
 add new styles to charts?:
-	wealthy-golden 
+	wealthy -golden / dark yellow
 	emerald -dark green
-	emberglow -dark orangey
+	hotglow -dark orangey
+	sangria - deep purple
+	seanavy - deep blue
+	sunglow - bright yellow
+	
+	
 
 change charts to use datetime on x axis (removing weekends)
 
