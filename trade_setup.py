@@ -1,5 +1,6 @@
 ## setups are trades that have been produced from signals from various sources. A TradeSetup class finds trades on a given date 
 #that have a high probabily of winning based on their backtest results.  TradeSetup classes need to be backtestable 
+
 from enum import Enum
 from collections import namedtuple
 
@@ -16,15 +17,32 @@ class StopType(Enum):
 	PERCENTAGE = 0 #use a percentage difference in the price as the take profit and stop loss targets
 	ATR = 1 # use a multiple of the average true range 
 	STD = 2 # use a multiple of standard deviations 
-	KEY = 3 # use a particular feature in the indicator/pattern  
+	KEY = 3 # use a particular feature in the indicator/pattern that is an array index
+	EXPRESSION = 4 #advanced - an expression type that attempts to be parsed by ExpressionHandler(TODO! - maybe too much :) )
+
+class ExpressionType(Enum):
+	KEY = 0 #for example, macd or macd_signal 
+	PERCENTAGE = 1
+	VALUE = 2
+	COMPOUND = 3 #used for when more than 1 key is used 
+	
+
+class Inequality(Enum):
+	CROSS_DOWNWARDS = -3
+	LESS_THAN = -2
+	WITHIN = -1 #contained inside (usually refers to two values either side, used with expression, eg bollinger bands or something) 
+	VOID = 0 #standard -means to be ignored/deleted
+	OVERLAP = 1 #oposite to within? 
+	MORE_THAN = 2
+	CROSS_UPWARDS = 3
 
 #if "sell if x exceeds y" etc - used for generating signals from indicators or chart patterns etc. stoploss can be a key to use, or a percent etc 
-SetupCriteria = namedtuple('SetupCriteria','direction property1 ineq property2 stop_type stop_loss take_profit') 
+SetupCriteria = namedtuple('SetupCriteria','direction expr1 ineq expr2 stop_type stop_loss take_profit') 
 
 ##A tuple representing a trade that will be taken that has some bounds on it (stop_loss & take_profit)
 class TradeSignal:
 	the_date = None   #datetime - the time the signal was created 
-	strategy = '' #the strategy that this came from 
+	strategy = '' #the strategy that this came from - the class name of the trade_setup or whatever 
 	instrument = None  #the instrument that is being traded
 	direction = TradeDirection.VOID  # a buy or sell (void means to be ignored/deleted)
 	entry = None #the entry price to start the trade at. If null, start immediately
@@ -55,6 +73,8 @@ class TradeSignal:
 		this_signal.length = length
 		return this_signal
 
+
+
 class TradeSetup:	
 	
 	instruments = []# pairs we want to find trades for 
@@ -83,6 +103,16 @@ class TradeSetup:
 	def full_backtest(self):
 		pass
 	
+	#def detect() - for AI 
+	#def get_setups() - for backtest 
+	#def get_latest() - for signals right now (short cut to not call for a backtest) 
+	#def draw_snapshot() - perhaps add all stuff together that can be put on the chart? - consider what happens with RSI or MACD etc 
+	
+	
+
+#https://medium.com/codex/trading-stocks-using-bollinger-bands-keltner-channel-and-rsi-in-python-980e87e8109d
+class BB_KC_RSI()
+	pass
 
 
 class SimpleHarmonicSetup(TradeSetup):

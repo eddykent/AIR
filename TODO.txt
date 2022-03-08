@@ -80,6 +80,8 @@ Use logging to report issues found especially when scraping websites as it will 
 
 Getting stuff from multiple websites should be async so we can query em all at the same tim
 
+feed_collector articles should be grouped by instr name and then top 5 latest should be picked 
+
 currency_strength_diff_auto_regression_rsi.sql is not producing enough rows to run in database_tests.py
 
 hour should not be a db query parameter - we can get the hour from the datetime passed into the query
