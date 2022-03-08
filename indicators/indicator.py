@@ -13,11 +13,9 @@ import pdb
 
 import charting.chart_viewer as chv #get all chart viewing elements so we can also draw nice charts. The view can  be "added" to a candlestick chart where appropriate
 import charting.candle_stick_functions as csf
-from trade_setup import TradeSignal, TradeDirection
+from trade_setup import TradeSignal, TradeDirection, SetupCriteria
 from utils import overrides 
 
-#move to trade_setup?
-SetupCriteria = namedtuple('SetupCriteria','key1 key2 directon value') #if "x exceeds y"? need to figure this out :) 
 
 class Indicator:
 	
@@ -112,7 +110,7 @@ class Indicator:
 		
 		return chart_view
 		
-	def generate_setups(self,criteria : SetupCriteria) -> list:
+	def generate_setups(self,criteria : list) -> list:
 		"""
 		Generates trade setups in the form of TradeSignal from the set of candles and from given criteria. 
 		
@@ -132,7 +130,7 @@ class Indicator:
 		"""
 		raise NotImplementedError('This method must be overridden') #not sure how to do criteria yet 
 	
-	def detect(self,criteria : SetupCriteria) -> np.array:
+	def detect(self,criteria : list) -> np.array:
 		"""
 		Generates trade setups in the form of -1,0,1 from the set of candles and from given criteria. 
 		This format can be useful for ai related work
@@ -185,16 +183,18 @@ class Indicator:
 		np_candles = np_candle_streams[:,:,:4].astype(np.float64)
 		return np_candles, timeline 
 	
-	def _pad_start(self,np_candles): #this is needed to preserve the length of the streams
-		np_nones = np.full((np_candles.shape[0],self.period-1,np_candles.shape[-1]),np.nan) 
+	def _pad_start(self,np_candles,period): #this is needed to preserve the length of the streams
+		np_nones = np.full((np_candles.shape[0],period-1,np_candles.shape[-1]),np.nan) 
 		return np.concatenate([np_nones,np_candles],axis=1)
 	
 	def _perform(self,candle_data : np.array) -> np.array:
 		raise NotImplementedError('This method must be overridden') 
 	
-	def _sliding_windows(self,np_candles):
-		np_candles = self._pad_start(np_candles)
-		return np.lib.stride_tricks.sliding_window_view(np_candles,window_shape=self.period,axis=1)	
+	def _sliding_windows(self,np_candles,period=None):
+		if period is None:
+			period = self.period
+		np_candles = self._pad_start(np_candles,period)
+		return np.lib.stride_tricks.sliding_window_view(np_candles,window_shape=period,axis=1)	
 		
 		
 	#def _produce_block(self,candle_streams):
@@ -640,7 +640,7 @@ class PPO(Indicator):
 class ParabolicSAR(Indicator):
 	
 	channel_keys = {'UPTREND':0, 'DOWNTREND':1}
-	channel_styles = {'UPTREND':'bullish', 'DOWNTREND':'bearish'}  #consider using a different view 
+	channel_styles = {'UPTREND':'bullish', 'DOWNTREND':'bearish'}  #consider using a different view with points/stars 
 	
 	acceleration_step = 0.02
 	acceleration_max = 0.2
@@ -749,7 +749,8 @@ class ParabolicSAR(Indicator):
 			eps_m_psars_a	= np.concatenate([eps_m_psars_a,new_eps_m_psars_a],axis=1)
 			trend			= np.concatenate([trend,new_trend],axis=1)
 			
-			
+		#trend = np.concatenate([trend[:,1:],np.full((trend.shape[0],1),0)],axis=1) #trend fix -doesnt work :(
+		
 		uptrends = np.copy(psars)
 		downtrends = np.copy(psars)
 		
@@ -763,23 +764,122 @@ class ParabolicSAR(Indicator):
 	
 
 class IchimokuCloud(Indicator):
-	pass
+	
+	channel_keys = {'CONVERSION':0, 'BASE':1, 'SPAN_A':2, 'SPAN_B':3, 'LAG': 4}
+	channel_styles = {'CONVERSION':'bullish', 'BASE':'bearish', 'SPAN_A':'neutral', 'SPAN_B':'neutral', 'LAG': 'keyinfo'}  #consider using a different view with cloud drawn in!
+	
+	conversion_period = 9 
+	base_period = 26 
+	span_period = 52
+	lag_period = 26
+	lead_period = 26
+	
+	trim = True #TODO: if true, we trim the cloud so it does not overlap the end of the candle chart
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		conversion_windows = self._sliding_windows(candles,self.conversion_period)
+		base_windows = self._sliding_windows(candles,self.base_period)
+		span_windows = self._sliding_windows(candles,self.span_period)
+		
+		conversion = (np.nanmax(conversion_windows[:,:,csf.high,:],axis=2) + np.nanmin(conversion_windows[:,:,csf.low,:],axis=2)) / 2.0
+		base = (np.nanmax(base_windows[:,:,csf.high,:],axis=2) + np.nanmin(base_windows[:,:,csf.low,:],axis=2)) / 2.0
+		span_b = (np.nanmax(span_windows[:,:,csf.high,:],axis=2) + np.nanmin(span_windows[:,:,csf.low,:],axis=2)) / 2.0
+		span_a = (conversion + base) / 2.0
+		
+		cloud_a = np.concatenate([np.full((candles.shape[0],self.lag_period),np.nan),span_a],axis=1)
+		cloud_b = np.concatenate([np.full((candles.shape[0],self.lag_period),np.nan),span_b],axis=1)
+		cloud_a = cloud_a[:,:span_a.shape[1]] #trim off front
+		cloud_b = cloud_b[:,:span_b.shape[1]] #trim off front
+		
+		lag = np.concatenate([candles[:,self.lag_period:,csf.close],np.full((candles.shape[0],self.lag_period),np.nan)],axis=1)
+		return np.stack([conversion, base, cloud_a, cloud_b, lag],axis=2)
+
+#https://www.investopedia.com/terms/r/relative_vigor_index.asp
+class RVI(Indicator):
+	
+	channel_keys = {'RVI':0,'SIGNAL':1}
+	channel_styles = {'RVI':'keyinfo','SIGNAL':'bearish'}
+	period  = 14
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		windows = self._sliding_windows(candles,4) 
+		a = windows[:,:,csf.close,3] - windows[:,:,csf.open,3]
+		b = windows[:,:,csf.close,2] - windows[:,:,csf.open,2]
+		c = windows[:,:,csf.close,1] - windows[:,:,csf.open,1]
+		d = windows[:,:,csf.close,0] - windows[:,:,csf.open,0]
+		
+		e = windows[:,:,csf.high,3] - windows[:,:,csf.low,3]
+		f = windows[:,:,csf.high,2] - windows[:,:,csf.low,2]
+		g = windows[:,:,csf.high,1] - windows[:,:,csf.low,1]
+		h = windows[:,:,csf.high,0] - windows[:,:,csf.low,0]
+		
+		numerator = (a + (2.0 * b) + (2.0 * c) + d) / 6.0
+		denominator = (e + (2.0 * f) + (2.0 * g) + h) / 6.0
+		
+		sma = SMA()
+		sma.period = self.period
+		sma.candle_channel = 0
+		
+		rvi = (sma._perform(numerator[:,:,np.newaxis]) / sma._perform(denominator[:,:,np.newaxis]))
+		rvi_window = self._sliding_windows(rvi,4)
+		
+		rvi = rvi_window[:,:,0,3]
+		i = rvi_window[:,:,0,2]
+		j = rvi_window[:,:,0,1]
+		k = rvi_window[:,:,0,0]
+		
+		signal = (rvi + (2.0 * i) + (2.0 * j) + k) / 6.0
+		return np.stack([rvi,signal],axis=2)
+		
+	
 
 class DonchianChannel(Indicator):
-	pass
-
+	
+	channel_keys = {'MIDDLE':0,'UPPER':1,'LOWER':2}
+	channel_styles = {'MIDDLE':'bearish','UPPER':'neutral','LOWER':'neutral'}
+	period  = 20
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		windows = self._sliding_windows(candles)
+		upper = np.nanmax(windows[:,:,csf.high,:],axis=2)
+		lower = np.nanmin(windows[:,:,csf.low,:],axis=2)
+		middle = (upper + lower) / 2.0
+		return np.stack([middle,upper,lower],axis=2)
+	
+#bug: doesnt seem to line up with T212
 class WilliamsPercentRange(Indicator):
-	pass
-
-class SuperTrend(Indicator):
-	pass
-
-class RVI(Indicator):
-	pass
-
-class Alligator(Indicator):
-	pass
-
+	
+	channel_keys = {'VALUE':0,'OVERBOUGHT':1,'OVERSOLD':2}
+	channel_styles = {'VALUE':'bearish','OVERBOUGHT':'neutral','OVERSOLD':'neutral'}
+	period  = 5
+	
+	overbought = 0.8
+	oversold = 0.2
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		windows = self._sliding_windows(candles)
+		highs = np.nanmax(windows[:,:,csf.high,:],axis=2)
+		lows = np.nanmin(windows[:,:,csf.low,:],axis=2)
+		closes = candles[:,:,csf.close]
+		williams = (highs - closes) / (highs - lows)
+		overbought = np.full(williams.shape,self.overbought)
+		oversold = np.full(williams.shape,self.oversold)
+		return np.stack([williams,overbought,oversold],axis=2)
+		
+		
+#todo if desired:
+#class SuperTrend(Indicator):
+#	pass
+#
+#class Alligator(Indicator):
+#	channel_keys = {'VALUE':0,'OVERBOUGHT':1,'OVERSOLD':2}
+#	channel_styles = {'VALUE':'bearish','OVERBOUGHT':'neutral','OVERSOLD':'neutral'}
+#	period  = 5
+#	pass
 
 
 

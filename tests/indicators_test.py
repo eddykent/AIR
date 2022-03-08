@@ -42,7 +42,11 @@ database_response = cur.fetchall()
 #OurIndicator = Momentum
 #OurIndicator = Aroon
 #OurIndicator = PPO
-OurIndicator = ParabolicSAR
+#OurIndicator = ParabolicSAR
+#OurIndicator = IchimokuCloud
+#OurIndicator = RVI
+#OurIndicator = DonchianChannel
+OurIndicator = WilliamsPercentRange
 
 
 

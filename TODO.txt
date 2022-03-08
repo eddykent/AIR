@@ -6,8 +6,6 @@ extend test_trades.sql or use another sql to test full tradesignal types
 
 DEFENSIVE CODING: documentation, type hints and overrides for all non-testing python scripts. (use typecheck?)
 
-indicators in python using numpy for speed
-
 loading and saving articles to the database with md5 and compression using zlib
 
 t212 handler - functions "query trades", "place trade", "get trade", "clear charts", "pull the plug" etc. keep journal of trades?
