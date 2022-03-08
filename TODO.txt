@@ -8,7 +8,7 @@ DEFENSIVE CODING: documentation, type hints and overrides for all non-testing py
 
 indicators in python using numpy for speed
 
-loading and saving articles to the database with compression using zlib
+loading and saving articles to the database with md5 and compression using zlib
 
 t212 handler - functions "query trades", "place trade", "get trade", "clear charts", "pull the plug" etc. keep journal of trades?
 
@@ -98,7 +98,10 @@ fundamental stuff needs more testing to get it better - perhaps collecting resul
 
 all chart patterns need tuning & testing properly
 
+add new styles to charts?:
+	wealthy-golden 
+	emerald -dark green
+	emberglow -dark orangey
 
-
-
+change charts to use datetime on x axis (removing weekends)
 
