@@ -1,7 +1,7 @@
 ## setups are trades that have been produced from signals from various sources. A TradeSetup class finds trades on a given date 
 #that have a high probabily of winning based on their backtest results.  TradeSetup classes need to be backtestable 
 from enum import Enum
-
+from collections import namedtuple
 
 
 from utils import ListFileReader, Database
@@ -12,8 +12,14 @@ class TradeDirection(Enum):
 	VOID = 0 
 	BUY = 1
 
-#if "sell if x exceeds y" etc - used for generating signals from indicators or chart patterns etc. 
-SetupCriteria = namedtuple('SetupCriteria','direction property1 ineq property2') 
+class StopType(Enum):
+	PERCENTAGE = 0 #use a percentage difference in the price as the take profit and stop loss targets
+	ATR = 1 # use a multiple of the average true range 
+	STD = 2 # use a multiple of standard deviations 
+	KEY = 3 # use a particular feature in the indicator/pattern  
+
+#if "sell if x exceeds y" etc - used for generating signals from indicators or chart patterns etc. stoploss can be a key to use, or a percent etc 
+SetupCriteria = namedtuple('SetupCriteria','direction property1 ineq property2 stop_type stop_loss take_profit') 
 
 ##A tuple representing a trade that will be taken that has some bounds on it (stop_loss & take_profit)
 class TradeSignal:
