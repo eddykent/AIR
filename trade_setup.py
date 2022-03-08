@@ -12,9 +12,13 @@ class TradeDirection(Enum):
 	VOID = 0 
 	BUY = 1
 
-##A tuple representing a trade that has been taken that has some bounds on it (stop_loss & take_profit)
+#if "sell if x exceeds y" etc - used for generating signals from indicators or chart patterns etc. 
+SetupCriteria = namedtuple('SetupCriteria','direction property1 ineq property2') 
+
+##A tuple representing a trade that will be taken that has some bounds on it (stop_loss & take_profit)
 class TradeSignal:
 	the_date = None   #datetime - the time the signal was created 
+	strategy = '' #the strategy that this came from 
 	instrument = None  #the instrument that is being traded
 	direction = TradeDirection.VOID  # a buy or sell (void means to be ignored/deleted)
 	entry = None #the entry price to start the trade at. If null, start immediately
@@ -33,10 +37,11 @@ class TradeSignal:
 		return this_signal
 	
 	@staticmethod
-	def from_full(datetime,instrument,direction,entry,take_profit,stop_loss,length=1440):
+	def from_full(datetime,instrument,strategy,direction,entry,take_profit,stop_loss,length=1440):
 		this_signal = TradeSignal()
 		this_signal.datetime = datetime 
 		this_signal.instrument = instrument
+		this_signal.strategy = strategy
 		this_signal.direction = direction
 		this_signal.entry = entry 
 		this_signal.take_profit = take_profit
