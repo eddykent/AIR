@@ -636,14 +636,135 @@ class PPO(Indicator):
 		direction = np.concatenate([pad_0s,direction],axis=1) #add 0 at start
 		return np.concatenate([macd,signal_line,deviation,direction],axis=2)
 		
-	
+#bug when switch to uptrend -draw to see! 
 class ParabolicSAR(Indicator):
-	pass
+	
+	channel_keys = {'UPTREND':0, 'DOWNTREND':1}
+	channel_styles = {'UPTREND':'bullish', 'DOWNTREND':'bearish'}  #consider using a different view 
+	
+	acceleration_step = 0.02
+	acceleration_max = 0.2
+	period = 5
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		
+		#init
+		highs = candles[:,:,csf.high]
+		lows = candles[:,:,csf.low]
+		
+		psars = candles[:,0:1,csf.high]
+		eps = candles[:,0:1,csf.low]
+		eps_m_psars = eps - psars
+		acc = np.full(psars.shape,self.acceleration_step)
+		eps_m_psars_a = eps_m_psars * acc
+		trend = np.full(psars.shape,1)
+		n_channels = candles.shape[0]
+		
+		for row_index in range(1,candles.shape[1]):	
+			prev_eps = eps[:,row_index-1:row_index]
+			prev_trend = trend[:,row_index-1:row_index]
+			prev_acc = acc[:,row_index-1:row_index]
+			prev_psars = psars[:,row_index-1:row_index]
+			prev_eps_m_psars = eps_m_psars[:,row_index-1:row_index]
+			prev_eps_m_psars_a = eps_m_psars_a[:,row_index-1:row_index]
+			current_highs = highs[:,row_index:row_index+1]
+			current_lows = lows[:,row_index:row_index+1]
+			
+			assert prev_eps.shape == (n_channels,1)
+			assert prev_trend.shape == (n_channels,1)
+			assert prev_acc.shape == (n_channels,1)
+			assert prev_psars.shape == (n_channels,1)
+			assert prev_eps_m_psars.shape == (n_channels,1)
+			assert prev_eps_m_psars_a.shape == (n_channels,1)
+			
+			assert current_highs.shape == (n_channels,1)
+			assert current_lows.shape == (n_channels,1)
+			
+			
+			new_eps = np.zeros(prev_eps.shape)
+			higher_highs = (prev_trend == 1) & (prev_eps < current_highs)
+			same_highs = (prev_trend == 1) & (prev_eps >= current_highs)
+			lower_lows = (prev_trend == -1) & (prev_eps > current_lows)
+			same_lows = (prev_trend == -1) & (prev_eps <= current_lows)
+			
+			assert higher_highs.shape == (n_channels,1)
+			assert same_highs.shape == (n_channels,1)
+			assert lower_lows.shape == (n_channels,1)
+			assert same_lows.shape == (n_channels,1)
+			
+			assert higher_highs.dtype == bool
+			assert same_highs.dtype == bool
+			assert lower_lows.dtype == bool
+			assert same_lows.dtype == bool
+			
+			
+			#pdb.set_trace()
+			new_eps[same_highs | same_lows] = prev_eps[same_highs | same_lows]
+			new_eps[higher_highs] = current_highs[higher_highs]
+			new_eps[lower_lows] = current_lows[lower_lows]			
+			
+			
+			current_psars = prev_psars + prev_eps_m_psars_a
+			uptrend = prev_trend == 1 
+			downtrend = prev_trend == -1
+			
+			uptrending_switch = current_psars > current_lows
+			downtrending_switch = current_psars < current_highs
+			
+			switch = (uptrend & uptrending_switch) | (downtrend & downtrending_switch)
+			
+			new_psars = np.copy(current_psars)
+			new_psars[switch] = prev_eps[switch]
+			
+			
+			new_eps_m_psars = new_eps - new_psars
+			
+			new_trend = np.zeros(prev_trend.shape)
+			new_trend[prev_psars < current_highs] = 1
+			new_trend[prev_psars > current_lows] = -1
+			
+			same_trend = prev_trend == new_trend 
+			
+			uptrend_highs = new_eps > prev_eps #unsure  about this step... 
+			downtrend_lows = new_eps < prev_eps
+			
+			not_exceed = prev_trend < self.acceleration_max
+			
+			increase_acc_up = 	same_trend & uptrend & 	uptrend_highs & not_exceed
+			increase_acc_down = same_trend & downtrend & downtrend_lows & not_exceed
+			increase_acc = increase_acc_up | increase_acc_down
+			
+			new_acc = np.copy(prev_acc)
+			new_acc[increase_acc] = prev_acc[increase_acc] + self.acceleration_step
+			new_acc[~same_trend] = self.acceleration_step #start again with low acc
+			
+			new_eps_m_psars_a = new_eps_m_psars * new_acc
+			
+			#update everything 
+			psars 			= np.concatenate([psars,new_psars],axis=1)	
+			eps				= np.concatenate([eps,new_eps],axis=1)
+			eps_m_psars		= np.concatenate([eps_m_psars,new_eps_m_psars],axis=1)
+			acc				= np.concatenate([acc,new_acc],axis=1)
+			eps_m_psars_a	= np.concatenate([eps_m_psars_a,new_eps_m_psars_a],axis=1)
+			trend			= np.concatenate([trend,new_trend],axis=1)
+			
+			
+		uptrends = np.copy(psars)
+		downtrends = np.copy(psars)
+		
+		#delete as appropriate
+		uptrends[trend==-1] = np.nan
+		uptrends[trend==0] = np.nan
+		downtrends[trend==1] = np.nan
+		downtrends[trend==0] = np.nan
+		return np.stack([uptrends,downtrends],axis=2)
+			
+	
 
 class IchimokuCloud(Indicator):
 	pass
 
-#if there's time
 class DonchianChannel(Indicator):
 	pass
 
