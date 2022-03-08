@@ -8,12 +8,14 @@ DEFENSIVE CODING: documentation, type hints and overrides for all non-testing py
 
 indicators in python using numpy for speed
 
+loading and saving articles to the database with compression using zlib
+
 t212 handler - functions "query trades", "place trade", "get trade", "clear charts", "pull the plug" etc. keep journal of trades?
 
 create explain() functions in various places similar to draw_snapshot() for use when generating trade setup documents
 create setup() function on chart/candle patterns to be able to run backtests
 
-every candlestick and chart pattern should have a get_setups() function to return TradeSignals 
+every candlestick and chart pattern should have a get_setups() function to return TradeSignals. 
 
 setup object using bbs, ketner channels and RSI to test the backtester
 
@@ -27,7 +29,7 @@ Create & test full RNN with candles_and_indicators.sql, currency_strengths, corr
 Write testing framework (to run a bunch of tests sequentially) and 
 store the results. Then leave it running to find best param settings 
 report % wins, streaks etc 
-after making an autonomous trading bot - keep all trades in a table called trade_journal
+after making an autonomous trading bot - keep all trades in a table called trade_journal - make trade_journal.py
 
 Partial RNN - use correlation matrix for grouping pairs together before running through an RNN
 
