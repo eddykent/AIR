@@ -15,7 +15,7 @@ import numpy as np
 from configparser import ConfigParser
 
 import pdb
-
+from psycopg2.extensions import AsIs as Inject
 	
 #turn type saftey on and off - useful for ensuring we get the correct type everywhere
 class TypeSafe:
@@ -266,6 +266,7 @@ class Database:
 	query = ''
 	rows = [] 
 	query_cache_dir = 'pickles/datacache'
+	commit = False
 	
 	default_parameters = {
 		'take_profit_factor':10, #movement required (in multiples of average true range) to hit a take profit
@@ -294,13 +295,20 @@ class Database:
 		'bollinger_band_k':2
 	}
 	
-	
-	
-	def __init__(self):
+	def __init__(self,commit=False,cache=True):
 		cfg = Configuration()
 		self.con = psycopg2.connect(cfg.database_connection_string())
 		self.cur = self.con.cursor()
+		self.commit = commit #when true, when exiting the query will be committed
+		self.cache = cache # oh my goodness you will be hunting for hours if you dont disable this on database updates! :)
 	
+	def __enter__(self):
+		return self #most things handled at init - maybe use a connect() method instead?
+	
+	def __exit__(self,exc_type,exc_val,exc_tb):
+		if self.commit:
+			self.con.commit()
+		self.close()
 	
 	def get_default_parameters(self,params):
 		all_params = {k:v for k,v in self.default_parameters.items()} #copy dictionary
@@ -309,7 +317,7 @@ class Database:
 	
 	def mogrify(self,query,params):
 		return self.cur.mogrify(query,self.get_default_parameters(params))
-		
+	
 	def execute(self,query,params):
 		self.query = self.mogrify(query,params) #already in bytes
 		if self.cache:
@@ -321,9 +329,18 @@ class Database:
 					self.rows = pickle.load(f)
 			else:
 				self.cur.execute(query,self.get_default_parameters(params))
-				self.rows = self.cur.fetchall()
-				with open(fullfilename,'wb') as f:
-					pickle.dump(self.rows,f)
+				if self.cur.rowcount >= 0:
+					try:
+						self.rows = self.cur.fetchall()  #rsults in psycopg2.ProgrammingError if a query was ran with no results (eg update without returning) 
+						with open(fullfilename,'wb') as f:
+							
+							pickle.dump(self.rows,f)
+					except TypeError as te:
+						if str(te) == "can't pickle memoryview objects":
+							pass #we have  some raw bytes that pickle doesnt like. that's okay though we can continue without caching. 
+						else:
+							raise te #might be something else so best to propagate the error and not swallow it
+							
 		else:
 			self.cur.execute(query,self.get_default_parameters(params))
 			self.rows = self.cur.fetchall()

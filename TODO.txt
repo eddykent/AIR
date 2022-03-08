@@ -6,8 +6,6 @@ extend test_trades.sql or use another sql to test full tradesignal types
 
 DEFENSIVE CODING: documentation, type hints and overrides for all non-testing python scripts. (use typecheck?)
 
-loading and saving articles to the database with md5 and compression using zlib
-
 t212 handler - functions "query trades", "place trade", "get trade", "clear charts", "pull the plug" etc. keep journal of trades?
 
 create explain() functions in various places similar to draw_snapshot() for use when generating trade setup documents
@@ -88,7 +86,7 @@ hour should not be a db query parameter - we can get the hour from the datetime 
 
 selenium chrome driver - webdriver-manager cant auto detect chrome version - possibly permissions error
 
-draw snapshot should have default candle index parameter to None. - if none, draw all candles 
+draw snapshot should have default candle index parameter to -1
 
 
 ONGOING: - stuff that might not ever have an end to it because it can always be made better

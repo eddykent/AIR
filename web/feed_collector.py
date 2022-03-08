@@ -6,9 +6,17 @@ import datetime as DateTime
 from enum import Enum
 from collections import namedtuple
 
+import zlib
+import hashlib
+import json
+
 import pdb
 
 from web.scraper import Article
+
+
+from utils import Database, Inject
+
 
 class TextBias(Enum):
 	BEARISH = -2 #filter 
@@ -114,7 +122,8 @@ class FeedCollect:
 					self._article_types[i] = TextType.TUTORIAL #may as well note the tutorials :)
 				continue # this article has no information about stuff we are interested in in the title so we should skip it to speed things up
 			
-			article.fetch_full_text() #async?
+			if article.full_text is None or article.full_text == '':
+				article.fetch_full_text() #async?
 			
 			the_text_type = self.get_text_type(article,text_analyser)
 			self._article_types[i] = the_text_type
@@ -223,9 +232,47 @@ class FeedCollect:
 		for instrument, sds in findings_by_instrument.items():
 			self.instrument_summary[instrument] = TallyBias.collect([sd.bias for sd in sds])
 	
-	#def keyword_collect(self):
-	def parse_historic(self):
-		pass #one can dream - do something about loading/saving articles to the database for this
+	#load articles from the database that are saved from before if no from_Data/to_date is provided every article ever will be loaded!
+	def load_articles(self,start_date=DateTime.datetime(2000,1,1),end_date=DateTime.datetime.now()):
+		query = ''
+		self.articles = []
+		with open('queries/load_articles.sql','r') as f:
+			query = f.read()
+		article_data = []
+		with Database(commit=False,cache=True) as cur:
+			cur.execute(query,{'start_date':start_date, 'end_date':end_date})
+			article_data = cur.fetchall()
+		for a in article_data:
+			self.articles.append(Article.from_database_row(a))
+		
+		
+	#we can save articles to the database to get 
+	def save_articles(self):
+		rows = []
+		sql_row =  "(%(hash_identifier)s,%(published_date)s,%(source_ref)s,%(title_head)s,%(compression)s)" #Article.sql_row
+		for i,article in enumerate(self.articles):
+			text_type = self._article_types[i]  
+			if text_type == TextType.STORY: #only save stories in the database since other types are not useful. Signals should be saved in a separate table 
+				rows.append(article.to_database_row())
+		#pdb.set_trace()
+		if rows:
+			to_delete = [r['hash_check'] for r in rows]
+			with Database(commit=True,cache=False) as cur:
+				with open('queries/save_articles.sql','r') as f:
+					query = f.read()
+					#build params
+					sql_rows = []
+					for row in rows:
+						sql_rows.append(cur.mogrify(sql_row,row).decode())
+					all_rows = ','.join(sql_rows)
+					params = {
+						'remove_hashes':to_delete,
+						'articles':Inject(all_rows)
+					}
+					#pdb.set_trace()
+					cur.execute(query,params) #why is this not committing?
+				#cur.connection.commit()#	
+			
 	
 	@staticmethod
 	def _pretty_sourcename(link):

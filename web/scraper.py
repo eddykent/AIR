@@ -3,6 +3,9 @@ import requests_html
 import datetime
 import time
 import re
+import zlib
+import hashlib
+import json
 
 from enum import Enum
 from collections import namedtuple
@@ -46,6 +49,8 @@ class Article:
 	source_ref = None
 	full_text = None #dynamically grabbed using requests object if needed 
 	__lazy_load = True
+	
+	sql_row = "(%(hash_identifier)s,%(published_date)s,%(source_ref)s,%(title_head)s,%(compression)s)"
 	
 	def __init__(self,the_date,author,title,summary,source_title,link):
 		self.the_date = the_date
@@ -105,11 +110,60 @@ class Article:
 		
 		return this_article
 		
+	@staticmethod
+	def from_database_row(row):
+		guid, md5_hash, publish_date, source_ref, title_head, compressed, captured_date = row #unpack the row
+		article_data = json.loads(zlib.decompress(compressed).decode())
+		this_article = Article(
+			publish_date,
+			article_data['author'],
+			article_data['title'],
+			article_data['summary'],
+			article_data['source_title'],
+			article_data['link']
+		)
+		this_article.full_text = article_data['full_text']
+		this_article.source_ref = source_ref
+		this_article.__lazy_load = False
+		return this_article
+		
+	
+	def to_database_row(self):
+		#keep in here all stuff we want to compress - we don't want to hold shit loads of crap in the database :)
+		article_data = {
+			'title': self.title,
+			'summary':self.summary,
+			'author':self.author,
+			'link':self.link,
+			'source_title':self.source_title,
+			'full_text':self.full_text
+		}
+		json_bytes = json.dumps(article_data).encode()
+		compressed_bytes = zlib.compress(json_bytes)
+		md5_hash = hashlib.md5(json_bytes).hexdigest()
+		title_head = self.title[:50] #for human readability in the database 
+		
+		#also perform a check to see if we have an article in the database but the fulltext = article.title + ' ' + article_summary
+		check_data = article_data
+		check_data.update({'full_text':self.full_text_fallback()})
+		md5_check = hashlib.md5(json.dumps(check_data).encode()).hexdigest()
+		
+		return {
+			'hash_identifier':md5_hash,
+			'published_date':self.the_date,  
+			'source_ref':self.source_ref,
+			'title_head':title_head,
+			'compression':compressed_bytes,
+			'hash_check':md5_check #this is deleted 
+		}
 	
 	
 	#@staticmethod
 	#def from_tweet(tweet):
 	#def from_subreddit(item):
+	
+	def full_text_fallback(self):
+		return self.title + ' ' + self.summary
 	
 	#page_parsers are scrapers classes we can create & differentiate using the source_ref
 	def fetch_full_text(self,specialist_scraper=None): #make async?
@@ -133,7 +187,7 @@ class Article:
 			if self.full_text == '':
 				print("We are not able to get the full_text for "+self.link)
 				#pdb.set_trace()
-				self.full_text = self.title + ' ' + self.summary
+				self.full_text = self.full_text_fallback()
 		else:
 			print("We are not able to get the full_text for "+self.link)
 			pdb.set_trace()
@@ -146,7 +200,8 @@ class Article:
 		self.relevance_score = None 
 		self.sentiment_scores = None 
 		self._relevant_keys = {}
-				
+
+			
 class DailyFXNews(Scraper):
 	
 	def scrape(self):
