@@ -11,7 +11,9 @@ t212 handler - functions "query trades", "place trade", "get trade", "clear char
 create explain() functions in various places similar to draw_snapshot() for use when generating trade setup documents
 	-this might be able to be done through the documentation
 create setup() function on chart/candle patterns to be able to run backtests
-every candlestick and chart pattern should have a get_setups() function to return TradeSignals. 
+every candlestick and chart pattern should have a get_setups() function to return TradeSignals.
+
+vectorise candle_stick_pattern 
 
 setup object using bbs, keltner channels and RSI to test the backtester
 
@@ -69,7 +71,7 @@ which have an E, TP, SL and Confidence level for each. This will require a tradi
 loss function with something like 
 	loss = logloss(confidence_y,confidence_pred) + confidence_y * (mse(E,TP,SL) + direction loss)
 
-python->Cython integration for some chart patterns to speed them up
+python->Cython integration for some chart patterns to speed them up (harmonics & trending)
 
 
 BUGS:
@@ -89,6 +91,8 @@ hour should not be a db query parameter - we can get the hour from the datetime 
 selenium chrome driver - webdriver-manager cant auto detect chrome version - possibly permissions error
 
 draw snapshot should have default candle index parameter to -1
+
+parabolic sar, atx and other various indicators are not working correctly
 
 
 ONGOING: - stuff that might not ever have an end to it because it can always be made better

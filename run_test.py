@@ -21,14 +21,14 @@
 #from tests.text_sentiment_test import *
 #from tests.fundamental_test import *
 
-from tests.indicators_test import *
+#from tests.indicators_test import *
 
 #from tests.spacy_test import *
 
 #from tests.shape_patterns_test import *
 #from tests.candle_offset_test import *
 
-#from tests.broker_test import *
+from tests.broker_test import *
 #from tests.indicators_test import *
 
 

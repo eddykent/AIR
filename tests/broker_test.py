@@ -8,9 +8,13 @@ with SeleniumHandler(hidden=False) as sh:
 	t212.begin()
 	#input() #wait 
 	
-	t212.pull_the_plug()
+	#t212.pull_the_plug() this seems to work
+	trades = t212.get_live_trades()
 	
 	
+	
+	print("reached here without breaking!")
+	i = input()
 	#get live trades
 	#...
 	#get a trade - even if it is in closed trades

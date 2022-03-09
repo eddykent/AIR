@@ -98,6 +98,16 @@ class TimeHandler:
 	#
 	
 	@staticmethod
+	def from_str_1(the_str):
+		#09.03.2022 00:52:56
+		a_date,a_time = the_str.split(' ')
+		date_bits = [int(a) for a in  a_date.split('.')]
+		time_bits = [int(a) for a in  a_time.split(':')]
+		d,m,y = date_bits
+		h,n,s = time_bits
+		return datetime.datetime(y,m,d,h,n)
+		
+	@staticmethod
 	def timestamp(the_time=None):
 		if the_time is None:
 			the_time = time.time()

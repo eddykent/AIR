@@ -5,7 +5,7 @@ from selenium.webdriver import ChromeOptions
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException
 
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
@@ -64,6 +64,7 @@ class SeleniumHandler:
 			service=Service(ChromeDriverManager().install()),\
 			chrome_options=self.chrome_options\
 		)
+		self.browser.implicitly_wait(1) #surely nothing will load longer than 1 seconds or we will use a longer wait using perform_wait
 	
 	def finish(self):
 		self.browser.close() 
@@ -94,12 +95,24 @@ class SeleniumHandler:
 		except TimeoutException as e:  #if element doesnt exist return None
 			return None
 	
+	#for doing sub-elements of an element
+	#def perform_wait_on(self,element,by,query_str,expire=5):
+	#	try:
+	#		return WebDriverWait(element,expire).until(   #not sure if can do on sub element :( - could do a query_string construction 
+	#			expected_conditions.presence_of_element_located((by,query_str))
+	#		)
+	#	except TimeoutException as e:  #if element doesnt exist return None
+	#		return None
+	
 	def find_element(self,by,query_str):
 		return self.browser.find_element(by,query_str)
 	
 	def find_elements(self,by,query_str):
 		return self.browser.find_elements(by,query_str)
-		
+	
+	#performs a click by js instead of by selenium to prevent ElementClickInterceptedException
+	def click_on(self,element):
+		self.browser.execute_script("arguments[0].click();", element)
 
 #wrapper for SeleniumHandler and used as base for any crawlers
 class Crawler:
