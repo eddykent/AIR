@@ -121,7 +121,7 @@ class Broker:
 		"""
 		raise NotImplementedError("This method must be overridden")
 	
-	def place_trade(self,trade_signal : TradeSignal, custom_lot_size=None) -> str:  #quantity?
+	def place_trade(self,trade_signal : TradeSignal, custom_lot_size=0) -> str:  #quantity?
 		"""
 		Places a new trade 
 		
@@ -134,8 +134,10 @@ class Broker:
 		
 		Returns 	
 		-------
-		str 
-			An identifier of the new trade recieved from the broker
+		bool, str 
+			bool - True if the process was successful.
+			str - An identifier of the new trade recieved from the broker. An error message if the process was not successful
+			
 		
 		Raises
 		------
@@ -143,6 +145,79 @@ class Broker:
 			This method is abstract and needs to be overridden in a concrete class
 		"""
 		raise NotImplementedError("This method must be overridden")
+	
+	def remove_stops(self,trade_id : str):
+		"""
+		Is the time nearly 10pm? Want to stay in the trade when the market goes haywire for half an hour? 
+		At 10pm usually the spread increases so much that you can get stopped out. It is risky, but during this period we can remove the
+		stops and let the trade do what it wants, then update the stops again later. 
+		
+		Parameters
+		----------
+		trade_id 
+			The trade id to remove the stops from 
+		
+		Returns
+		-------
+		bool
+			true if the stops were sucessfully removed 
+			
+		Raises
+		------
+		NotImplementedError
+			This method is abstract and needs to be overridden in a concrete class
+		"""
+		raise NotImplementedError("This method must be overridden")
+		
+	def update_trade(self,trade_id : str,take_profit : float=None,stop_loss : float=None) -> bool:
+		"""
+		Has a new signal been created? If so and the stops are different, they can be updated using 
+		this function. If a stop is None it is not updated. 
+		
+		Parameters
+		----------
+		trade_id : str 
+			The id of the trade to change
+		take_profit : float (optional)
+			The new value for the take profit 
+		stop_loss : float (optional)
+			The new value for the stop loss
+		
+		Returns
+		-------
+		bool
+			True if the update was successful 
+		
+		
+		Raises
+		------
+		NotImplementedError
+			This method is abstract and needs to be overridden in a concrete class
+		"""
+		raise NotImplementedError("This method must be overridden")
+	
+	
+	def close_trade(self,trade_id : str) -> bool:
+		"""
+		Fed up with a losing trade? This function can be called to close a trade with a given id 
+		
+		Parameters
+		----------
+		trade_id  : str 
+			The id of the trade to close 
+		
+		Returns
+		-------
+		bool 
+			True if the trade was closed successfully. Will return False if the trade was not found
+		
+		Raises
+		------
+		NotImplementedError
+			This method is abstract and needs to be overridden in a concrete class
+		"""
+		raise NotImplementedError("This method must be overridden")
+	
 	
 	def get_historic_trades(self,trade_ids) -> List[LiveTrade]:
 		"""
@@ -249,13 +324,60 @@ class Trading212(Broker, XPathNavigator):
 		return # don't do anything since we dont actually call crawl for Trading212 - we could do later though with get_instrument_info!
 	
 	@overrides(Broker)
-	def place_trade(self,trade_signal):
+	def place_trade(self,trade_signal,custom_lot_size):
+		new_position = None
+		if trade_signal.entry is None: 
+			new_position = self.__place_new_trade(trade_signal,custom_lot_size)
+		else:
+			new_position =self.__place_new_order(trade_signal)
+		return new_position
 		
 		
-
-
-
-
+	@overrides(Broker)
+	def update_trade(self,trade_id,take_profit,stop_loss):
+		pass
+	
+	@overrides(Broker)
+	def close_trade(self,trade_id):
+		
+		_trades_table = {'tag':'div','subclass1':'data-table', 'subclass2':'positions'}
+		_trades_content = {'tag':'div','subclass':'data-table-content'}
+		_trade_item = {'tag':'div','subclass':'positions-table-item'}
+		
+		_trade_positions = {'tag':'div','subclass1':'position-number','subclass2':'data-table-content-column-wrapper'}
+		_trade_close = {'tag':'div','subclass':'close-button'}
+		
+		_popup_wrapper = {'tag':'div','subclass':'active-popup-dialog-popup'}
+		_popup_content = {'tag':'div','subclass':'popup-content'}
+		_confirm = {'tag':'div','subclass1':'dialog-button','subclass2':'confirm-button'}
+		
+		_home = {'tag':'div','subclass':'home-icon'}
+		
+		self.__ensure_trades_view()
+		
+		trade_id = trade_id.upper()
+		table_positions_elems = self.get_multiple_elements([_trades_table,_trades_content,_trade_item,_trade_positions])
+		trade_positions = [self.get_text(trade_pos).upper() for trade_pos in table_positions_elems]
+				
+		if trade_id not in trade_positions:
+			#trade id was not found. 
+			return False 
+		
+		close_buttons = [close_btn for close_btn in self.get_multiple_elements([_trades_table,_trades_content,_trade_item,_trade_close])]
+		close_btn_dict = {pos:close for (pos,close) in zip(trade_positions,close_buttons)}
+		
+		self.click_on(close_btn_dict[trade_id])
+		
+		confirm = self.get_element([_popup_wrapper,_popup_content,_confirm])
+		self.click_on(confirm)
+		
+		self.wait_nonexistant([_popup_wrapper,_popup_content,_confirm],1)
+		home = self.get_element(_home)
+		self.click_on(home)
+		
+		return True
+			
+		
 		
 	
 	@overrides(Broker)
@@ -482,7 +604,7 @@ class Trading212(Broker, XPathNavigator):
 		#wait for some other elements to confirm everything has loaded
 		quick_close_container = self.get_element(_quick_close_all)
 		
-		if ' disabled ' in quick_close_container.get_attribute('class'):
+		if self.has_class(quick_close_container,'disabled'): 
 			live_trades = self.get_live_trades()
 			assert len(live_trades) == 0, "We are unable to close all our trades!"
 			
@@ -562,7 +684,7 @@ class Trading212(Broker, XPathNavigator):
 		checkboxes = self.get_multiple_elements([_checkbox_bit,_sub_checkbox_bit])
 		
 		for checkbox in checkboxes:
-			if ' selected' not in checkbox.get_attribute('class'):
+			if not self.has_class(checkbox,'selected'): 
 				self.click_on(checkbox)  #enable the lot for easier querying
 		
 		print('click chart to close dropdowns')		#re-query to prevent stale elem exception and robustness
@@ -638,7 +760,7 @@ class Trading212(Broker, XPathNavigator):
 		
 		menu_dropdown_check = self.get_element(_dropdown_acc_menu,loading_wait)
 		reveal  = self.get_element([_acc_menu_header, _acc_menu_reveal])
-		if 'expanded' not in self.get_attribute(menu_dropdown_check,'class'):
+		if not self.has_class(menu_dropdown_check,'expanded'):
 			self.click_on(reveal)  
 		
 		if self.demo:
@@ -666,7 +788,7 @@ class Trading212(Broker, XPathNavigator):
 		menu_dropdown_check = self.get_element(_dropdown_acc_menu)
 		
 		reveal  = self.get_element([_acc_menu_header,_acc_menu_reveal])
-		if 'expanded' not in menu_dropdown_check.get_attribute('class'):
+		if not self.has_class(menu_dropdown_check,'expanded'): 
 			self.click_on(reveal) 
 		
 		logout = self.get_element(_acc_menu_logout)
@@ -690,7 +812,7 @@ class Trading212(Broker, XPathNavigator):
 		reveal  = self.get_element([_acc_menu_header, _acc_menu_reveal])
 		
 		menu_dropdown_check = self.get_element(_dropdown_acc_menu)
-		if 'expanded' not in menu_dropdown_check.get_attribute('class'):
+		if not self.has_class(menu_dropdown_check,'expanded'): #not in menu_dropdown_check.get_attribute('class'):
 			self.click_on(reveal) 
 		
 		self.click_on(self.get_element([_acc_menu_button,_history_button])) #open history modal
@@ -717,7 +839,7 @@ class Trading212(Broker, XPathNavigator):
 		_close_report = {'tag':'div','subclass':'close-button'}
 		
 		popup_wrapper = self.get_element(_popup_wrapper)
-		if not 'active-popup-reports-popup' in self.get_attribute(popup_wrapper,'class'):
+		if not self.has_class(popup_wrapper,'active-popup-reports-popup'): # in self.get_attribute(popup_wrapper,'class'):
 			self.__open_report_modal()
 		
 		#wait for modal to be loaded. 
@@ -785,7 +907,7 @@ class Trading212(Broker, XPathNavigator):
 		_close_report = {'tag':'div','subclass':'close-button'}
 		
 		popup_wrapper = self.get_element(_popup_wrapper)
-		if not 'active-popup-reports-popup' in self.get_attribute(popup_wrapper,'class'):
+		if not self.has_class(popup_wrapper,'active-popup-reports-popup'): #if not 'active-popup-reports-popup' in self.get_attribute(popup_wrapper,'class'):
 			self.__open_report_modal()
 		
 		reports_tabs = self.get_multiple_elements([_popup_wrapper,_reports_modal,_reports_tabs])
@@ -831,11 +953,159 @@ class Trading212(Broker, XPathNavigator):
 			
 		return results
 		
+	def __place_new_trade(self,trade_signal,quantity_value):
+		
+		#first click new order
+		_data_table_head = {'tag':'div','subclass':'data-table-header'}
+		_new_order_btn = {'tag':'div','subclass':'new-order-icon'}
+		
+		#then search for instrument in popup 
+		_popup_wrapper_search = {'tag':'div','subclass1':'popup-wrapper','subclass2':'active-popup-search-popup'}
+		_search_bar = {'tag':'input','subclass':'search-input'}
+		_search_results_row_cells = {'tag':'div','subclass1':'search-results-instrument-cell','subclass2':'cell-symbol'}
+		
+		#attempt toget specific row that has our trade symbol name
+		_specific_row = {'tag':'div','data-qa-code':trade_signal.instrument.replace('/','').upper()}
+		
+		#now interact with the order dialog
+		_popup_wrapper_order = {'tag':'div','subclass1':'popup-wrapper','subclass2':'active-popup-ORDER_DIALOG'}
+		_popup_content = {'tag':'div','subclass':'order-dialog'}
+		_buy_button = {'tag':'div','subclass1':'instrument-price', 'subclass2':'buy' }
+		_sell_button = {'tag':'div','subclass1':'instrument-price', 'subclass2':'sell' }
+		
+		#quantity field - handled using type_number_on
+		_quantity_parent = {'tag':'div','class':'quantity-input'}
+		_quantity = {'tag':'input','type':'text'}
+		
+		#stop_loss button & field 
+		_take_profit_container = {'tag':'div','subclass1':'profit-loss', 'subclass2':'take-profit'}
+		_stop_loss_container = {'tag':'div','subclass1':'profit-loss','subclass2':'stop-loss'}
+		_toggle = {'tag':'div','subclass':'toggle-button-wrapper'} #works for both TP and SL - the parent determines which
+		
+		#within the containers above, set the numeric fields again 
+		_value_container = {'tag':'div', 'subclass':'distance-spinner'}
+		_input = {'tag':'input','type':'text'}
+		
+		#click the buy/sell button
+		_button_container = {'tag':'div','subclass1':'button','subclass2':'accent-button'}
+		
+		#tooltip check 
+		_popup_wrapper = {'tag':'div','subclass':'popup-wrapper'} #for checking if the trade was successful
+		_tooltip_parent = {'tag':'div','class':'tooltips'}
+		_tooltip_anim = {'tag':'div','subclass':'tooltips-animation-enter-done'} #wait for animation to be done
+		_tooltip = {'tag':'div','subclass':'tooltip'}
+		
+		#return to previous screen by clicking home
+		_home = {'tag':'div','subclass':'home-icon'} 
 		
 		
+		
+		if trade_signal.direction == TradeDirection.VOID:
+			return False, 'the trade signal was void'
+		
+		self.__ensure_trades_view()
+		self.__clean_dash()
+		self.click_on(self.get_element([_data_table_head,_new_order_btn]))
+		self.click_on(self.get_element([_popup_wrapper_search,_search_bar]))
+		self.type_keys_on(self.get_element([_popup_wrapper_search,_search_bar]),trade_signal.instrument)
+		
+		specific_row = self.get_element([_popup_wrapper_search,_specific_row])
+		if specific_row:
+			self.click_on(specific_row)
+		else:
+			#damn.. need to search all the rows 
+			search_rows = self.get_multiple_elements([_popup_wrapper_search,_search_results_row_cells])
+			found = False
+			for row in search_rows:	
+				if trade_signal.instrument.replace('/','').upper() == self.get_text(row).replace('/','').upper():
+					self.click_on(row)
+					found = True
+					break
+				
+			if not found:
+				pdb.set_trace()
+				return False, 'element/instrument not found'
+		
+		self.get_element(_popup_wrapper_order) #wait for the popup 
+		buy_button = self.get_element([_popup_content,_buy_button])
+		sell_button = self.get_element([_popup_content,_sell_button])
+		
+		if trade_signal.direction == TradeDirection.BUY:
+			self.click_on(buy_button)
+		if trade_signal.direction == TradeDirection.SELL:
+			self.click_on(sell_button)
+		
+		#median_price - we will be using price values as TP and SL? 
+		
+		
+		quantity = self.get_element([_popup_content,_quantity_parent,_quantity])
+		self.type_number_on(quantity,quantity_value) #how will quantity work? :/
+		
+		if trade_signal.take_profit is not None:
+			toggle_button = self.get_element([_popup_content,_take_profit_container,_toggle])
+			if self.has_class(toggle_button,'disabled'):
+				self.click_on(toggle_button)
+			
+			take_profit = self.get_element([_popup_content,_take_profit_container,_value_container,_input])
+			self.type_number_on(take_profit,trade_signal.take_profit)
+			
+
+		if trade_signal.stop_loss is not None:
+			toggle_button = self.get_element([_popup_content,_stop_loss_container,_toggle])
+			if self.has_class(toggle_button,'disabled'):
+				self.click_on(toggle_button)
+			
+			stop_loss = self.get_element([_popup_content,_stop_loss_container,_value_container,_input])
+			self.type_number_on(stop_loss,trade_signal.stop_loss)
+			
+		confirm_button = self.get_element([_popup_content,_button_container])
+		
+		assert 'CONFIRM' in confirm_button.text.upper()
+		self.click_on(confirm_button)
+		
+		#confirm the trade has taken place by checking modal is closed and there are no tooltips 
+		is_success = True
+		error_message = ''
+		
+		#wait for popup animation to stop... otherwise we think it was not successful when it was... 
+		#todo so, wait for button to disappear 
+		self.wait_nonexistant([_popup_content,_button_container],1)
+		
+		popup_wrapper = self.get_element(_popup_wrapper)
+		if self.has_class(popup_wrapper,'popup-opened'):
+			
+			#STILL wrong? 
+			is_success = False
+			#time.sleep(0.2)
+			error_message = self.wait_for_text([_tooltip_parent,_tooltip_anim])
+			#print(tooltip_text) #log the tooltip text 
+		
+		
+		home = self.get_element(_home)
+		self.click_on(home) #whatever happens always click home after 
+		
+		return_string = ''
+		if is_success:
+			live_trades = sorted(self.get_live_trades(),key=lambda lt:lt.entry_date)
+			return_string = live_trades[-1].trade_id #get latest not earliest
+		else:
+			return_string = error_message
+		
+		return is_success, return_string
 	
+	#this method is needed because we will probably do better with standing orders instead of with right-now trades
+	def __place_new_order(self,trade_signal,quantity):
+		
+		#this will need to return some kind of id string - eg insturment#createddate#quantity or something 
+		raise NotImplementedError('TODO :)')
+		#attempt to place new order 
+		
 	
-	
+	#this method is needed because it can save spread costs
+	def __update_trade(self,trade_id,new_tp,new_sl):
+		
+		#when override distance is true, if T212 complains then set the SL/TP to the distance it asks for
+		raise NotImplementedError('TODO :)')
 	
 #hopefully any other brokers will have an API, so their handling class will be tiny 	
 		

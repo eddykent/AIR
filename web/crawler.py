@@ -108,6 +108,33 @@ class Crawler:
 		except TimeoutException as e:  #if element doesnt exist return None
 			return None
 	
+	def perform_wait_nonexist(self,by,query_str,expire):
+		try:
+			WebDriverWait(self.browser,expire).until_not(
+				expected_conditions.presence_of_element_located((by, query_str))
+			)
+			return True
+		except TimeoutException as e:
+				return False
+	
+	def perform_wait_text(self,by,query_str,expire):
+		#try:
+		#	return WebDriverWait(self.browser,expire).until(
+		#		expected_conditions.text_to_be_present_in_element_value((by,query_str),' ')
+		#	)
+		#except TimeoutException as e:  #if element doesnt exist return None
+		#	return None
+		some_text = ''
+		start_time = time.time()
+		while not some_text:
+			time_waited = time.time() - start_time
+			if time_waited > 1.0:
+				break
+			time.sleep(0.01)
+			some_element = self.perform_wait(by,query_str,expire) #wait for animation 
+			some_text = some_element.text
+		return some_text
+	
 	def perform_wait_multi(self,by,query_str,expire):
 		self.perform_wait(by,query_str,expire) #as usual
 		return self.find_elements(by,query_str) #but now return a multi 
@@ -177,7 +204,7 @@ class Crawler:
 		for ik in int_keys:
 			row_dict[ik] = self.safeint(row_dict.get(ik))
 		return row_dict
-
+	
 	def crawl(self):
 		raise NotImplementedError('This method must be overridden')
 
@@ -230,15 +257,53 @@ class XPathNavigator(Crawler):
 	
 	def get_multiple_elements(self,xpath_arg,expire=10):
 		return self.perform_wait_multi(By.XPATH, XPathNavigator.__process_arg_to_xpath(xpath_arg), expire)
-		
+	
+	def wait_nonexistant(self,xpath_arg,expire):
+		return self.perform_wait_nonexist(By.XPATH,XPathNavigator.__process_arg_to_xpath(xpath_arg), expire)
+	
 	def get_attribute(self,element,attribute_key):
 		return element.get_attribute(attribute_key)
 	
 	def get_text(self,element):
 		return element.text.strip()
-
+	
+	def wait_for_text(self,xpath_arg,expire=2):
+		return self.perform_wait_text(By.XPATH,XPathNavigator.__process_arg_to_xpath(xpath_arg), expire)
+		
 	def type_keys_on(self,element,string):
 		element.send_keys(string)
+	
+	#type_keys doesnt work with integer/float fields so well. this method handles that nicely. 
+	def type_number_on(self,element,numeric,sf=3):
+		#first delete the current value
+		
+		new_value = self.safefloat(numeric) if type(numeric) == str else numeric
+		assert type(new_value) in [float,int]
+		
+		current_val = self.get_attribute(element,'value')
+		n = len(current_val)
+		for i in range(n):
+			element.send_keys(Keys.BACKSPACE)
+		
+		#add value up to decimal point 
+		new_val0 = float(new_value)
+		new_val1 = str(int(new_value))
+		element.send_keys(new_val1)
+		
+		number_pieces = ('{:.'+str(sf)+'f}').format(new_value).split('.')
+		
+		if new_val0 != int(new_val0) and len(number_pieces) > 1:
+			#we have something fractional. 
+			element.send_keys('.') #try sending it a decimal point
+			if self.get_attribute(element,'value').endswith('.'):
+				#decimal worked! Add rest of quantity
+				new_val2 = number_pieces[1]
+				element.send_keys(new_val2)
+
+	def has_class(self,element,class_name):
+		class_list_str = self.get_attribute(element,'class')
+		class_list = class_list_str.split(' ')
+		return class_name in class_list
 
 	#try js or selenium click - perhaps have handler here to do the click in either using js as fallback 
 	def click_on(self,element):
@@ -246,8 +311,7 @@ class XPathNavigator(Crawler):
 
 	def press_enter_on(self,element):
 		element.send_keys(Keys.ENTER)
-
-
+		
 
 
 
