@@ -267,7 +267,7 @@ class Dukascopy(ClientSentimentCrawler):
 		return ClientSentimentInfo(self.source_ref,inst,self.timeframe,bias,netlong,netshort,parse_error)
 		
 		
-	
+	#TODO - refactor to use wrapper methods 
 	def crawl(self):
 		#this is in an iframe so we got to switch to it. It is also clever enough to figure out if we are connecting to the 
 		#iframe directly so got to go by the source link

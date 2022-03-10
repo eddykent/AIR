@@ -13,9 +13,11 @@ from selenium.webdriver.remote.webelement import WebElement
 
 from webdriver_manager.chrome import ChromeDriverManager
 
-
 import os 
+import re
 import time
+
+import pdb
 
 from utils import Configuration, TimeHandler
 
@@ -23,35 +25,32 @@ from utils import Configuration, TimeHandler
 #crawler is a special case of scraper that uses selenium to get information. This is required for some websites 
 #that we get news/info from since their front end has been obfuscated in some way. There's no escaping selenium ;)
 
-#expose selenium first so it can be used in other apps across the base 
+#expose selenium first so it can be used in other apps across the base. Handle construction & teardown in this class
 class SeleniumHandler:
 	
 	browser = None #main selenium handle constructed in this class 
 	
 	chrome_options = None
 	
-	screenshot_dir = ''
-	downloads_dir = ''
+	config = None
 	#WINDOW_SIZE = "1920,1080"
 	
 	def __init__(self,hidden=False,chrome_options=None):
-		config = Configuration()
-		self.downloads_dir = config.get('webdriver','downloads')
-		self.screenshot_dir = config.get('webdriver','screenshots')
+		self.config = Configuration()
 		
 		if not chrome_options:
 			chrome_options = ChromeOptions()
 		#location = config.get('chrome_driver','location') #handled with ChromeDriverManager
-		prefs = {"download.default_directory":self.downloads_dir}
+		downloads_dir = self.config.get('webdriver','downloads')
+		prefs = {"download.default_directory":downloads_dir}
 		chrome_options.add_experimental_option("prefs",prefs)
 		if hidden:
 			chrome_options.add_argument('--headless')
 		
 		self.chrome_options = chrome_options
-		
-			
+				
 	
-	#allow for use with with
+	#allows for use with context managers 
 	def __enter__(self):
 		self.start()
 		return self
@@ -64,30 +63,44 @@ class SeleniumHandler:
 			service=Service(ChromeDriverManager().install()),\
 			chrome_options=self.chrome_options\
 		)
-		self.browser.implicitly_wait(1) #surely nothing will load longer than 1 seconds or we will use a longer wait using perform_wait
+		#self.browser.implicitly_wait(0.5) #surely nothing will load longer than 0.5 seconds or we will use a longer wait using perform_wait
 	
 	def finish(self):
 		self.browser.close() 
 	
-	#might be useful oneday! 
-	def screenshot(self): 
-		timestamp = TimeHandle.timestamp()
-		#get number for fast screenshotting 
-		number = 0
-		stringnumber = str(number) if number > 9 else ('0'+str(number))  ##no more than 99 per second as that is just silly :) 
-		timefilename = timestamp+'#'+stringnumber
-		self.browser.get_screenshot_as_file(os.path.join(self.screenshot_dir,timefilename,'.png'))
-		return timefilename
+
+
+#wrapper for SeleniumHandler and used as base for any crawlers
+class Crawler:
+
+	#get from initialisation - we don't want to run 20 copies of selenium
+	browser = None
+	source = ''
+	config = None
 	
-	#wrappers for ease of use (from the root node only - once they are called we lose the support of this class)
+	def __init__(self,selenium_handle,source,config=None):
+		self.source = source
+		self.browser = selenium_handle.browser
+		#self.config = selenium_handle.config
+		if config is None:
+			config = selenium_handle.config
+		self.config = config
+		self.goto(self.source)
+
+	
 	def get(self,url):
 		return self.browser.get(url)
+	
+	def goto(self,url): #handle any other protos? 
+		if not url.startswith('http'):
+			url = 'http://' + url 
+		return self.get(url)
 		
 	def switch_to_frame(self,iframe):
 		return self.browser.switch_to.frame(iframe) 
 	
 	#handy method for waiting for elements to be present
-	def perform_wait(self,by,query_str,expire=10):
+	def perform_wait(self,by,query_str,expire): #warn if more than 1 found! 
 		try:
 			return WebDriverWait(self.browser,expire).until(
 				expected_conditions.presence_of_element_located((by,query_str))
@@ -95,14 +108,23 @@ class SeleniumHandler:
 		except TimeoutException as e:  #if element doesnt exist return None
 			return None
 	
-	#for doing sub-elements of an element
-	#def perform_wait_on(self,element,by,query_str,expire=5):
-	#	try:
-	#		return WebDriverWait(element,expire).until(   #not sure if can do on sub element :( - could do a query_string construction 
-	#			expected_conditions.presence_of_element_located((by,query_str))
-	#		)
-	#	except TimeoutException as e:  #if element doesnt exist return None
-	#		return None
+	def perform_wait_multi(self,by,query_str,expire):
+		self.perform_wait(by,query_str,expire) #as usual
+		return self.find_elements(by,query_str) #but now return a multi 
+		
+	
+	def screenshot(self): 
+		timestamp = TimeHandle.timestamp()
+		#get number for fast screenshotting 
+		number = 0
+		stringnumber = str(number) if number > 9 else ('0'+str(number))  ##no more than 99 per second as that is just silly :) 
+		timefilename = timestamp+'#'+stringnumber
+		screenshot_dir = self.config.get('webdriver','screenshots')
+		self.browser.get_screenshot_as_file(os.path.join(screenshot_dir,timefilename,'.png'))
+		return timefilename
+	
+	def switch_to_frame(self,iframe):
+		return self.browser.switch_to.frame(iframe) 
 	
 	def find_element(self,by,query_str):
 		return self.browser.find_element(by,query_str)
@@ -113,30 +135,140 @@ class SeleniumHandler:
 	#performs a click by js instead of by selenium to prevent ElementClickInterceptedException
 	def click_on(self,element):
 		self.browser.execute_script("arguments[0].click();", element)
-
-#wrapper for SeleniumHandler and used as base for any crawlers
-class Crawler:
-
-	#get from initialisation - we don't want to run 20 copies of selenium
-	browser = None
-	source = ''
 	
-	def __init__(self,selenium_handle,source):
-		self.source = source
-		self.browser = selenium_handle.browser
-		self.goto(self.source)
 	
-	def goto(self,url): #handle any other protos? 
-		if not url.startswith('http'):
-			url = 'http://' + url 
-		self.browser.get(url)
+	def process_website_row(self, by, row_element, key_renames):
+		result_dict = {}
+		#if by == 'label':	#other methods of parsing the row could go here 
+		#else:
+		for (key, new_key) in key_renames.items():
+			result_dict[new_key] = None
+			elem = row_element.find_element(by,key) #work out how to wait here? 
+			if elem:
+				result_dict[new_key] = elem.text.strip()
+		return result_dict
+	
+	def process_website_rows(self, by, row_elements, key_renames):
+		return [self.process_website_row(by,row_elem,key_renames) for row_elem in row_elements]
+	
+	def safefloat(self,fpstr):
+		if type(fpstr) in [int,float]:
+			return fpstr #already a number
+		try:
+			return float(re.sub('[^0-9.]','',fpstr)) #take out commas
+		except ValueError as e:
+			#warning!
+			if fpstr == '-' or fpstr == '':
+				return None #means blank so leave it as that
+			else:
+				pdb.set_trace()
+				print('unable to parse float')
+	
+	def safeint(self,intstr):
+		fp = self.safefloat(intstr)
+		return int(fp) if fp is not None else None
+	
+	def process_row_floating_points(self,row_dict,float_keys):
+		for fk in float_keys:
+			row_dict[fk] = self.safefloat(row_dict.get(fk))
+		return row_dict
+	
+	def process_row_ints(self,row_dict,int_keys):
+		for ik in int_keys:
+			row_dict[ik] = self.safeint(row_dict.get(ik))
+		return row_dict
 
-	def loading_wait(self):
-		return True  #some advanced method to determine if page has finished loading and we can begin crawling? - perhaps not needed!
-		
-		
 	def crawl(self):
 		raise NotImplementedError('This method must be overridden')
 
+#wrapper class for crawler that is powered by xpath to crawl a webpage and find elements. Always start from the root nod
+class XPathNavigator(Crawler):
 	
+	@staticmethod
+	def __to_xpath(*_xpath_dicts):
+		xpath_strings = []
+		for _xpath_dict in _xpath_dicts:
+			xpath_template = ''
+			if 'tag' in _xpath_dict:
+				xpath_template += '{tag}'#this particular tag
+			else:
+				xpath_template += '*' #all tags
+			
+			#check attributes - remove tag as it is not an attribute 
+			attribute_keys = [k for k in _xpath_dict.keys() if k != 'tag']
+			attributes_template = ''
+			if attribute_keys:
+				attribute_templates = []
+				for k in attribute_keys:	
+					if k.startswith('sub'):
+						#check for a contains - useful for selecting things with css class lists 
+						lexi = k[3:] #remove the inital sub to get the attribute name
+						if lexi[-1].isdigit() and not lexi.startswith('data'): #the key might have a number on the end (eg subclass1 subclass2 etc)
+							#but for data-something we probably want to keep the number. 
+							lexi = lexi[:-1] #remove last digit
+							#dont bother supporting full numbers yet - 0 to 9 is fine!
+						attribute_templates.append("contains(@"+lexi+","+"'{"+k+"}')")
+					else:
+						attribute_templates.append("@"+k+"="+"'{"+k+"}'")
+				attributes_template = '['+' and '.join(attribute_templates)+']'
+			xpath_template += attributes_template
+			xpath_strings.append(xpath_template.format(**_xpath_dict)) #paste the actual contents of the dictionary into the template
+		return '//' + '//'.join(xpath_strings)
+
+	@staticmethod
+	def __process_arg_to_xpath(xpath_arg):
+		query_str = ''
+		if type(xpath_arg) == list:
+			query_str = XPathNavigator.__to_xpath(*xpath_arg) #build xpath string from parent
+		else:
+			query_str = XPathNavigator.__to_xpath(xpath_arg)
+		return query_str
 	
+	#wrappers for readability 
+	def get_element(self,xpath_arg,expire=10): 
+		return self.perform_wait(By.XPATH, XPathNavigator.__process_arg_to_xpath(xpath_arg), expire)
+	
+	def get_multiple_elements(self,xpath_arg,expire=10):
+		return self.perform_wait_multi(By.XPATH, XPathNavigator.__process_arg_to_xpath(xpath_arg), expire)
+		
+	def get_attribute(self,element,attribute_key):
+		return element.get_attribute(attribute_key)
+	
+	def get_text(self,element):
+		return element.text.strip()
+
+	def type_keys_on(self,element,string):
+		element.send_keys(string)
+
+	#try js or selenium click - perhaps have handler here to do the click in either using js as fallback 
+	def click_on(self,element):
+		self.browser.execute_script("arguments[0].click();", element)
+
+	def press_enter_on(self,element):
+		element.send_keys(Keys.ENTER)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

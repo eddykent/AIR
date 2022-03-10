@@ -6,6 +6,7 @@ import time
 import hashlib
 import pickle
 import os
+import re
 
 import numpy as np
 
@@ -98,20 +99,25 @@ class TimeHandler:
 	#
 	
 	@staticmethod
-	def from_str_1(the_str):
+	def from_str_1(the_str,date_delimiter='.',time_delimiter=':'):
 		#09.03.2022 00:52:56
 		a_date,a_time = the_str.split(' ')
-		date_bits = [int(a) for a in  a_date.split('.')]
-		time_bits = [int(a) for a in  a_time.split(':')]
-		d,m,y = date_bits
-		h,n,s = time_bits
-		return datetime.datetime(y,m,d,h,n)
+		date_bits = [int(re.sub('[^0-9]','',a)) for a in  a_date.split(date_delimiter)]
+		time_bits = [int(re.sub('[^0-9]','',a)) for a in  a_time.split(time_delimiter)]
+		d,m,y = date_bits[:3]
+		h,n = time_bits[:2] 
+		s = 0
+		if len(time_bits) > 2:
+			s = time_bits[2]
+		return datetime.datetime(y,m,d,h,n,s)
+
 		
 	@staticmethod
 	def timestamp(the_time=None):
 		if the_time is None:
 			the_time = time.time()
 		#get timestamp
+		assert type(the_time) == int
 		return datetime.datetime.utcfromtimestamp(the_time).strftime('%Y-%m-%d@%Hh%Mm%Ss')
 		
 	@staticmethod
@@ -119,6 +125,7 @@ class TimeHandler:
 		if the_date is None:
 			the_date = datetime.datetime.now()
 		#get datestamp
+		assert type(the_date) == datetime.datetime
 		return the_date.strftime('%Y-%m-%d@%Hh%Mm%Ss')
 		
 #refactor to use typecheck? 
