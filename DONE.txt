@@ -48,6 +48,8 @@ feed collector - finish the collection of results stage
 
 indicators in python using numpy for speed
 
+vectorize candlestick patterns
+
 
 BUGS:
 (FIXED)

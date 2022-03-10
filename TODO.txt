@@ -13,8 +13,6 @@ create explain() functions in various places similar to draw_snapshot() for use 
 create setup() function on chart/candle patterns to be able to run backtests
 every candlestick and chart pattern should have a get_setups() function to return TradeSignals.
 
-vectorise candle_stick_pattern 
-
 setup object using bbs, keltner channels and RSI to test the backtester
 
 SCREENING - candle stick scanner for candle stick patterns and chart patterns. Use to determine entry points
