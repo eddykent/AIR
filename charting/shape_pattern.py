@@ -19,7 +19,7 @@ import charting.chart_viewer as chv
 #use a least squares algorithm to find all extreme points 
 class ChartPatternLeastSquares(ChartPattern):
 	
-	degree = 17 #the degree of function in which to use for the least squares curve fit
+	degree = 25 #the degree of function in which to use for the least squares curve fit
 	memory_window = 120
 	
 	#override this in FFT version
@@ -182,7 +182,8 @@ class TripleTopAndBottom(DoubleTopAndBottom):
 class HeadAndShoulders(DoubleTopAndBottom):
 	
 	walk_shapes = [
-		[3,1,3,0,3,2,3]
+		[3,1,3,0,3,2,3],#unbalanced / slightly to our favour
+		[2,1,2,0,2,1,2],#balanced 
 	]  #or [0 1,0,2,0,1,0]
 
 class TeacupHandle(DoubleTopAndBottom):

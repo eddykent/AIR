@@ -9,7 +9,7 @@ from charting.chart_viewer import PlotlyChartPainter
 from utils import ListFileReader, Database 
 
 
-the_date = datetime.datetime(2022,3,2,15,15)
+the_date = datetime.datetime(2022,3,2,15,0)
 
 lfr = ListFileReader()
 currencies = lfr.read('fx_pairs/currencies.txt')

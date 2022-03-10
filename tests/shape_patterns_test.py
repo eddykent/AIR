@@ -63,9 +63,9 @@ database_response = cur.fetchall()
 #OurChartPattern = ParallelChannelBreakout
 
 
-#OurChartPattern = DoubleTopAndBottom
+OurChartPattern = DoubleTopAndBottom
 #OurChartPattern = TripleTopAndBottom
-OurChartPattern = HeadAndShoulders
+#OurChartPattern = HeadAndShoulders
 
 
 
