@@ -9,7 +9,7 @@
 
 #from tests.typedlist_test import *
 
-from tests.candle_stick_tests import *
+#from tests.candle_stick_tests import *
 
 #from tests.chart_pattern_support_resistance_test import *
 #from tests.matching_test import *
@@ -21,7 +21,7 @@ from tests.candle_stick_tests import *
 #from tests.text_sentiment_test import *
 #from tests.fundamental_test import *
 
-#from tests.indicators_test import *
+from tests.indicators_test import *
 
 #from tests.spacy_test import *
 

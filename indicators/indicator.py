@@ -943,7 +943,7 @@ class SuperTrend(Indicator):
 			lower_conditions = np.concatenate([lower_conditions,lower_cond],axis=1)
 		
 		#delete as appropriate
-		pdb.set_trace()
+		#pdb.set_trace()
 		final_upper[lower_conditions] = np.nan
 		final_lower[upper_conditions] = np.nan
 		#return np.stack([final_upper,final_lower],axis=2)

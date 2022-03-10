@@ -43,17 +43,18 @@ database_response = cur.fetchall()
 #OurIndicator = Aroon
 #OurIndicator = PPO
 #OurIndicator = ParabolicSAR
-#OurIndicator = IchimokuCloud
+OurIndicator = IchimokuCloud
 #OurIndicator = RVI
 #OurIndicator = DonchianChannel
 #OurIndicator = WilliamsPercentRange
-OurIndicator = SuperTrend
+#OurIndicator = SuperTrend
 
 
 
 indicator = OurIndicator()
 
-candle_streams = [CandleStickPattern.to_candles(database_response,instrument) for instrument in fx_pairs]
+candles = cur.fetchcandles(fx_pairs)
+candle_streams = [candles[fx] for fx in fx_pairs]
 results = indicator.calculate_multiple(candle_streams)
 
 
