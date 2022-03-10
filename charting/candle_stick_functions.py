@@ -100,30 +100,30 @@ def body_distance(candle,value):
 
 
 #the following operate on a pair of candles - these are indexed before they are put in here 
-def engulf(candle1,candle2,difference=1.1):
+def grow(candle1,candle2,difference=1.1):
 	body1 = body(candle1)
 	body2 = body(candle2)
 	return body2 > (difference*body1) # 10% larger or more
 
 
-def reduce(candle1,candle2,difference=1.1):
+def shrink(candle1,candle2,difference=1.1):
 	body1 = body(candle1)
 	body2 = body(candle2)
 	return (body2*difference) < body1  # 10% smaller or more
 
-def grow(candle1,candle2,difference=1.1):
-	return engulf(candle1,candle2,difference) & (candle1[:,high] <= candle2[:,high]) & (candle1[:,low] >= candle2[:,low])
+def engulf(candle1,candle2,difference=1.1):
+	return grow(candle1,candle2,difference) & (candle1[:,high] <= candle2[:,high]) & (candle1[:,low] >= candle2[:,low])
 
-def shrink(candle1,candle2,difference=1.1):
-	return reduce(candle1,candle2,difference) & (candle1[:,high] >= candle2[:,high]) & (candle1[:,low] <= candle2[:,low])
+def reduce(candle1,candle2,difference=1.1):
+	return shrink(candle1,candle2,difference) & (candle1[:,high] >= candle2[:,high]) & (candle1[:,low] <= candle2[:,low])
 
-#step = candle close is higher 
+#step = candle close is higher & open is greater or equal
 def step_up(candle1,candle2):
-	return candle2[:,close] > candle1[:,close]
+	return (candle2[:,close] >= candle1[:,close]) & (candle2[:,open] >= candle1[:,open])
 
 #candle close is lower
 def step_down(candle1,candle2):
-	return candle2[:,close] < candle1[:,close]
+	return (candle2[:,close] <= candle1[:,close]) & (candle2[:,open] <= candle1[:,open])
 
 	
 #candle open  is higher than previous candle close and both candles are bullish

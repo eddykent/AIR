@@ -365,6 +365,25 @@ class Database:
 	def fetchall(self):
 		return self.rows
 	
+	
+	def fetchcandles(self,instruments):
+		return_dict = {} 	
+		for instrument in instruments:
+			try:
+				return_dict[instrument] = sorted([
+				[
+					snapshot[2][instrument]['open_price'],
+					snapshot[2][instrument]['high_price'],	
+					snapshot[2][instrument]['low_price'],
+					snapshot[2][instrument]['close_price'],
+					snapshot[0] #the date should always go at the bottom of the candle
+				]
+				for snapshot in self.rows],key=lambda c:c[-1]) #sort into chronological order 
+			except KeyError as ke:
+				return_dict[instrument] = None #warning?
+		return return_dict
+	
+	
 	def close(self):
 		self.cur.close()
 		self.con.close()

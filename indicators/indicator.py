@@ -130,7 +130,7 @@ class Indicator:
 		"""
 		raise NotImplementedError('This method must be overridden') #not sure how to do criteria yet 
 	
-	def detect(self,criteria : list) -> np.array:
+	def detect(self,criteria : list=[]) -> np.array:
 		"""
 		Generates trade setups in the form of -1,0,1 from the set of candles and from given criteria. 
 		This format can be useful for ai related work
@@ -141,8 +141,8 @@ class Indicator:
 			The set of candles that we want to calculate on
 		candle_stream_index : int
 			The end point at which we want to "pretend" that we can't see passed. If None, the whole candle stream is used
-		criteria : list of SetupCriteria
-			The criteria required for there to be a setup at any point in the streams & the indicator resuts 
+		criteria : list of SetupCriteria (Optional)
+			The criteria required for there to be a setup at any point in the streams & the indicator resuts. If a blank list is returned, all bullish and bearish setups are returned
 		
 		Returns 	
 		-------
@@ -179,7 +179,7 @@ class Indicator:
 		np_candle_streams = np.array(candle_streams)
 		datetime_values = np_candle_streams[:,:,-1].T
 		timeline = datetime_values[:,0:1]		
-		assert np.all(datetime_values == np.broadcast_to(timeline, datetime_values.shape)), "timelines are out of sync" 
+		assert np.all(datetime_values == np.broadcast_to(timeline, datetime_values.shape)), "timelines are out of sync - try calculate_multiple" 
 		np_candles = np_candle_streams[:,:,:4].astype(np.float64)
 		return np_candles, timeline 
 	

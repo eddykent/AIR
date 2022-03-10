@@ -23,7 +23,7 @@ Line = namedtuple('Line','x1 y1 x2 y2')
 Box = namedtuple('Box','x1 y1 x2 y2')
 Circle = namedtuple('Circle','x y r')
 Triangle = namedtuple('Triangle','x1 y1 x2 y2 x3 y3')
-Quadrilateral = namedtuple('Triangle','x1 y1 x2 y2 x3 y3')
+Quadrilateral = namedtuple('Quadrilateral','x1 y1 x2 y2 x3 y3 x4 y4') #everything can be built from triangles but quadrilaterals allow for trapeziums in curves for convenience 
 Text = namedtuple('Text','x y string')
 Candle = namedtuple('Candle','open high low close datetime')
 
@@ -187,16 +187,19 @@ class ChartView:
 	
 	#override if different layers should be used
 	def define_layers(self):
-		#background regions that we might want to draw - eg if it is a bullish or bearish region
+		#background regions that we might want to draw - eg if it is a bullish or bearish region - borderless
 		self.backgrounds = ChartLayer(DrawingMode.BOXES)
 		
 		#support lines and resistance lines - eg at top of a chart pattern or below price action etc 
 		self.boundaries = ChartLayer([DrawingMode.LINES,DrawingMode.POINTS]) #support,resistance, 
 		
 		#faint background lines 
-		self.faint_traces = ChartLayer([DrawingMode.PATHS])
+		self.faint_traces = ChartLayer(DrawingMode.PATHS)
 		
 		#shapes we might want to draw that covers the candles showing a chart pattern eg a candle stick highlight box or a wedge
+		self.candle_boxes = ChartLayer(DrawingMode.BOXES) #note: bordered 
+		
+		#wedge patterns etc 
 		self.patterns = ChartLayer(DrawingMode.ALL)
 		
 		#any trades that were taken on the candlestick data - use to draw the stop loss and take profit regions and POSSIBLY use the data to draw if it is a winning/losing trade?
@@ -315,11 +318,11 @@ class ChartView:
 			self.draw('trends bearish lines',decreasing_lines)
 			self.draw('trends neutral lines',horizontal_lines)
 	
-	def draw_candle_pattern(self,candle_stick_pattern,candles,index):
-		pass #handle highlighting a candle stick pattern if it is bullish/bearish
-	
-	def draw_chart_pattern(self,chart_pattern,candles,index):  #use draw_snapshot methods
-		pass #?? 
+	#def draw_candle_pattern(self,candle_stick_pattern,candles,index):
+	#	pass #handle highlighting a candle stick pattern if it is bullish/bearish
+	#
+	#def draw_chart_pattern(self,chart_pattern,candles,index):  #use draw_snapshot methods
+	#	pass #?? 
 	
 	#calculate the bounds from the candles. If they don't exist may have to calculate from elsewhere? 
 	def calculate_bounds(self):	
@@ -374,6 +377,12 @@ class ChartPainter:
 			'bearish':{'stroke':'rgba(255,20,50,0.9)'	,'fill':'rgba(255,70,70,0.9)'},
 			'neutral':{'stroke':'rgba(0,100,255,1)'		,'fill':'rgba(0,100,255,0.3)'},
 			'keyinfo':{'stroke':'rgba(255,255,0,1)'		,'fill':'rgba(255,255,0,0.3)'}
+		},
+		'candle_boxes':{
+			'neutral':{'fill':'rgba(200,200,200,0.1)','stroke':'rgba(200,200,200,1)'},
+			'bullish':{'fill':'rgba(0,255,0,0.2)','stroke':'rgba(0,255,0,1)'},
+			'bearish':{'fill':'rgba(255,0,0,0.2)','stroke':'rgba(255,0,0,1)'},
+			'keyinfo':{'fill':'rgba(0,255,255,0.3)','stroke':'rgba(0,255,255,1)'}
 		},
 		'trends':{
 			'neutral':{'stroke':'rgb(200,200,200)'},
@@ -553,6 +562,7 @@ class PlotlyChartPainter(ChartPainter):
 					x=xs,
 					y=ys,
 					fill='toself',
+					mode='lines'
 				)
 				boxes.line.width = border_width
 				if border_width: 
@@ -588,7 +598,7 @@ class PlotlyChartPainter(ChartPainter):
 		self.fig_data.append(self.fig.data[-1]) #add last thing that has been figged to the fig data 
 	
 	def _paint_backgrounds(self,chart_layer):
-		self.__paint_plotly_boxes(chart_layer,'backgrounds')
+		self.__paint_plotly_boxes(chart_layer,'backgrounds',0)
 	
 	def _paint_carets(self, chart_layer):
 		self.__paint_plotly_lines(chart_layer,'carets',2) #lines are usually the actual time piece so lets add thinkness
@@ -612,6 +622,9 @@ class PlotlyChartPainter(ChartPainter):
 	def _paint_patterns(self,chart_layer):
 		self.__paint_plotly_points(chart_layer,'patterns',15)
 		self.__paint_plotly_paths(chart_layer,'patterns',4)
+	
+	def _paint_candle_boxes(self,chart_layer):
+		self.__paint_plotly_boxes(chart_layer,'candle_boxes',2)
 		
 	def _paint_price_actions(self,chart_layer):
 		self.__paint_plotly_paths(chart_layer,'price_actions',2)
@@ -620,7 +633,8 @@ class PlotlyChartPainter(ChartPainter):
 		config = {}
 		config.update({'scrollZoom': True}) #window zoom
 		config.update(self.config) #all passed in config
-	
+		return config
+		
 	#override
 	def show(self):
 		self.fig.data = self.fig_data #force the data to be drawn in the right order - makes no difference... 

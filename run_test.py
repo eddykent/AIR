@@ -9,7 +9,7 @@
 
 #from tests.typedlist_test import *
 
-#from tests.candle_stick_tests import *
+from tests.candle_stick_tests import *
 
 #from tests.chart_pattern_support_resistance_test import *
 #from tests.matching_test import *
@@ -28,7 +28,7 @@
 #from tests.shape_patterns_test import *
 #from tests.candle_offset_test import *
 
-from tests.broker_test import *
+#from tests.broker_test import *
 #from tests.indicators_test import *
 
 
@@ -47,3 +47,4 @@ from tests.broker_test import *
 #510 bearish
 #393 bullish
 #394 bullish 
+
