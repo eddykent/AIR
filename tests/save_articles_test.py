@@ -39,7 +39,10 @@ def load_fresh():
 	rss.analyse_articles(ta)
 	rss.collect()
 	return rss
-	
+
+def load_empty():
+	rss = feedco.RSSCollect(lfr.read('sources/rss_feeds.txt'))
+	return rss
 
 def load_db():
 	rss = feedco.RSSCollect(lfr.read('sources/rss_feeds.txt'))

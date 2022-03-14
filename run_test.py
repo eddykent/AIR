@@ -21,7 +21,7 @@
 #from tests.text_sentiment_test import *
 #from tests.fundamental_test import *
 
-from tests.indicators_test import *
+#from tests.indicators_test import *
 
 #from tests.spacy_test import *
 
@@ -47,4 +47,23 @@ from tests.indicators_test import *
 #510 bearish
 #393 bullish
 #394 bullish 
+
+
+
+from tests.save_articles_test import *
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

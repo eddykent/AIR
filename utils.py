@@ -110,7 +110,19 @@ class TimeHandler:
 		if len(time_bits) > 2:
 			s = time_bits[2]
 		return datetime.datetime(y,m,d,h,n,s)
-
+	
+	@staticmethod
+	def from_str_2(the_str,date_delimiter='-',time_delimiter=':'):
+		#09.03.2022 00:52:56
+		a_date,a_time = the_str.split(' ')
+		date_bits = [int(re.sub('[^0-9]','',a)) for a in  a_date.split(date_delimiter)]
+		time_bits = [int(re.sub('[^0-9]','',a)) for a in  a_time.split(time_delimiter)]
+		y,m,d = date_bits[:3]
+		h,n = time_bits[:2] 
+		s = 0
+		if len(time_bits) > 2:
+			s = time_bits[2]
+		return datetime.datetime(y,m,d,h,n,s)
 		
 	@staticmethod
 	def timestamp(the_time=None):
@@ -312,8 +324,8 @@ class Database:
 		'bollinger_band_k':2
 	}
 	
-	def __init__(self,commit=False,cache=True):
-		cfg = Configuration()
+	def __init__(self,commit=False,cache=True,config=None):
+		cfg = Configuration() if config is None else config
 		self.con = psycopg2.connect(cfg.database_connection_string())
 		self.cur = self.con.cursor()
 		self.commit = commit #when true, when exiting the query will be committed

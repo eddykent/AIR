@@ -15,8 +15,6 @@ every candlestick and chart pattern should have a get_setups() function to retur
 
 setup object using bbs, keltner channels and RSI to test the backtester
 
-fundamental - get fxstreet archive and dailyfx archives 
-
 SCREENING - candle stick scanner for candle stick patterns and chart patterns. Use to determine entry points
 	- candlestick patterns at high timeframes 
 	- chart breakout patterns at lower timeframes (eg 4h) 

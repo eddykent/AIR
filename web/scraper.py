@@ -68,6 +68,25 @@ class Article:
 		except (ValueError,IndexError) as e:
 			self.source_ref = link # not specific enough :( 
 	
+	@classmethod
+	def relevant_properties(self):
+		return ['title','summary','author','link','source_title','full_text']
+	
+	def relevant_values(self): #everything that is returned in the json for compression 
+		
+		the_dict = self.__dict__
+		props = self.relevant_properties()
+		article_data = { prop:the_dict[prop] for prop in self.relevant_properties() }
+#			'title': self.title,
+#			'summary':self.summary,
+#			'author':self.author,
+#			'link':self.link,
+#			'source_title':self.source_title,
+#			'full_text':self.full_text
+#		}
+		return article_data
+	
+	
 	def __repr__(self):
 		return 'Article('+self.source_ref + ' - ' + self.title+')'
 	
@@ -109,7 +128,26 @@ class Article:
 			this_article.__lazy_load = False
 		
 		return this_article
+	
+	@staticmethod 
+	def from_dict(article_data):
+		publish_date = article_data['the_date'] #turn to datetime
+		if article_data.get('summary') is None:
+			article_data['summary'] = article_data['full_text'][:150]
+		this_article = Article(
+			publish_date, 
+			article_data['author'],
+			article_data['title'],
+			article_data['summary'],
+			article_data['source_title'],
+			article_data['link']
+		)
+		this_article.full_text = article_data['full_text']
+		this_article.source_ref = article_data['source_ref']
+		this_article.__lazy_load = False
+		return this_article
 		
+	
 	@staticmethod
 	def from_database_row(row):
 		guid, md5_hash, publish_date, source_ref, title_head, compressed, captured_date = row #unpack the row
@@ -130,14 +168,7 @@ class Article:
 	
 	def to_database_row(self):
 		#keep in here all stuff we want to compress - we don't want to hold shit loads of crap in the database :)
-		article_data = {
-			'title': self.title,
-			'summary':self.summary,
-			'author':self.author,
-			'link':self.link,
-			'source_title':self.source_title,
-			'full_text':self.full_text
-		}
+		article_data = self.relevant_values()
 		json_bytes = json.dumps(article_data).encode()
 		compressed_bytes = zlib.compress(json_bytes)
 		md5_hash = hashlib.md5(json_bytes).hexdigest()

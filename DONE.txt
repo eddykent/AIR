@@ -50,6 +50,8 @@ indicators in python using numpy for speed
 
 vectorize candlestick patterns
 
+fundamental - get fxstreet archive and dailyfx archives 
+
 
 BUGS:
 (FIXED)

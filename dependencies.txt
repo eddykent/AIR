@@ -12,5 +12,6 @@ nltk
 textblob
 webdriver-manager
 selenium
+tqdm
 #spacy
 #python -m spacy download en_core_web_lg

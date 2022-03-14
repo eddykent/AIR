@@ -9,7 +9,14 @@ WITH news AS (
 INSERT INTO news_article(hash_identifier,published_date,source_ref,title_head,compression)
 SELECT hash_identifier, published_date, source_ref, title_head, compression 
 FROM news 
-WHERE NOT EXISTS (SELECT 1 FROM news_article na WHERE na.hash_identifier = news.hash_identifier);
+WHERE NOT EXISTS (
+	SELECT 1 FROM news_article na 
+	WHERE na.hash_identifier = news.hash_identifier 
+	OR (na.title_head = news.title_head 
+		AND na.published_date = news.published_date 
+		AND na.source_ref = news.source_ref
+	)
+);
 
 --COMMIT;
 

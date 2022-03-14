@@ -133,7 +133,7 @@ class KeywordMapHelper:
 	map_file = 'keyword_mappings.json'
 	fsh = None
 	
-	def __init__(self,keyword_map_file=None):
+	def __init__(self,keyword_map_file=None,fsh=None):
 		if keyword_map_file is not None:
 			self.map_file = keyword_map_file
 		lfr = ListFileReader()
@@ -142,7 +142,7 @@ class KeywordMapHelper:
 		self.input_keyword_map = self.__construct_keyword_map(keyword_maps.items())
 		self.bloated_keyword_map = self.input_keyword_map
 		self.all_words_relevance = self.__generate_all_words(self.input_keyword_map)
-		self.fsh = ForexSlashHelper()
+		self.fsh = fsh if fsh else ForexSlashHelper()
 	
 	#if an article title or an article summary has any words that are interesting to us, it is relevant. 
 	#otherwise we can probably filter it out to save computational resources! 
