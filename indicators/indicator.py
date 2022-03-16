@@ -871,7 +871,7 @@ class WilliamsPercentRange(Indicator):
 		return np.stack([williams,overbought,oversold],axis=2)
 		
 		
-#todo if desired:
+#todo if desired: - this is buggy 
 class SuperTrend(Indicator):
 	
 	channel_keys = {'LOWER':0}#,'UPPER':1}
