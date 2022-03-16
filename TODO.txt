@@ -35,6 +35,8 @@ ASYNC all webcalls in the fundmental analysis! Async for AI too -- probably pret
 
 jupyter for presenting front end trade setups and ideas
 
+pivot points - use as a support/resistance & TP SL targets 
+
 
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs
@@ -89,6 +91,8 @@ hour should not be a db query parameter - we can get the hour from the datetime 
 selenium chrome driver - webdriver-manager cant auto detect chrome version - possibly permissions error
 
 draw snapshot should have default candle index parameter to -1
+
+on 15 min chart, candles all look very "top-heavy" . Perhaps caused by something in the candle selector query
 
 parabolic sar, atx and other various indicators are not working correctly
 
