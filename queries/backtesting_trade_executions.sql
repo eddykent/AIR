@@ -1,7 +1,6 @@
 WITH trade_signals AS (
 	SELECT * FROM (VALUES 
-		('test1','14 Feb 2022 12:30'::timestamp,'GBP/JPY','BUY',156,157.1,153.5,1440),  --didnt hit 
-		('test2','15 Feb 2022 12:30'::timestamp,'EUR/USD','SELL',1.135,1.132,1.138,1440) --a NULL entry price means START straight away. Therefore the earliest candle will be the FIRST one
+		%(trade_signals)s
 	) AS ts(signal_id, the_date, instrument, direction, entry_price, take_profit_price, stop_loss_price, duration)
 ),
 min_date AS (

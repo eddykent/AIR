@@ -1,15 +1,14 @@
-import psycopg2
 import pdb #? 
 import datetime
 from collections import namedtuple
 from typing import Optional,List
 
-from psycopg2.extensions import AsIs, register_adapter, adapt
+from psycopg2.extensions import AsIs as Inject
 
 from enum import Enum
 
 from utils import CurrencyPair, ListFileReader
-from trade_setup import TradeDirection, TradeSignal
+from setups import TradeDirection, TradeSignal
 
 
 ##classes that take a set of trade signals and then test if they won/lost. Also report statistics (win streaks, percent loss, drawdowns??) 
@@ -56,8 +55,14 @@ class BackTesterDatabase
 	
 	@overrides(BackTester)
 	def perform(self,trade_signals):
-		pass
-
+		sql_row = TradeSignal.sql_row
+		sql_rows = [self.cursor.mogrify(sql_row,ts.to_dict_row()) for ts in trade_signals]
+		sql_query = None
+		with open(self.sql_query_file,'r') as f:
+			sql_query = f.read()
+		self.cursor.execute(sql_query,{'trade_signals':Inject(','.join(sql_rows))})
+		query_result = self.cursor.fetchall()
+		#construct TradeResult tuples from query_result
 	
 
 #pass streams candles (labelled with their instrument name) to this class and then perfrom backtesting using this data

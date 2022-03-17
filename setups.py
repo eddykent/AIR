@@ -54,6 +54,8 @@ class TradeSignal:
 	stop_loss = 0 #the value to exit the trade at when it loses - flat price
 	length = 1440 #1440 minutes in 24 hours
 	
+	sql_row = "(%(signal_id)s,%(the_date)s,%(instrument)s,%(direction)s,%(entry)s,%(take_profit)s,%(stop_loss)s,%(length)s)"
+	
 	def __init__(self):
 		self.signal_id = str(uuid.uuid4())
 		
@@ -100,7 +102,18 @@ class TradeSignal:
 		reward = math.abs(self.take_profit - current_price)
 		return reward / risk
 		
-
+	def to_dict_row(self):
+		direction_str = 'BUY' if self.direction = TradeDirection.BUY else 'SELL' if self.direction = TradeDirection.SELL else 'VOID'
+		return {
+			'signal_id':self.signal_id,
+			'the_date':self.the_date,
+			'instrument':self.instrument,
+			'direction':direction_str,
+			'entry':self.entry,
+			'take_profit':self.take_profit,
+			'stop_loss':self.stop_loss,
+			'length':self.length
+		}
 
 
 class TradeSetup:	
