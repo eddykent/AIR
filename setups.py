@@ -3,7 +3,8 @@
 
 from enum import Enum
 from collections import namedtuple
-
+import uuid
+import math
 
 from utils import ListFileReader, Database
 
@@ -38,20 +39,23 @@ class Inequality(Enum):
 
 #if "sell if x exceeds y" etc - used for generating signals from indicators or chart patterns etc. stoploss can be a key to use, or a percent etc 
 SetupCriteria = namedtuple('SetupCriteria','direction expr1 ineq expr2 stop_type stop_loss take_profit') 
+#stop criteria separate?
+
 
 ##A tuple representing a trade that will be taken that has some bounds on it (stop_loss & take_profit)
 class TradeSignal:
+	signal_id = None #signal id to refer specifically to this signal 
 	the_date = None   #datetime - the time the signal was created 
-	strategy = '' #the strategy that this came from - the class name of the trade_setup or whatever 
+	strategy_ref = '' #the strategy that this came from - the class name of the trade_setup or whatever 
 	instrument = None  #the instrument that is being traded
 	direction = TradeDirection.VOID  # a buy or sell (void means to be ignored/deleted)
 	entry = None #the entry price to start the trade at. If null, start immediately
-	take_profit = 0  #the value to exit the trade at when it wins
-	stop_loss = 0 #the value to exit the trade at when it loses
+	take_profit = 0  #the value to exit the trade at when it wins - flat price
+	stop_loss = 0 #the value to exit the trade at when it loses - flat price
 	length = 1440 #1440 minutes in 24 hours
 	
 	def __init__(self):
-		pass  #not sure what to put here yet
+		self.signal_id = str(uuid.uuid4())
 		
 	@staticmethod
 	def from_simple(instrument,direction):
@@ -59,6 +63,7 @@ class TradeSignal:
 		this_signal.instrument = instrument
 		this_signal.direction = direction
 		return this_signal
+		
 	
 	@staticmethod
 	def from_full(datetime,instrument,strategy,direction,entry,take_profit,stop_loss,length=1440):
@@ -72,6 +77,29 @@ class TradeSignal:
 		this_signal.stop_loss = stop_loss
 		this_signal.length = length
 		return this_signal
+	
+	def set_stops_current_distance(self,current_price,take_profit,stop_loss):
+		pass
+	
+	def set_stops_entry_distance(self,take_profit,stop_loss):
+		pass
+	
+	def set_stops_current_percentage(self,current_price,take_profit,stop_loss):
+		pass
+	
+	def set_stops_entry_percentage(self,take_profit,stop_loss):
+		pass
+	
+	
+	def get_risk_reward_entry(self):
+		assert self.entry not None, "Need an entry price for that!"
+		return self.get_risk_reward_current(self.entry)
+	
+	def get_risk_reward_current(self,current_price):
+		risk = math.abs(self.stop_loss - current_price)
+		reward = math.abs(self.take_profit - current_price)
+		return reward / risk
+		
 
 
 

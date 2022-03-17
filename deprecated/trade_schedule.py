@@ -16,7 +16,7 @@ from utils import CurrencyPair, ListFileReader
 from trade_setup import TradeDirection, TradeSignal
 
 
-
+##deprecate? 
 #class for holding trade signals that can be filtered by filters. TradeSignal types are generated using setups in trade_setup 
 class TradeSchedule:
 	
