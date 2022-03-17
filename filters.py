@@ -10,7 +10,11 @@ from utils import CurrencyPair, ListFileReader
 from trade_setup import TradeSignal, TradeDirection 
 
 
-#abstract class for laying out a trade filter - attempt to stop "stupid" trades! - move to trade_filter.py? 
+#extend to be across time? 
+
+#each filter takes a result from one instance in time. Perhaps they can be extended to allow for filtering trade signals across different times? 
+
+#abstract class for laying out a trade filter - attempt to stop "stupid" trades! 
 class TradeFilter:
 	
 	all_pairs = []

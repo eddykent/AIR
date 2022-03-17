@@ -19,7 +19,7 @@ fx_pairs = lfr.read('fx_pairs/fx_mains.txt')
 	
 the_date = datetime.datetime(2022,3,4,12,0)
 params = {
-	'chart_resolution':60,
+	'chart_resolution':15,
 	'the_date':the_date,
 	'hour':the_date.hour,
 	'days_back':20,
@@ -43,9 +43,9 @@ database_response = cur.fetchall()
 #OurIndicator = Aroon
 #OurIndicator = PPO
 #OurIndicator = ParabolicSAR
-OurIndicator = IchimokuCloud
+#OurIndicator = IchimokuCloud
 #OurIndicator = RVI
-#OurIndicator = DonchianChannel
+OurIndicator = DonchianChannel
 #OurIndicator = WilliamsPercentRange
 #OurIndicator = SuperTrend
 
@@ -59,7 +59,6 @@ results = indicator.calculate_multiple(candle_streams)
 
 
 #pdb.set_trace()
-
 this_view = chv.ChartView()
 this_view.draw_candles(candle_streams[0])
 indicator_view = indicator.draw_snapshot(candle_streams[0])
