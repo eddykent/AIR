@@ -98,7 +98,7 @@ class TimeHandler:
 	#	return self.handle_timezone(timestr)
 	#
 	
-	@staticmethod
+	@staticmethod  #date has format Day/Month/Year 
 	def from_str_1(the_str,date_delimiter='.',time_delimiter=':'):
 		#09.03.2022 00:52:56
 		a_date,a_time = the_str.split(' ')
@@ -111,7 +111,7 @@ class TimeHandler:
 			s = time_bits[2]
 		return datetime.datetime(y,m,d,h,n,s)
 	
-	@staticmethod
+	@staticmethod #date has format Year/Month/Day 
 	def from_str_2(the_str,date_delimiter='-',time_delimiter=':'):
 		#09.03.2022 00:52:56
 		a_date,a_time = the_str.split(' ')
@@ -232,6 +232,14 @@ class ListFileReader:
 	
 	def read_full_text(self,filename):
 		return '\n'.join(self.read(filename))
+	
+	def read_csv(self,filename):
+		lines = self.read(filename)
+		heads = lines[0].split(',')
+		result_dicts = []
+		for line in lines[1:]:
+			result_dicts.append({k:v for k,v in zip(heads,line.split(','))})
+		return result_dicts
 	
 #wrapper around SafeConfigParser to get config - particularly db connection info 
 class Configuration: 

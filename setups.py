@@ -68,11 +68,11 @@ class TradeSignal:
 		
 	
 	@staticmethod
-	def from_full(datetime,instrument,strategy,direction,entry,take_profit,stop_loss,length=1440):
+	def from_full(the_date,instrument,strategy_ref,direction,entry,take_profit,stop_loss,length=1440):
 		this_signal = TradeSignal()
-		this_signal.datetime = datetime 
+		this_signal.the_date = the_date 
 		this_signal.instrument = instrument
-		this_signal.strategy = strategy
+		this_signal.strategy_ref = strategy_ref
 		this_signal.direction = direction
 		this_signal.entry = entry 
 		this_signal.take_profit = take_profit
@@ -94,7 +94,7 @@ class TradeSignal:
 	
 	
 	def get_risk_reward_entry(self):
-		assert self.entry not None, "Need an entry price for that!"
+		assert (self.entry is not None), "Need an entry price for that!"
 		return self.get_risk_reward_current(self.entry)
 	
 	def get_risk_reward_current(self,current_price):
@@ -103,7 +103,7 @@ class TradeSignal:
 		return reward / risk
 		
 	def to_dict_row(self):
-		direction_str = 'BUY' if self.direction = TradeDirection.BUY else 'SELL' if self.direction = TradeDirection.SELL else 'VOID'
+		direction_str = 'BUY' if self.direction == TradeDirection.BUY else 'SELL' if self.direction == TradeDirection.SELL else 'VOID'
 		return {
 			'signal_id':self.signal_id,
 			'the_date':self.the_date,

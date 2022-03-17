@@ -74,7 +74,7 @@ outcomes AS (
 ),
 earliest_entries_calc AS (
 	SELECT DISTINCT ON (sp.signal_id) sp.*,
-	CASE WHEN entry_price IS NULL THEN (high_price + low_price + close_price) / 3 ELSE entry_price END AS typical_starting_price,
+	CASE WHEN entry_price IS NULL THEN (high_price + low_price + close_price) / 3 ELSE entry_price END AS typical_starting_price, --parameter 
 	(take_profit_state = stop_loss_state AND entry_price IS NULL)
 	OR (direction = 'BUY' AND take_profit_price < stop_loss_price) 
 	OR (direction = 'SELL' AND take_profit_price > stop_loss_price)	
@@ -120,8 +120,9 @@ results AS (
 	CASE 
 		WHEN sc.typical_starting_price IS NULL THEN 'STAGNATED' --trade never started 
 		WHEN sc.unfit OR ts.direction = 'VOID' THEN 'INVALID' --trade was not taken since it was invalid in some way
-		WHEN ec.won THEN 'WON' 
 		WHEN ec.lost THEN 'LOST' 
+		WHEN ec.won THEN 'WON' 
+		WHEN ec.won AND ec.lost THEN 'LOST'
 		WHEN NOT (ec.won OR ec.lost) THEN 
 		CASE 
 			WHEN ts.direction = 'BUY' AND ec.typical_ending_price > sc.typical_starting_price THEN 'WINNING'

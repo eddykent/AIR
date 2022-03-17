@@ -7,9 +7,8 @@ from psycopg2.extensions import AsIs as Inject
 
 from enum import Enum
 
-from utils import CurrencyPair, ListFileReader
+from utils import CurrencyPair, ListFileReader, overrides
 from setups import TradeDirection, TradeSignal
-
 
 ##classes that take a set of trade signals and then test if they won/lost. Also report statistics (win streaks, percent loss, drawdowns??) 
 
@@ -45,7 +44,7 @@ class BackTester:
 
 #perform a backtest by passing the trade signals directly into the database and using a sql query to get the results. 
 #Due to using the database, there is no way to be able to expose this to a loss function in tensorflow 
-class BackTesterDatabase
+class BackTesterDatabase(BackTester):
 	
 	sql_query_file = 'queries/backtesting_trade_executions.sql'
 	cursor = None #the database cursor - handled from something else 
@@ -56,14 +55,15 @@ class BackTesterDatabase
 	@overrides(BackTester)
 	def perform(self,trade_signals):
 		sql_row = TradeSignal.sql_row
-		sql_rows = [self.cursor.mogrify(sql_row,ts.to_dict_row()) for ts in trade_signals]
+		sql_rows = [self.cursor.mogrify(sql_row,ts.to_dict_row()).decode() for ts in trade_signals]
 		sql_query = None
 		with open(self.sql_query_file,'r') as f:
 			sql_query = f.read()
 		self.cursor.execute(sql_query,{'trade_signals':Inject(','.join(sql_rows))})
 		query_result = self.cursor.fetchall()
 		#construct TradeResult tuples from query_result
-	
+		
+		return query_result
 
 #pass streams candles (labelled with their instrument name) to this class and then perfrom backtesting using this data
 #this class might be exposable to an AI loss function. 

@@ -21,7 +21,8 @@
 #from tests.text_sentiment_test import *
 #from tests.fundamental_test import *
 
-from tests.indicators_test import *
+#from tests.indicators_test import *
+from tests.backtest_test import *
 
 #from tests.spacy_test import *
 
