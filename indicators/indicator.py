@@ -13,7 +13,7 @@ import pdb
 #possibly organise/split this file into oscillators, volatility, trend followers and trend reversals ?
 import charting.chart_viewer as chv #get all chart viewing elements so we can also draw nice charts. The view can  be "added" to a candlestick chart where appropriate
 import charting.candle_stick_functions as csf
-from trade_setup import TradeSignal, TradeDirection, SetupCriteria
+from setups import TradeSignal, TradeDirection, SetupCriteria
 from utils import overrides 
 
 
