@@ -1,9 +1,4 @@
 TODO: 
-extend test_trades.sql or use another sql to test full tradesignal types
-	- select all candles for the trade
- 	- perfrom analysis to see if/when the candle gets high enough/low enough 
-	- report win/lose/finish percentage 
-
 DEFENSIVE CODING: documentation, type hints and overrides for all non-testing python scripts. (use typecheck?)
 
 t212 handler - functions "query trades", "place trade", "get trade", "clear charts", "pull the plug" etc. keep journal of trades?
@@ -20,11 +15,16 @@ SCREENING - candle stick scanner for candle stick patterns and chart patterns. U
 	- chart breakout patterns at lower timeframes (eg 4h) 
 	- chart breakout patterns again at lowest (15m?) timeframes to identify entry points 
 
+PLURALIZATION
+pluralise filters.py to use all times not just now 
+pluralise fundamental.py to work with historic news articles and recent news articles 
+pluralise all chart patterns. Start with match_pattern as  it already uses numpy
+	- scipy maximas/minimas should come in handy
+
 Create & test full RNN with candles_and_indicators.sql, currency_strengths, correlations etc & get_y_values.sql 
 
-Write testing framework (to run a bunch of tests sequentially) and 
-store the results. Then leave it running to find best param settings 
-report % wins, streaks etc 
+Write testing framework (to run a bunch of tests sequentially) and store the results. Then leave it running to find best param settings 
+report % wins, streaks etc   --go for similar behaviour to ProQuant 
 after making an autonomous trading bot - keep all trades in a table called trade_journal - make trade_journal.py
 
 Partial RNN - use correlation matrix for grouping pairs together before running through an RNN
@@ -35,7 +35,7 @@ ASYNC all webcalls in the fundmental analysis! Async for AI too -- probably pret
 
 jupyter for presenting front end trade setups and ideas
 
-pivot points - use as a support/resistance & TP SL targets 
+pivot points? - use as a support/resistance & TP SL targets 
 
 
 IDEAS: 
@@ -99,7 +99,7 @@ parabolic sar, atx and other various indicators are not working correctly
 ONGOING: - stuff that might not ever have an end to it because it can always be made better
 fundamental stuff needs more testing to get it better - perhaps collecting results should be done by date not significance, and only use degree=1
 
-all chart patterns need tuning & testing properly
+all chart patterns need tuning & testing properly - need refactor to use numpy or similar
 
 some drawing indicators eg ichimoku
 

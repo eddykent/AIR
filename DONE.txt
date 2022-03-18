@@ -53,6 +53,13 @@ vectorize candlestick patterns
 fundamental - get fxstreet archive and dailyfx archives 
 
 
+extend test_trades.sql or use another sql to test full tradesignal types
+	- select all candles for the trade
+ 	- perfrom analysis to see if/when the candle gets high enough/low enough 
+	- report win/lose/finish percentage 
+	- return profit paths? -1 = stoploss 1 = takeprofit report path between 
+
+
 BUGS:
 (FIXED)
 Currency strength from sentiment indicator! see:

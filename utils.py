@@ -1,6 +1,7 @@
 # class for reading list files
 
 import psycopg2
+import psycopg2.extras
 import datetime
 import time
 import hashlib
@@ -11,7 +12,6 @@ import re
 import numpy as np
 
 #from collections import MutableSequence
-
 
 from configparser import ConfigParser
 
@@ -303,6 +303,7 @@ class Database:
 	query = ''
 	rows = [] 
 	query_cache_dir = 'pickles/datacache'
+	previous_query_filename = 'queries/previous_query.txt'
 	commit = False
 	
 	default_parameters = {
@@ -335,7 +336,7 @@ class Database:
 	def __init__(self,commit=False,cache=True,config=None):
 		cfg = Configuration() if config is None else config
 		self.con = psycopg2.connect(cfg.database_connection_string())
-		self.cur = self.con.cursor()
+		self.cur = self.con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 		self.commit = commit #when true, when exiting the query will be committed
 		self.cache = cache # oh my goodness you will be hunting for hours if you dont disable this on database updates! :)
 	
@@ -381,6 +382,8 @@ class Database:
 		else:
 			self.cur.execute(query,self.get_default_parameters(params))
 			self.rows = self.cur.fetchall()
+		with open(self.previous_query_filename,'wb') as f:
+			f.write(self.query)
 			
 	def fetchall(self):
 		return self.rows
