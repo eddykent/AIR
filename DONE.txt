@@ -59,6 +59,10 @@ extend test_trades.sql or use another sql to test full tradesignal types
 	- report win/lose/finish percentage 
 	- return profit paths? -1 = stoploss 1 = takeprofit report path between 
 
+pluralise fundamental.py to work with historic news articles and recent news articles so it can be used in backtesting 
+
+
+
 
 BUGS:
 (FIXED)
@@ -89,6 +93,8 @@ rsi values seem to be lagged by 1 step- could be due to not knowing the next can
 (FIXED)
 some sources are not working quite so well - eg forexcrunch 
 need to test for fulltexts in the sentiment analyser. Keep running it and figure out how to improve the scrapers
+
+(FIXED) realdictcursor should not be used as it adds overhead. unpack sql row instead 
 
 (FIXED)
 sentiment scores - when a positive sell order is given (Eg from fxstreet etc) it shows as a positive sentiment 

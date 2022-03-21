@@ -16,8 +16,7 @@ SCREENING - candle stick scanner for candle stick patterns and chart patterns. U
 	- chart breakout patterns again at lowest (15m?) timeframes to identify entry points 
 
 PLURALIZATION
-pluralise filters.py to use all times not just now 
-pluralise fundamental.py to work with historic news articles and recent news articles 
+pluralise filters.py to use all times not just now so they can be used in backtesting --all filters need refactoring possibly to use indicators
 pluralise all chart patterns. Start with match_pattern as  it already uses numpy
 	- scipy maximas/minimas should come in handy
 
@@ -54,7 +53,9 @@ signal generating tactic using anything we have already and can be used
 with multiple timeframes. This will help with screening all the pairs
 
 Fundamental analysis/signals - use RSS feeds and a feed reader to get 
-sentiment for currencies and for currency pairs  - Twitter and Reddit
+sentiment for currencies and for currency pairs  - Twitter and Reddit, https://www.fx.co/en
+
+AI to read news and learn trends - 60k news articles to learn from! 
 
 test chart patterns and practice drawing them - gradient descent for finding params? 
 shape based and trending are pretty broken and need fixing up 
