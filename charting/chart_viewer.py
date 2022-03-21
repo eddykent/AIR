@@ -402,6 +402,12 @@ class ChartPainter:
 			'bearish':{'stroke':'rgb(255,0,0)'},
 			'keyinfo':{'stroke':'rgb(0,255,255)'}
 		},
+		'carets':{
+			'neutral':{'stroke':'rgb(100,100,255)'},
+			'bullish':{'stroke':'rgb(0,255,0)'},
+			'bearish':{'stroke':'rgb(255,0,0)'},
+			'keyinfo':{'stroke':'rgb(0,255,255)'}
+		},
 		#'level': #support and resistance lines
 		#'level_hit_point' #breakouts at support/resistance and also touch points on trend lines 
 		#'follow_line' #eg to draw a line over the candles to show the price action for a rising triangle

@@ -4,7 +4,7 @@ import re
 import time
 import datetime as DateTime
 from enum import Enum
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 
 import zlib
 import hashlib
@@ -43,6 +43,7 @@ class TextType(Enum):
 #bias - BULLISH, BEARISH, MIXED
 #significance - final sentiment score for using when performing fundamental analysis on the instrument 
 SentimentData  = namedtuple('SentimentData','the_date instrument keyword title summary source_url degree bias significance')
+TimelineData = namedtuple('TimelineData','the_date source_ref source_url bias significance') 
 
 class TallyBias:
 	
@@ -67,15 +68,15 @@ class TallyBias:
 				
 		return collected_result
 	
+#this suffers from "god class" and needs to be refactored into smaller pieces
+class ArticleCollector:
 
-class FeedCollect:
-
-	sources = [] 
 	articles = [] 
 	
 	all_findings = [] #SentimentData objects
 	_reduced_findings = []
 	instrument_summary = {}# for each instrument, keep a simple "bullish"/"bearish" score gerneated from the findings 
+	instrument_timelines = {}#for each instrument, keep a nice timeline of what news there was plus sentiment scores etc 
 	
 	_article_sentiment = []#keep sentiment per article
 	_article_topics = []
@@ -84,14 +85,6 @@ class FeedCollect:
 	
 	parameter_settings = {'subjectivity_threshold':0.2,'slight_threshold':0.25,'full_threshold':0.5,'significance_threshold':0.0}
 
-	def __init__(self,sources): 
-		self.sources = sources
-		
-	#def __analyse_???? sentiment analysis stuff 
-	 
-	def parse_feeds(self):
-		raise NotImplementedError('This method must be overridden')
-	
 	def get_text_type(self,article,text_analyser):
 		the_type = TextType.STORY #default to story
 		if article.full_text == 'VIDEO':
@@ -109,12 +102,10 @@ class FeedCollect:
 		self._article_types = [TextType.UNKNOWN for a in self.articles]
 		#self._article_signals = [[] for a in self.articles]
 		self._article_sentiment = [{} for a in self.articles]
-		self._article_topics = [[] for a in self.articles]
+		self._article_topics = [{} for a in self.articles]
 		
 		for i, article in enumerate(self.articles):
 			
-			#if i == 5:  #WHY THE FUCK ARE LOADS OF CURRENCIES GOING INTO HERE
-			#	pdb.set_trace()
 			relevant = text_analyser.keyword_helper.relevant_keys(article.title + ' ' + article.summary)
 			
 			if not relevant:
@@ -220,6 +211,7 @@ class FeedCollect:
 	
 	
 	#generate insturment_summary from all articles, and generate SentimentData for storing the reasons 
+	#this function works for right now but not for across a timeline. use to_timelines() for that
 	def collect(self):
 		self._collect_findings()
 		self._reduce_findings()
@@ -232,21 +224,79 @@ class FeedCollect:
 		for instrument, sds in findings_by_instrument.items():
 			self.instrument_summary[instrument] = TallyBias.collect([sd.bias for sd in sds])
 	
+	#plot per article 
+	def to_article_timelines(self,instruments=[]):	
+		instrument_timelines = defaultdict(list)
+		for article,topic,sentiment in zip(self.articles,self._article_topics,self._article_sentiment):
+			#pdb.set_trace()
+			for instrument,relevance_info in topic.items():
+				sentiment_value = sentiment.get('overview',{}).get('polarity',0)
+				if relevance_info.degree == 1: #only stack things that are relevant to the first degree
+					bias_number = sentiment_value * relevance_info.direction
+					timeline_data = TimelineData(\
+						the_date=article.the_date,\
+						source_ref=article.source_ref,
+						source_url=article.link,
+						bias=self._get_bias(bias_number),
+						significance=abs(sentiment_value)
+					)  #the_date source_ref source_url bias significance
+					instrument_timelines[instrument].append(timeline_data)	
+		#return a bunch of timelines that have the article date, the article bias etc organised per instrument
+		for instrument, timeline in instrument_timelines.items(): #sort them by date in ascending order
+			instrument_timelines[instrument] = sorted(timeline,key=lambda tld:tld.the_date)
+		return instrument_timelines
+	
+	#plot per finding - eg in sentences in articles etc 
+	def to_findings_timelines(self,instruments=[]):
+		instrument_timelines = defaultdict(list)
+		self._collect_findings()
+		for sentiment_data in self.all_findings:
+			timeline_data = TimelineData(\
+				the_date=sentiment_data.the_date,\
+				source_ref=FeedCollect._pretty_sourcename(sentiment_data.source_url),\
+				source_url=sentiment_data.source_url,\
+				bias=sentiment_data.bias,\
+				significanc=sentiment_data.significance\
+			)
+			instrument_timelines[sentiment.instrument].append(timeline_data)
+		for instrument, timeline in instrument_timelines.items(): #sort them by date in ascending order
+			instrument_timelines[instrument] = sorted(timeline,key=lambda tld:tld.the_date)
+		return instrument_timelines
+	
+	
+	def pass_articles(self,some_collector):
+		self.articles.extend(some_collector.articles)
+	
+	def clear_articles(self):
+		self.articles.clear()
+	
+	def dedupe(self,key_funct=None): #perhaps choose what to use as the key here 
+		#key by source? link? 
+		if not callable(key_funct) or key_funct is None:
+			key_funct = lambda a: a.link
+		articles_by_key = defaultdict(list)
+		for article in self.articles:
+			key = key_funct(article)
+			articles_by_key[key].append(article)
+		self.clear_articles()
+		for key in articles_by_key:
+			sorted_same_articles = sorted(articles_by_key[key],key=lambda a:a.the_date)
+			self.articles.append(sorted_same_articles[-1]) #get latest 
+	
 	#load articles from the database that are saved from before if no from_Data/to_date is provided every article ever will be loaded!
 	def load_articles(self,start_date=DateTime.datetime(2000,1,1),end_date=DateTime.datetime.now()):
 		query = ''
-		self.articles = []
 		with open('queries/load_articles.sql','r') as f:
 			query = f.read()
 		article_data = []
-		with Database(commit=False,cache=True) as cur:
+		with Database(commit=False,cache=False) as cur:
 			cur.execute(query,{'start_date':start_date, 'end_date':end_date})
 			article_data = cur.fetchall()
 		for a in article_data:
 			self.articles.append(Article.from_database_row(a))
 		
 		
-	#we can save articles to the database to get 
+	#we can save articles to the database
 	def save_articles(self):
 		rows = []
 		sql_row =  "(%(hash_identifier)s,%(published_date)s,%(source_ref)s,%(title_head)s,%(compression)s)" #Article.sql_row
@@ -274,12 +324,25 @@ class FeedCollect:
 				#cur.connection.commit()#	
 			
 	
+
+#a feed collect goes to the web and scrapes sources for latest news 
+class FeedCollect:
+	
+	sources = []
+	articles = []
+	
+	def __init__(self,sources): 
+		self.sources = sources
+	
+	def parse_feeds(self):
+		raise NotImplementedError('This method must be overridden')
+	
 	@staticmethod
 	def _pretty_sourcename(link):
 		bits = re.split('//|/|\?',link)
 		return bits[1].replace('www.','')
 
-##collectors that look at feeds and do some simple analysis to find market sentiment 
+##collectors that look at feeds from the web to get most recent news data
 class RSSCollect(FeedCollect):
 	
 	entries = [] 

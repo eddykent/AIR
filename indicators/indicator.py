@@ -1,7 +1,6 @@
 
 from collections import namedtuple
-from collections.abc import Sequence 
-from typing import Optional
+from typing import Optional, List
 from enum import Enum
 
 import numpy as np 
@@ -31,8 +30,12 @@ class Indicator:
 	"""
 	channel_keys = {} 
 	timeline = [] 
+	instrument_names = []
 	period = 20
 	candle_channel = csf.close
+	
+	def pass_instrument_names(self,_instrument_names):
+		self.instrument_names = _instrument_names
 	
 	#this method does not need to be implemented since we can just perfrom a calculate_multiple! :) 
 	def calculate(self,candle_stream : list,candle_stream_index : Optional[int]=-1) -> np.array:

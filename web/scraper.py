@@ -151,7 +151,8 @@ class Article:
 	@staticmethod
 	def from_database_row(row):
 		guid, md5_hash, publish_date, source_ref, title_head, compressed, captured_date = row #unpack the row
-		article_data = json.loads(zlib.decompress(compressed).decode())
+		decompressed_json = zlib.decompress(compressed).decode()
+		article_data = json.loads(decompressed_json)
 		this_article = Article(
 			publish_date,
 			article_data['author'],

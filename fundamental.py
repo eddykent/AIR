@@ -7,6 +7,9 @@ import nltk
 import nltk.sentiment
 from textblob import TextBlob
 
+from typing import Optional,List
+import numpy as np
+
 from collections import namedtuple
 from string import punctuation
 import json
@@ -22,6 +25,9 @@ import web.client_sentiment_indicators as clisps
 import web.feed_collector as feedco
 from web.crawler import SeleniumHandler
 from web.feed_collector import TextBias as Bias, TextType, TallyBias
+
+from indicators.indicator import Indicator
+import charting.chart_viewer as chv
 
 KeywordMap = namedtuple('KeywordMap','keyword values')
 RelevanceInfo = namedtuple('RelevanceInfo', 'degree direction keyword')
@@ -163,7 +169,7 @@ class KeywordMapHelper:
 			values = keyword_mapping.values		
 			#check bloat values only for degree 2 relationships 
 			for value in values:
-				direction = 1 if self.bullish(value) else -1 if self.bearsh(value) else 0
+				direction = 1 if self.bullish(value) else -1 if self.bearish(value) else 0
 				if value.lower() in str(textblob):  #phrase-like not word like
 					relevant_keys[keyword] = RelevanceInfo(2,direction,value)
 		
@@ -180,7 +186,7 @@ class KeywordMapHelper:
 			if values: 	#values is usually [] for input_keyword_map
 				for value in values:
 					if value and value.lower() in str(textblob):
-						direction = 1 if self.bullish(value) else -1 if self.bearsh(value) else 0
+						direction = 1 if self.bullish(value) else -1 if self.bearish(value) else 0
 						relevant_keys[keyword] = RelevanceInfo(1,direction,value)
 			
 		return relevant_keys
@@ -221,7 +227,7 @@ class KeywordMapHelper:
 		return value == value.upper()
 	
 	@staticmethod
-	def bearsh(value):
+	def bearish(value):
 		return value == value.lower()
 	
 
@@ -271,9 +277,11 @@ class TextAnalysis:
 	fsh = None
 	text_type_config = {}
 	
-	def __init__(self, keyword_helper, text_type_config_file='text_type_words.json'):
+	def __init__(self, keyword_helper=None, text_type_config_file='text_type_words.json'):
 		self.stopwords = set(nltk.corpus.stopwords.words('english'))
 		self.sentiment_analyzer = nltk.sentiment.SentimentIntensityAnalyzer()
+		if keyword_helper is None:
+			keyword_helper = KeywordMapHelper()#use default 
 		self.keyword_helper = keyword_helper
 		if callable(self.keyword_helper.bloat):
 			self.keyword_helper.bloat() 
@@ -331,6 +339,104 @@ class TextAnalysis:
 		divizor = len(textblob.words) ** 0.5
 		
 		return ((questionables + personifiers) / divizor) > 0.75 or (questionables / divizor) > 0.5 or (personifiers / divizor) > 0.5 
+
+
+
+#make an indicator style news reading tool - it can call detect() and everything else just like any other indicator?
+#or we pluralise filters. make them work on a particular time frame (eg 1h, 4h or 1d) 
+class NewsIndicator(Indicator):
+	
+	timelines = {}
+	instrument = 'AUD/CAD' #set the instrument before calling draw_snapshot as a hack to get it to fking work like an indicator
+	article_collector = None
+	text_analyser = None
+	
+	def __init__(self,article_collector,text_analyser):
+		self.article_collector = article_collector #set up should read all news etc! 
+		self.text_analyser = text_analyser
+	
+	def draw_snapshot(self,candle_stream : list ,snapshot_index : int = -1) -> chv.ChartView:
+		this_view = chv.ChartView() 
+		
+		candle_stream_timeline = [c[-1] for c in candle_stream]
+		start_date = candle_stream_timeline[0]
+		end_date = candle_stream_timeline[-1]
+		
+		indexs = self._find_indexs(candle_stream_timeline)
+		timeline = self.timelines.get(self.instrument,[])
+		timeline = [t for t in timeline if t.the_date >= start_date and t.the_date < end_date]
+		timeline = sorted(timeline,key=lambda x:x.the_date)
+		maxy = max([c[1] for c in candle_stream])
+		miny = min([c[2] for c in candle_stream])
+		timefloats = {}
+		for td, index in zip(timeline,indexs):
+			if index is not None:
+				timefloats[index] = self._timefloat(candle_stream_timeline[index],td.the_date,candle_stream_timeline[index+1])
+		for td, index in zip(timeline,indexs):
+			if index is None:
+				continue
+			timefloat = timefloats[index]
+			x = index + timefloat - 0.5 #why not just do all like this :) - because the time will not marry up to the candles due to weekends etc
+			line = chv.Line(x,maxy,x,miny)
+			if td.bias in [Bias.SLIGHT_BEARISH,Bias.BEARISH]:
+				this_view.draw('carets bearish lines',line)
+			elif td.bias in [Bias.SLIGHT_BULLISH,Bias.BULLISH]:
+				this_view.draw('carets bullish lines',line)
+			else:
+				this_view.draw('carets neutral lines',line)
+		return this_view
+	
+	def _perform(self,candle_stream : list,candle_stream_index : Optional[int]=-1) -> np.array:
+		#dont actually do anything with the candles as we are going to load in all the news instead & get sentiment 
+		start_date = self.timeline[0][0]
+		end_date = self.timeline[-1][0]
+		#load from db not from web since we should have already cached it from the web
+		#generate timelines with sentiment & topics etc
+		self.article_collector.load_articles(start_date,end_date)
+		self.article_collector.dedupe()
+		self.article_collector.analyse_articles(self.text_analyser)
+		self.timelines = self.article_collector.to_article_timelines() #what about findings? 
+		
+		
+	
+	def generate_setups(self,criteria : list) -> list:
+		return [] #no setups are created from the news indicator - it is used as a filter instead
+	
+	
+	def detect(self,criteria : list=[]) -> np.array:
+		result = [0 for t in self.timeline] #only one channel?
+		pass #find way of returning 1 for a positive news story release and -1... 
+
+	#helper function to get indexs from the candle stream of where the news stories are. 
+	def _find_indexs(self,candle_stream_timeline):
+		#draw carets onto the chart based on which instrument it is... 
+		start_date = candle_stream_timeline[0]
+		end_date = candle_stream_timeline[-1]
+		timeline = self.timelines.get(self.instrument,[])
+		#loop through candles and find where each news story is  
+		timeline = [t for t in timeline if t.the_date >= start_date and t.the_date < end_date]
+		candle_indexs = []
+		timeline = sorted(timeline,key=lambda x:x.the_date)
+		timeline_index = 0
+		i = 0
+		while i < len(candle_stream_timeline)-1:
+			this_candle_start = candle_stream_timeline[i]
+			next_candle_start = candle_stream_timeline[i+1]
+			this_story = timeline[timeline_index]
+			if this_story.the_date >= this_candle_start and this_story.the_date < next_candle_start:
+				candle_indexs.append(i)
+				timeline_index += 1 #it exits early because we get more than 1 news story in one candle! :(
+				if timeline_index == len(timeline):
+					break #must have found all the candle indexs now 
+			else:
+				i += 1
+		return candle_indexs
+	
+	@staticmethod
+	def _timefloat(dtl, dtc, dth):
+		return (dtc.timestamp() - dtl.timestamp()) / (dth.timestamp() - dtl.timestamp()) if dth != dtl else 0
+
+	
 
 
 
