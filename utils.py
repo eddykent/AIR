@@ -336,7 +336,7 @@ class Database:
 	def __init__(self,commit=False,cache=True,config=None):
 		cfg = Configuration() if config is None else config
 		self.con = psycopg2.connect(cfg.database_connection_string())
-		self.cur = self.con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+		self.cur = self.con.cursor()
 		self.commit = commit #when true, when exiting the query will be committed
 		self.cache = cache # oh my goodness you will be hunting for hours if you dont disable this on database updates! :)
 	
@@ -391,6 +391,7 @@ class Database:
 	
 	def fetchcandles(self,instruments):
 		return_dict = {} 	
+		
 		for instrument in instruments:
 			try:
 				return_dict[instrument] = sorted([

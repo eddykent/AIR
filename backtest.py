@@ -138,19 +138,12 @@ class BackTesterDatabase(BackTester):
 		query_result = self.cursor.fetchall()
 		trade_results = []
 		for result in query_result:
-			trade_result_paths = TradeProfitPath(typical=result['typical_path'],optimistic=result['optimistic_path'],pessimistic=result['pessimistic_path'])
-			trade_result = TradeResult(
-				signal_id=result['signal_id'],
-				entry_date=result['start_date'],
-				entry_price=result['starting_price'], 
-				entry_candle=result['start_candle'],
-				exit_date=result['end_date'],
-				exit_price=result['ending_price'],
-				exit_candle=result['end_candle'],
-				result_movement=result['movement'],
-				result_percent=result['percent_move'],
-				result_status=self.trade_result.get(result['status'].upper(),TradeResultStatus.VOID),
-				profit_path=trade_result_paths)
+			result_row, path = result #unpack 
+			trade_result_paths = TradeProfitPath(**path)
+			result_status = self.trade_result.get(result_row['result_status'].upper(),TradeResultStatus.VOID)
+			result_row['result_status'] = result_status
+			result_row['profit_path'] = trade_result_paths
+			trade_result = TradeResult(**result_row)
 			trade_results.append(trade_result)
 		return trade_results
 	
