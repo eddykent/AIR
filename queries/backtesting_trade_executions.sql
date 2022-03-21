@@ -169,11 +169,25 @@ profit_paths AS (
 	JOIN results_percent rp ON ppp.signal_id = rp.signal_id 
 	WHERE ppp.candle_index >= rp.start_candle AND ppp.candle_index <= rp.end_candle 
 	GROUP BY ppp.signal_id
+) --build json rows as results 
+SELECT 
+JSON_BUILD_OBJECT(
+	'signal_id',rp.signal_id,
+	'entry_date',rp.start_date,
+	'entry_price',rp.starting_price,
+	'entry_candle',rp.start_candle,
+	'exit_date',rp.end_date, 
+	'exit_price',rp.ending_price, 
+	'exit_candle',rp.end_candle,
+	'result_movement',rp.movement,
+	'result_percent',rp.percent_move,
+	'result_status',rp.status 
+),
+JSON_BUILD_OBJECT(
+	'typical',pp.typical_path,
+	'optimistic',pp.optimistic_path,
+	'pessimistic',pp.pessimistic_path 
 )
-SELECT rp.*,
-pp.typical_path,
-pp.optimistic_path,
-pp.pessimistic_path 
 FROM results_percent rp
 LEFT JOIN profit_paths pp ON pp.signal_id = rp.signal_id 
 
