@@ -12,8 +12,8 @@ for msd in mock_signals_dicts:
 	msd['the_date'] = TimeHandler.from_str_1(msd['the_date'],date_delimiter='/')
 	msd['direction'] = TradeDirection.BUY if msd['direction'] == 'BUY' else TradeDirection.SELL if msd['direction'] == 'SELL' else TradeDirection.VOID
 	msd['entry'] = float(msd['entry'])
-	msd['take_profit'] = float(msd['take_profit'])
-	msd['stop_loss'] = float(msd['stop_loss'])
+	msd['take_profit_distance'] = float(msd['take_profit_distance'])
+	msd['stop_loss_distance'] = float(msd['stop_loss_distance'])
 	msd['length'] = int(msd['length'])
 
 mock_signals = [TradeSignal.from_full(**msd) for msd in mock_signals_dicts]

@@ -25,7 +25,7 @@ SCREENING - candle stick scanner for candle stick patterns and chart patterns. U
 
 PLURALIZATION
 pluralise filters.py to use all times not just now so they can be used in backtesting --all filters need refactoring possibly to use indicators
-pluralise all chart patterns. Start with match_pattern as  it already uses numpy
+pluralise all chart patterns. Start with match_pattern as  it already uses numpy. this is a re-write 
 	- scipy maximas/minimas should come in handy
 
 Create & test full RNN with candles_and_indicators.sql, currency_strengths, correlations etc & get_y_values.sql 
@@ -42,7 +42,7 @@ ASYNC all webcalls in the fundmental analysis! Async for AI too -- probably pret
 
 jupyter for presenting front end trade setups and ideas
 
-pivot points? - use as a support/resistance & TP SL targets 
+pivot points? - use as a support/resistance & TP SL targets   - part of pluralization  
 
 organise indicators.py to be a few files 
 

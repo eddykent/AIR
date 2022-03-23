@@ -1,7 +1,7 @@
 WITH trade_signals AS (
 	SELECT * FROM (VALUES 
 		%(trade_signals)s
-	) AS ts(signal_id, the_date, instrument, direction, entry_price, take_profit_price, stop_loss_price, duration)
+	) AS ts(signal_id, the_date, instrument, direction, entry_price, take_profit_difference, stop_loss_difference, duration)
 ),
 min_date AS (
 	SELECT MIN(the_date) AS start_date FROM trade_signals 
@@ -24,13 +24,13 @@ selected_candles AS (
 	AND evt.the_date  < max_date.end_date 
 	AND evt.full_name = ANY(instruments.instruments)
 ),
-trade_tracks AS (
+trade_tracks_differences AS (
 	SELECT ts.signal_id,
 	ts.instrument,
 	ts.direction,
 	ts.entry_price,
-	ts.take_profit_price,
-	ts.stop_loss_price,
+	ts.take_profit_difference,
+	ts.stop_loss_difference,
 	sc.open_price,
 	sc.high_price,
 	sc.low_price,
@@ -38,8 +38,30 @@ trade_tracks AS (
 	sc.the_date,
 	ROW_NUMBER() OVER (PARTITION BY ts.signal_id ORDER BY sc.the_date) AS candle_index
 	FROM selected_candles sc 
-	JOIN trade_signals ts ON sc.instrument = ts.instrument 
+	JOIN trade_signals ts ON sc.instrument = ts.instrument
 	AND sc.the_date >= ts.the_date AND sc.the_date < ts.the_date + (ts.duration || ' minutes')::INTERVAL
+),
+typical_starts AS (
+	SELECT signal_id, 
+	CASE WHEN entry_price  IS NULL THEN (high_price + low_price + close_price) / 3.0 ELSE entry_price END AS start_price
+	FROM trade_tracks_differences
+	WHERE candle_index = 1 
+),
+trade_tracks AS (
+	SELECT tt.signal_id,
+	tt.instrument,
+	tt.direction,
+	tt.entry_price,
+	ts.start_price + tt.take_profit_difference*(CASE WHEN tt.direction = 'SELL' THEN -1 ELSE 1 END) AS take_profit_price,
+	ts.start_price + tt.stop_loss_difference*(CASE WHEN tt.direction = 'SELL' THEN 1 ELSE -1 END) AS stop_loss_price, 
+	tt.open_price,
+	tt.high_price,
+	tt.low_price,
+	tt.close_price,
+	tt.the_date,
+	tt.candle_index
+	FROM trade_tracks_differences tt 
+	JOIN typical_starts ts ON tt.signal_id = ts.signal_id 
 ),
 status_points AS (
 	SELECT *,

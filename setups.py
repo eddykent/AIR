@@ -50,11 +50,11 @@ class TradeSignal:
 	instrument = None  #the instrument that is being traded
 	direction = TradeDirection.VOID  # a buy or sell (void means to be ignored/deleted)
 	entry = None #the entry price to start the trade at. If null, start immediately
-	take_profit = 0  #the value to exit the trade at when it wins - flat price
-	stop_loss = 0 #the value to exit the trade at when it loses - flat price
+	take_profit_distance = 0  #the value to exit the trade at when it wins 
+	stop_loss_distance = 0 #the value to exit the trade at when it loses 
 	length = 1440 #1440 minutes in 24 hours
 	
-	sql_row = "(%(signal_id)s,%(the_date)s,%(instrument)s,%(direction)s,%(entry)s,%(take_profit)s,%(stop_loss)s,%(length)s)"
+	sql_row = "(%(signal_id)s,%(the_date)s,%(instrument)s,%(direction)s,%(entry)s,%(take_profit_distance)s,%(stop_loss_distance)s,%(length)s)"
 	
 	def __init__(self):
 		self.signal_id = str(uuid.uuid4())
@@ -68,39 +68,24 @@ class TradeSignal:
 		
 	
 	@staticmethod
-	def from_full(the_date,instrument,strategy_ref,direction,entry,take_profit,stop_loss,length=1440):
+	def from_full(the_date,instrument,strategy_ref,direction,entry,take_profit_distance,stop_loss_distance,length=1440):
 		this_signal = TradeSignal()
 		this_signal.the_date = the_date 
 		this_signal.instrument = instrument
 		this_signal.strategy_ref = strategy_ref
 		this_signal.direction = direction
 		this_signal.entry = entry 
-		this_signal.take_profit = take_profit
-		this_signal.stop_loss = stop_loss
+		this_signal.take_profit_distance = take_profit_distance
+		this_signal.stop_loss_distance = stop_loss_distance
 		this_signal.length = length
 		return this_signal
 	
-	def set_stops_current_distance(self,current_price,take_profit,stop_loss):
-		pass
-	
-	def set_stops_entry_distance(self,take_profit,stop_loss):
-		pass
-	
-	def set_stops_current_percentage(self,current_price,take_profit,stop_loss):
-		pass
-	
-	def set_stops_entry_percentage(self,take_profit,stop_loss):
-		pass
-	
-	
-	def get_risk_reward_entry(self):
-		assert (self.entry is not None), "Need an entry price for that!"
-		return self.get_risk_reward_current(self.entry)
+	def set_stops(self,take_profit_distance,stop_loss_distance):
+		self.take_profit_distance = take_profit_distance
+		self.stop_loss_distance = stop_loss_distance
 	
 	def get_risk_reward_current(self,current_price):
-		risk = math.abs(self.stop_loss - current_price)
-		reward = math.abs(self.take_profit - current_price)
-		return reward / risk
+		return self.take_profit_distance / self.stop_loss_distance
 		
 	def to_dict_row(self):
 		direction_str = 'BUY' if self.direction == TradeDirection.BUY else 'SELL' if self.direction == TradeDirection.SELL else 'VOID'
@@ -110,8 +95,8 @@ class TradeSignal:
 			'instrument':self.instrument,
 			'direction':direction_str,
 			'entry':self.entry,
-			'take_profit':self.take_profit,
-			'stop_loss':self.stop_loss,
+			'take_profit_distance':self.take_profit_distance,
+			'stop_loss_distance':self.stop_loss_distance,
 			'length':self.length
 		}
 
