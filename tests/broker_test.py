@@ -8,7 +8,7 @@ from web.broker import Trading212
 from web.crawler import SeleniumHandler
 
 
-from trade_setup import TradeSignal, TradeDirection
+from setups import TradeSignal, TradeDirection
 
 instrument_eurusd = []
 instrument_eurgbp = []
@@ -24,16 +24,18 @@ trade_info = []
 signal = TradeSignal()
 signal.the_date = datetime.datetime.now()
 signal.strategy = 'testing bot' 
-signal.instrument = 'USD/JPY'  
-signal.direction = TradeDirection.SELL 
-signal.entry = None #the entry price to start 
-signal.take_profit = 0.1  
-signal.stop_loss = 0.1 
+signal.instrument = 'EUR/USD'  
+signal.direction = TradeDirection.BUY 
+signal.entry = None#1.11 #the entry price to start 
+signal.take_profit_distance = 0.03
+signal.stop_loss_distance = 0.015
 signal.length = 1440 #1440 minutes in 24 hours
 
 
+new_tp = 1.13
+new_sl = 1.09
 
-
+#we need to make this file test everything - add a few pending orders and a few other things then query them and remove them etc 
 with SeleniumHandler(hidden=False) as sh:
 	t212 = Trading212(sh)
 	t212.begin()
@@ -47,13 +49,15 @@ with SeleniumHandler(hidden=False) as sh:
 	#acc_info = t212.get_account_info()
 	#trade_info = t212.get_historic_trades([trade_id1,missing_id,trade_id2])
 	
-	print('opening trade')
-	trade_position_id = t212.place_trade(signal)
-	
+	#print('opening trade')
+	#succ, trade_position_id = t212.place_trade(signal,1000)
+	#pending_trades = t212.get_pending_trades()
+	#closing 
+	#
+	#print('close trade')
+	#t212.close_trade('POS897104712')
+	t212.update_trade('POS897104785',new_tp,new_sl)
 	pdb.set_trace()
-	
-	print('close trade')
-	t212.close_trade(trade_position_id)
 	
 	print("reached here without breaking!")
 	

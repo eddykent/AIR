@@ -257,7 +257,7 @@ class XPathNavigator(Crawler):
 	
 	def get_multiple_elements(self,xpath_arg,expire=10):
 		return self.perform_wait_multi(By.XPATH, XPathNavigator.__process_arg_to_xpath(xpath_arg), expire)
-	
+		
 	def wait_nonexistant(self,xpath_arg,expire):
 		return self.perform_wait_nonexist(By.XPATH,XPathNavigator.__process_arg_to_xpath(xpath_arg), expire)
 	
@@ -266,6 +266,21 @@ class XPathNavigator(Crawler):
 	
 	def get_text(self,element):
 		return element.text.strip()
+	
+	#select return element from a parent element, based on another conditional element in the parent using a predicate
+	def get_element_junctional(self,xpath_parent,xpath_return,xpath_condition,predicate,expire=2):
+		parent_rows = self.get_multiple_elements(xpath_parent,expire)
+		for row in parent_rows:
+			#pdb.set_trace()
+			condition_xpath = '.'+XPathNavigator.__process_arg_to_xpath(xpath_condition)
+			return_xpath = '.'+XPathNavigator.__process_arg_to_xpath(xpath_return)
+			condition_element = row.find_element(By.XPATH, condition_xpath)
+			return_element = row.find_element(By.XPATH, return_xpath)
+			if condition_element is None or return_element is None:
+				continue
+			if predicate(condition_element) is True:
+				return return_element
+		return None
 	
 	def wait_for_text(self,xpath_arg,expire=2):
 		return self.perform_wait_text(By.XPATH,XPathNavigator.__process_arg_to_xpath(xpath_arg), expire)
