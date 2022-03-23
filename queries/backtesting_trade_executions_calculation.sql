@@ -114,8 +114,8 @@ profit_path_prices AS (
 	CASE WHEN o.direction = 'BUY' THEN o.low_price 
 		WHEN o.direction = 'SELL' THEN o.high_price 
 	ELSE NULL END AS pessimistic_price_path,
-	ee.typical_starting_price,  
-	GREATEST(ABS(ee.typical_starting_price - ee.take_profit_price),ABS(ee.typical_starting_price - ee.stop_loss_price)) AS scaler 
+	ee.typical_starting_price AS path_start_price,  
+	GREATEST(ABS(ee.typical_starting_price - ee.take_profit_price),ABS(ee.typical_starting_price - ee.stop_loss_price)) AS path_scale 
 	--need to work out normalising value? 
 	FROM outcomes o 
 	JOIN earliest_entries_calc ee ON ee.signal_id = o.signal_id 
@@ -160,15 +160,22 @@ results_percent AS (
 ),
 profit_paths AS (
 	SELECT ppp.signal_id, 
-	ARRAY_AGG(ppp.typical_price_path) AS typical_path, 
-	ARRAY_AGG(ppp.optimistic_price_path) AS optimistic_path, 
-	ARRAY_AGG(ppp.pessimistic_price_path) AS pessimistic_pat
-	FROM profit_path_price ppp
+	ARRAY_AGG((ppp.typical_price_path - path_start_price) / path_scale ORDER BY ppp.candle_index ASC ) AS typical_path, 
+	ARRAY_AGG((ppp.optimistic_price_path - path_start_price) / path_scale ORDER BY ppp.candle_index ASC ) AS optimistic_path, 
+	ARRAY_AGG((ppp.pessimistic_price_path - path_start_price) / path_scale ORDER BY ppp.candle_index ASC ) AS pessimistic_path,
+	MAX(path_scale) AS path_scale, --ALL same FOR this COLUMN 
+	MAX(path_start_price) AS path_start_price --ALL same FOR this COLUMN 
+	FROM profit_path_prices ppp
 	JOIN results_percent rp ON ppp.signal_id = rp.signal_id 
 	WHERE ppp.candle_index >= rp.start_candle AND ppp.candle_index <= rp.end_candle 
+	GROUP BY ppp.signal_id
 )
-SELECT * FROM results_percent
-
+SELECT rp.*,
+pp.typical_path,
+pp.optimistic_path,
+pp.pessimistic_path 
+FROM results_percent rp
+LEFT JOIN profit_paths pp ON pp.signal_id = rp.signal_id 
 
 
 --SELECT * FROM status_points ORDER BY instrument,the_date   

@@ -1,7 +1,6 @@
 
 from collections import namedtuple
 from typing import Optional, List
-from enum import Enum
 
 import numpy as np 
 
@@ -199,9 +198,7 @@ class Indicator:
 		np_candles = self._pad_start(np_candles,period)
 		return np.lib.stride_tricks.sliding_window_view(np_candles,window_shape=period,axis=1)	
 		
-		
-	#def _produce_block(self,candle_streams):
-	#	pass#produce convenient block of numbers from 
+
 
 class SMA(Indicator):
 	

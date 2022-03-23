@@ -2,13 +2,21 @@ TODO:
 DEFENSIVE CODING: documentation, type hints and overrides for all non-testing python scripts. (use typecheck?)
 
 t212 handler - functions "query trades", "place trade", "get trade", "clear charts", "pull the plug" etc. keep journal of trades?
+	-still need to handle pending orders (placing and querying) then thsi is done
 
 create explain() functions in various places similar to draw_snapshot() for use when generating trade setup documents
 	-this might be able to be done through the documentation
 create setup() function on chart/candle patterns to be able to run backtests
 every candlestick and chart pattern should have a get_setups() function to return TradeSignals.
 
-setup object using bbs, keltner channels and RSI to test the backtester
+setup object using bbs, keltner channels and RSI to test the backtester  --do this sooner!
+	StrategyComposer sounds cool
+
+split all AI training into DataProvider, Trainer/Tester?, Composer? 
+	DataProvider - produces X and Y values. Allows for caching for faster experiments. Uses generators!
+	AIComposer - Takes a data provider, a model and calls model.fit with some parameter settings?
+		 Also creates production-ready models and saves into /models  (tflite?)
+	
 
 SCREENING - candle stick scanner for candle stick patterns and chart patterns. Use to determine entry points
 	- candlestick patterns at high timeframes 
@@ -35,6 +43,8 @@ ASYNC all webcalls in the fundmental analysis! Async for AI too -- probably pret
 jupyter for presenting front end trade setups and ideas
 
 pivot points? - use as a support/resistance & TP SL targets 
+
+organise indicators.py to be a few files 
 
 
 IDEAS: 

@@ -40,7 +40,7 @@ article_collector = ArticleCollector()
 article_collector.pass_articles(rss)
 
 text_analyser = TextAnalysis()
-this_instrument = 'EUR/USD'#should have the most news? 
+this_instrument = 'GBP/USD'
 
 #pdb.set_trace()
 candles = cur.fetchcandles(fx_pairs)

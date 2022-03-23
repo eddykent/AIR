@@ -153,7 +153,7 @@ class KeywordMapHelper:
 	#if an article title or an article summary has any words that are interesting to us, it is relevant. 
 	#otherwise we can probably filter it out to save computational resources! 
 	#this step organises things for us to be able to update sentiments based on relevance and degree
-	def relevant_keys(self,summary_text):	
+	def relevant_keys(self,summary_text,degree=None):	
 		#perhaps we should move all author name words from the article first to ensure we don't get false relevances XD
 				
 		textblob = TextBlob(self.fsh.strip_slashes(summary_text).lower())
@@ -189,7 +189,7 @@ class KeywordMapHelper:
 						direction = 1 if self.bullish(value) else -1 if self.bearish(value) else 0
 						relevant_keys[keyword] = RelevanceInfo(1,direction,value)
 			
-		return relevant_keys
+		return {k:v for k,v in relevant_keys.items() if v.degree == degree or degree is None}
 	
 	# set bloated keyword maps to have move values from previous key words etc 
 	# example: if keyword 'USD' has a keyword value 'FEDERAL RESERVE' then we should add 'federal reserve' to GBP/USD etc
@@ -306,6 +306,17 @@ class TextAnalysis:
 				polarity = self.sentiment_analyzer.polarity_scores(str(sentence))
 				specifics.append((sentence,keys,{'subjectivity':float(sentence.sentiment.subjectivity),'polarity': float(polarity['compound'])}))
 		return overall, specifics
+	
+	#use spacy to clean and lemmatize etc. Pass spacy in because it is a ballache to load 
+	def create_feature_vector(self,passage_text,spacy_handler):
+		passage_text = self.fsh.strip_slashes(passage_text).lower()
+		#any other cleaning to do?
+		
+		doc = spacy_handler(passage_text)
+		#either return doc.tensor #apparently dont use this?
+		#or 
+		return np.array([tok.vector for tok in doc if tok not in self.stopwords])
+		
 		
 		
 	#determine if a passage of text is actually a trading signal 
@@ -404,7 +415,7 @@ class NewsIndicator(Indicator):
 	
 	
 	def detect(self,criteria : list=[]) -> np.array:
-		result = [0 for t in self.timeline] #only one channel?
+		result = [0 for t in self.timeline] #only one channel? what about other instruments 
 		pass #find way of returning 1 for a positive news story release and -1... 
 
 	#helper function to get indexs from the candle stream of where the news stories are. 
