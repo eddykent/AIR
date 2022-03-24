@@ -41,8 +41,6 @@ jupyter for presenting front end trade setups and ideas
 
 pivot points? - use as a support/resistance & TP SL targets   - part of pluralization re-write
 
-organise indicators.py to be a few files - trend followers, reversals, oscillators, moving aves 
-
 
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs

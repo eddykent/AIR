@@ -52,7 +52,6 @@ vectorize candlestick patterns
 
 fundamental - get fxstreet archive and dailyfx archives 
 
-
 extend test_trades.sql or use another sql to test full tradesignal types
 	- select all candles for the trade
  	- perfrom analysis to see if/when the candle gets high enough/low enough 
@@ -61,6 +60,10 @@ extend test_trades.sql or use another sql to test full tradesignal types
 
 pluralise fundamental.py to work with historic news articles and recent news articles so it can be used in backtesting 
 
+t212 handler - functions "query trades", "place trade", "get trade", "clear charts", "pull the plug" etc. keep journal of trades?
+	-still need to handle pending orders (placing and querying) then thsi is done
+
+organise indicators.py to be a few files - trend followers, reversals, oscillators, moving aves 
 
 
 
