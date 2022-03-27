@@ -5,9 +5,12 @@ DROP TABLE IF EXISTS tmp_candles;
 WITH textresultqueries AS (
 	SELECT * FROM (VALUES 
 		%(text_result_queries)s
-	) AS trq(query_id,the_date,instrument,duration)
+	) AS trq(the_date,instrument,duration)
 )
-SELECT *, the_date + (duration::TEXT || ' minutes')::INTERVAL AS select_end_date INTO tmp_queries FROM textresultqueries;
+SELECT *,
+	the_date + (duration::TEXT || ' minutes')::INTERVAL AS select_end_date,
+	ROW_NUMBER() OVER () AS query_id
+INTO tmp_queries FROM textresultqueries;
 
 CREATE INDEX tmp_query_instrument_date_idx ON tmp_queries USING btree(instrument,the_date);
 

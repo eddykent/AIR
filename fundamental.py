@@ -31,6 +31,7 @@ import charting.chart_viewer as chv
 
 KeywordMap = namedtuple('KeywordMap','keyword values')
 RelevanceInfo = namedtuple('RelevanceInfo', 'degree direction keyword')
+CalendarEvent = namedtuple('CalendarEvent','the_date description impact instrument previous consensus actual')
 
 ## TODO:
 ## rss feeds 
