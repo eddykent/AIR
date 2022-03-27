@@ -15,6 +15,8 @@ from trade_setup import TradeSignal, TradeDirection
 
 #each filter takes a result from one instance in time. Perhaps they can be extended to allow for filtering trade signals across different times? 
 
+#use numpy?
+
 #abstract class for laying out a trade filter - attempt to stop "stupid" trades! Works with a single instance in time 
 class InstanceTradeFilter:
 	

@@ -11,3 +11,7 @@ All modules need to be installed from dependencies.txt
 ### postgresql:
 --------
 CREATE EXTENSION 'uuid-ossp'
+
+### Data:
+--------
+Use web/candle_stick_data/* and web/news_archives/* for capturing all data needed 

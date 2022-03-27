@@ -8,6 +8,7 @@ import hashlib
 import pickle
 import os
 import re
+import multiprocessing 
 
 import numpy as np
 
@@ -208,11 +209,18 @@ class TypedList:
 class Log:   ##learn how to use logger first
 	pass
 
+class TaskHandler:  #collect tasks and then wait for them all to finish using multiprocessing 
+	pass
+
+class AsyncHandler: #collect tasks and then wait for them all to finish using asyncio 
+	pass
+	
 #allows for comments inside files that are simply a list of stuff. 
 class ListFileReader:
 	
 	comment_tokens = ['--']
 	errors=None
+	not_found_none=False #when true, if the file isnt found then none is returned
 	
 	def __init__(self):
 		pass
@@ -220,21 +228,32 @@ class ListFileReader:
 	def read(self,filename):
 		the_list = []
 		lines = []
-		with open(filename,'r',errors=self.errors) as f:
-			lines = f.read().split('\n')
-		for line in lines:
-			for c in self.comment_tokens:
-				line = line.split(c)[0]
-			result_line = line.strip()
-			if result_line:
-				the_list.append(result_line)
+		try:
+			with open(filename,'r',errors=self.errors) as f:
+				lines = f.read().split('\n')
+			for line in lines:
+				for c in self.comment_tokens:
+					line = line.split(c)[0]
+				result_line = line.strip()
+				if result_line:
+					the_list.append(result_line)
+		except FileNotFoundError as fnf:
+			if self.not_found_none:
+				return None
+			else:
+				raise fnf
 		return the_list
 	
 	def read_full_text(self,filename):
-		return '\n'.join(self.read(filename))
+		lines = self.read(filename)
+		if self.not_found_none and lines is None:
+			return None 
+		return '\n'.join(lines)
 	
 	def read_csv(self,filename):
 		lines = self.read(filename)
+		if self.not_found_none and lines is None:
+			return None 
 		heads = lines[0].split(',')
 		result_dicts = []
 		for line in lines[1:]:
