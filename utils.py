@@ -401,8 +401,11 @@ class Database:
 		else:
 			self.cur.execute(query,self.get_default_parameters(params))
 			self.rows = self.cur.fetchall()
-		with open(self.previous_query_filename,'wb') as f:
-			f.write(self.query)
+		try:
+			with open(self.previous_query_filename,'wb') as f:
+				f.write(self.query)
+		except:
+			pass #should log here 
 			
 	def fetchall(self):
 		return self.rows
