@@ -21,12 +21,12 @@ query = ''
 with open('queries/candle_stick_selector.sql','r') as f:
 	query = f.read()
 
-the_date = datetime.datetime(2022,2,15,12,0)
+the_date = datetime.datetime(2022,2,25,16,0)
 params = {
 	'chart_resolution':15,
 	'the_date':the_date,
 	'hour':the_date.hour,
-	'days_back':50,
+	'days_back':30,
 	'candle_offset':0,
 	'currencies':currencies		
 }
