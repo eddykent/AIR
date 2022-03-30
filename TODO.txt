@@ -14,6 +14,7 @@ split all AI training into DataProvider, Trainer/Tester?, Composer?
 	DataProvider - produces X and Y values. Allows for caching for faster experiments. Uses generators!
 	AIComposer - Takes a data provider, a model and calls model.fit with some parameter settings?
 		 Also creates production-ready models and saves into /models  (tflite?)
+move currency strength nn to be of the same form as DataProvider etc 
 	
 SCREENING - candle stick scanner for candle stick patterns and chart patterns. Use to determine entry points
 	- candlestick patterns at high timeframes 
