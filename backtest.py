@@ -64,7 +64,7 @@ class BackTestStatistics:
 			'loses':len([s for s in self.signals if s.result_status == TradeResultStatus.LOST]),
 			'ups':len([s for s in self.signals if s.result_status == TradeResultStatus.WINNING]),
 			'downs':len([s for s in self.signals if s.result_status == TradeResultStatus.LOSING]),
-			'winstreak':max(win_streaks),
+			'win_streak':max(win_streaks),
 			'lose_streak':max(lose_streaks)
 			#'growth':max(...)
 			#'drawdown':max(...)
