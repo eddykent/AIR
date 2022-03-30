@@ -116,7 +116,15 @@ class ClientSentiment: #a client sentiment is just how many are buying/selling. 
 ##big news is about to comeresults out 
 ##OR it could be something that suggests a trade based on the economic calendar prediction - or both
 class EconomicCalendar:
-	pass
+	
+	events = [] 
+	query = 'queries/economic_calendar.sql'
+	instrument_map = {}
+	
+	def __init__(self):
+		pass
+	
+	
 	
 
 
