@@ -15,7 +15,7 @@ from os.path import join as file_namer
 
 from models.model_base import ModelMaker,ModelLoader
 
-
+import pdb
 ##caching with data providers could be done by row in a temp table or temp pickles. But it will make a mess so clean it up afterwards! 
 #cached rows are stored in "pickles/cobwebs" since there is 1 primary dictionary object and many rows all stored as guid filenames
 
@@ -85,7 +85,8 @@ class DataProvider: #cobweb functions?
 	def __init__(self,model_maker,row_cache=False,validation_mode=ValidationMode.RANDOM,training_batch_size=32,validation_batch_size=5,parameters={}): #parameter settings? start/end dates etc? 
 		self.model_maker = model_maker #used for preprocess_x and preprocess_y in _generate
 		self.row_cache = row_cache
-		self.parameters = parameters
+		if parameters:
+			self.parameters = parameters
 		#if self.row_cache:
 		#	self.__cobweb = CobwebCache()
 	
@@ -107,7 +108,7 @@ class DataProvider: #cobweb functions?
 	def generate(self,indexs,validation):
 		#do caching thing here with cobwebs 
 		full_parts = self.validation_parts if validation else self.training_parts
-		instructions_list = [full_parts[i] for i in indexs] if indexs else full_parts
+		instructions_list = [full_parts[i] for i in indexs] if len(indexs) else full_parts
 		X,Y =  self._generate(instructions_list)
 		return X,Y
 	
@@ -169,7 +170,8 @@ class DataGenerator(keras.utils.Sequence):
 	validation=False
 	
 	def __init__(self,data_provider,validation=False):
-		slef.validation=validation
+		self.validation=validation
+		self.data_provider = data_provider
 		if validation:
 			self.batch_size = data_provider.validation_batch_size
 			self.shuffle = False
@@ -200,7 +202,7 @@ class ModelComposer:
 	
 	model_maker = None
 	data_provider = None
-	weights_label = False # if true, load model weights if they exist. 
+	weights_label = None # if provided, load model weights if they exist. 
 	
 	def __init__(self,model_maker,data_provider,weights_label=None):
 		self.model_maker = model_maker
@@ -209,11 +211,13 @@ class ModelComposer:
 	
 	def train(self,epochs=20):
 		if self.weights_label:
-			self.model_maker.load_weights(weights_label)
-		self.model.fit(
-			self.data_provider.get_training_generator(),
-			validation_data=self.
-			self.data_provider.training_batch_size
+			self.model_maker.load_weights(self.weights_label)
+		return self.model_maker.model.fit(
+			self.data_provider.get_training_generator(),  #skip y since it is presented in the generator
+			epochs=epochs,
+			validation_data=self.data_provider.get_validation_generator(),
+			batch_size=self.data_provider.training_batch_size,
+			validation_batch_size=self.data_provider.validation_batch_size
 		)
 	
 	def save(self,new_weights_label=None): #incase we want to save it to a different file	

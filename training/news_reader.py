@@ -40,6 +40,11 @@ class NewsReaderData(DataProvider):
 	#list all the source refs and put what duration we want price action to be for each one 
 	source_ref_duration_map = {	}
 	
+	parameters = {
+		'start_date':datetime.datetime(2022,1,1),
+		'end_date':datetime.datetime(2022,3,25)
+	}
+	
 	@overrides(DataProvider)
 	def _sample_instructions_list(self):
 		query_x = ''
@@ -54,7 +59,7 @@ class NewsReaderData(DataProvider):
 		fx_pairs = lfr.read('fx_pairs/fx_mains.txt')
 		currencies = lfr.read('fx_pairs/currencies.txt')
 		cursor = Database(cache=False,commit=False)
-		start_date = self.parameters.get('start_date',datetime.datetime(2000,1,1))
+		start_date = self.parameters.get('start_date',datetime.datetime(2020,1,1))
 		end_date =  self.parameters.get('end_date',datetime.datetime(2022,3,10))
 
 		print('Fetching articles...')
@@ -94,15 +99,13 @@ class NewsReaderData(DataProvider):
 	@overrides(DataProvider)
 	def _generate(self,instruction_list):
 		#any way to call a tqdm? :/ -NO DUH IT IS HANDLED BY TENSORFLOW :)
-		text_analyser = self.model_maker.text_analyser
-		nlp = self.model_maker.nlp
-		max_len = self.model_maker.parameters.get('story_length',800)
-		for article,price_action in instruction_list:
-			x = text_analyser.create_feature_vector(article.full_text,nlp)#
-			#figure out shpe here. 
-		#self.model_maker.preprocess_x()
-		pdb.set_trace()
-		pass
+		articles, price_actions = zip(*instruction_list)
+		
+		xs = self.model_maker.preprocess_x([article.full_text for article in articles])
+		ys = self.model_maker.preprocess_y(price_actions)
+		
+		return xs,ys
+
 	
 	
 
@@ -112,7 +115,7 @@ def perform_training():
 	news_reader_model.create_model()
 	news_data = NewsReaderData(news_reader_model)
 	news_data.begin_load()
-	pdb.set_trace()
+	#pdb.set_trace()
 	model_composer = ModelComposer(news_reader_model,news_data)
 	model_composer.train(epochs=30)
 	model_composer.test(' ') #put some test news snippet in here
