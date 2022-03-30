@@ -21,7 +21,7 @@ hyperlinks = []
 the_date = datetime.datetime.now()
 this_year = the_date.year
 this_month = the_date.month
-earliest_year = 2018
+earliest_year = 2021
 years = [y for y in range(earliest_year,this_year)]
 months = [m for m in range(1,13)]
 

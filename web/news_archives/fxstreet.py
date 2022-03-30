@@ -11,10 +11,10 @@ daily_url_str = 'https://www.fxstreet.com/news/all?date={year:0>4}-{month:0>2}-{
 source_ref = 'fxstreet.com'
 source_title = 'fxstreet.com'
 
-days_back = 1530
+days_back = 150
 today = datetime.datetime.now()
 today = datetime.datetime(today.year,today.month,today.day)
-start_day = today - datetime.timedelta(days=50)
+start_day = today - datetime.timedelta(days=10)
 
 all_days = [start_day-datetime.timedelta(days=i) for i in range(0,days_back)]
 

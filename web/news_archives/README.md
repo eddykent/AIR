@@ -14,10 +14,12 @@ We have to re-use modules, right?
 
 ## DailyFX
 To read articles from dailyfx, dailyfx.py is used. This script will read everything directly to the database iterating
-using the url. It is a crawler that uses selenium (and therefore uses web/crawler).
+using the url. It is a crawler that uses selenium (and therefore uses web.crawler).
 
 
 ## FXStreet
+Same as DailyFX.
+
 
 
 
