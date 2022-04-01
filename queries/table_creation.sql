@@ -28,6 +28,19 @@ CREATE TABLE news_article (
 	compression BYTEA --never store the FULL info IN the DATABASE because we have limited room :(
 );
 
+--table for economic calendar information 
+CREATE TABLE economic_calendar (
+	guid TEXT DEFAULT uuid_generate_v4() PRIMARY KEY,
+	the_date TIMESTAMP NOT NULL, 
+	impact INT NOT NULL,
+	country TEXT NOT NULL,
+	description TEXT NOT NULL,
+	actual TEXT NOT NULL,  --these values must persist as text because they can have any unit or be blank! 
+	previous TEXT NOT NULL, 
+	consensus TEXT NOT NULL, 
+	forecast TEXT NOT NULL
+);
+
 --other sentiment tables? eg client_sentiment_info? 
 
 

@@ -79,6 +79,8 @@ loss function with something like
 
 python->Cython integration for some chart patterns to speed them up (harmonics & trending)
 
+OWN FEAR & GREED INDEX - research & calculate how it works etc 
+
 
 BUGS:
 Perhaps using pandas data frames will be more efficient and better for the whole thing? 
