@@ -23,6 +23,9 @@ class TextResultQuery:
 		self.the_date = the_date
 		self.instrument = instrument
 		self.duration = duration
+	
+	def __repr__(self):
+		return f"TextResultQuery({self.instrument} at {self.the_date} for {self.duration} minutes)"
 		
 	def to_sql_dict(self):
 		return {
@@ -93,8 +96,14 @@ class NewsReaderData(DataProvider):
 				sql_rows.append(cursor.mogrify(query.sql_row, query.to_sql_dict()).decode())
 				subarticles.append(article)
 			cursor.execute(query_y, {'text_result_queries':Inject(','.join(sql_rows))})
-			articles_price_actions.extend(list(zip(subarticles,cursor.fetchall())))
-		return articles_price_actions #return the full list of articles we will use for training  
+			query_results = cursor.fetchall()
+			assert len(query_results) == len(subarticles)
+			articles_price_actions.extend(list(zip(subarticles,query_results)))
+		
+		#now clean data that is missing - only select stuff that has enough candles to compare with
+		articles_results = [(article,price_actions) for article,price_actions in articles_price_actions if price_actions[0]['n_candles'] > 2] 
+		#need to figure out a way to normalise the Y values 
+		return articles_results #return the full list of articles we will use for training  
 	
 	@overrides(DataProvider)
 	def _generate(self,instruction_list):
@@ -113,7 +122,7 @@ class NewsReaderData(DataProvider):
 def perform_training():
 	news_reader_model = NewsReaderModel()
 	news_reader_model.create_model()
-	news_data = NewsReaderData(news_reader_model)
+	news_data = NewsReaderData(news_reader_model,row_cache_label='test')
 	news_data.begin_load()
 	#pdb.set_trace()
 	model_composer = ModelComposer(news_reader_model,news_data)

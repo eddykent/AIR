@@ -20,7 +20,7 @@ class NewsReaderModel(ModelMaker):
 	text_analyser = None
 	nlp = None
 	
-	parameters = {'story_length':800}
+	parameters = {'story_length':650}
 	
 	#def __init__(**kwargs):  - parameters_label, weights_label
 	#	super().__init__(**kwargs)
@@ -32,7 +32,7 @@ class NewsReaderModel(ModelMaker):
 	
 	@overrides(ModelMaker)
 	def preprocess_x(self,passages): #pass list of passages from articles
-		maxlen = self.parameters.get('story_length',800)
+		maxlen = self.parameters.get('story_length',650)
 		feature_vectors = [self.text_analyser.create_feature_vector(text,self.nlp) for text in passages]
 		clipped_padded = [] 
 		_,word_size = feature_vectors[0].shape
@@ -55,9 +55,8 @@ class NewsReaderModel(ModelMaker):
 			#pdb.set_trace()
 			summary,profit_paths = ydata
 			typical = summary['typical']
-			rate= typical['rate'] #this is already normalised 
-			std = typical['std'] / typical['average']  #divide by the average so that we can compare different stds together 
-			std = (std*2.0)  -1.0
+			rate= typical['rate'] * 100 #this is already normalised but we want to turn it to between 0 and 1 so half then add 0.5? 
+			std = (typical['std'] * 100) / typical['average']  #divide by the average so that we can compare different stds together 
 			return_y.append(np.array([rate,std]))
 		return np.array(return_y)
 	
@@ -67,12 +66,12 @@ class NewsReaderModel(ModelMaker):
 	
 	@overrides(ModelMaker)
 	def _define(self):
-		maxlen = self.parameters.get('story_length',800)
+		maxlen = self.parameters.get('story_length',650)
 		model = Sequential()
 		model.add(Bidirectional(LSTM(150,return_sequences=True,input_shape=(maxlen,300))))
 		model.add(Bidirectional(LSTM(100))) 
 		model.add(Dense(100,activation='relu'))
-		model.add(Dense(2,activation='tanh'))
+		model.add(Dense(2)) #no activation?
 		model.compile(loss='mse',optimizer=keras.optimizers.Adam(learning_rate=0.0001))
 		return model
 	

@@ -9,7 +9,7 @@ WITH textresultqueries AS (
 )
 SELECT *,
 	the_date + (duration::TEXT || ' minutes')::INTERVAL AS select_end_date,
-	ROW_NUMBER() OVER () AS query_id
+	ROW_NUMBER() OVER () - 1 AS query_id
 INTO tmp_queries FROM textresultqueries;
 
 CREATE INDEX tmp_query_instrument_date_idx ON tmp_queries USING btree(instrument,the_date);
@@ -58,32 +58,34 @@ rate_changes AS (
 	WHERE n > 0
 )
 SELECT JSON_BUILD_OBJECT( --FIRST the VALUES 
-	'query_id',query_id,
-	'start_date',start_date,
-	'end_date',end_date,
-	'n_candles',n,
+	'query_id',q.query_id,
+	'start_date',r.start_date,
+	'end_date',r.end_date,
+	'n_candles',COALESCE(r.n,0),
 	'typical',JSON_BUILD_OBJECT(
-		'rate',typical_rate,
-		'std',typical_std,
-		'average',typical_average
+		'rate',r.typical_rate,
+		'std',r.typical_std,
+		'average',r.typical_average
 	),
 	'high',JSON_BUILD_OBJECT(
-		'rate',high_rate,
-		'std',high_std,
-		'average',high_average
+		'rate',r.high_rate,
+		'std',r.high_std,
+		'average',r.high_average
 	),
 	'low',JSON_BUILD_OBJECT(
-		'rate',low_rate,
-		'std',low_std,
-		'average',low_average
+		'rate',r.low_rate,
+		'std',r.low_std,
+		'average',r.low_average
 	)	
 ),
 JSON_BUILD_OBJECT( --now the paths 
-	'typical',typical_prices,
-	'high',high_prices,
-	'low',low_prices
+	'typical',r.typical_prices,
+	'high',r.high_prices,
+	'low',r.low_prices
 )
-FROM rate_changes 
+FROM tmp_queries q
+LEFT JOIN rate_changes r ON q.query_id = r.query_id
+ORDER BY q.query_id ASC --sticks everything back in order for a quick zip in the data provider
 
 
 
