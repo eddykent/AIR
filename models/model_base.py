@@ -18,8 +18,11 @@ class ModelMaker:
 	weights_directory = './models/weights/'
 	parameters_directory = './models/parameters/'
 	
-	def __init__(self,parameters_label=''):
+	def __init__(self,parameters_label='',weights_label=''):
 		self.load_parameters(parameters_label)
+		if weights_label:
+			self.load_weights(weights_label)
+			self.weights_label = weights_label
 		
 	def create_model(self):
 		self._init()
@@ -41,15 +44,15 @@ class ModelMaker:
 		else:
 			self.parameter_settings = json.loads(params_json) 
 	
-	def save_weights(self, weights_label):
-		self.model.save_weights(self.__weights_filename(weights_label))
+	def save_weights(self):
+		self.model.save_weights(self.__weights_filename(self.weights_label))
 	
-	def load_weights(self, weights_label):
-		filename = self.__weights_filename(weights_label)
+	def load_weights(self):
+		filename = self.__weights_filename(self.weights_label)
 		try:
 			self.model.load_weights(filename)
 		except FileNotFoundError as e:
-			print(f"Unable to load weights {filename}. Using randomized weights.")
+			print(f"Unable to load weights {filename}. Using new weights.")
 	
 	def __params_filename(self,parameters_label):
 		return file_namer(self.parameters_directory,self.__class__.__name__ + parameters_label+'.json')

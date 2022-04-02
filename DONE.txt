@@ -65,7 +65,10 @@ t212 handler - functions "query trades", "place trade", "get trade", "clear char
 
 organise indicators.py to be a few files - trend followers, reversals, oscillators, moving aves 
 
-
+split all AI training into DataProvider, Trainer/Tester?, Composer? 
+	DataProvider - produces X and Y values. Allows for caching for faster experiments. Uses generators!
+	AIComposer - Takes a data provider, a model and calls model.fit with some parameter settings?
+		 Also creates production-ready models and saves into /models  (tflite?)
 
 BUGS:
 (FIXED)

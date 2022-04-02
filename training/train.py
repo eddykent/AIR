@@ -306,16 +306,14 @@ class ModelComposer:
 	
 	model_maker = None
 	data_provider = None
-	weights_label = None # if provided, load model weights if they exist. 
 	
 	def __init__(self,model_maker,data_provider,weights_label=None):
 		self.model_maker = model_maker
 		self.data_provider = data_provider
-		self.weights_label = weights_label
 	
 	def train(self,epochs=20):
-		if self.weights_label:
-			self.model_maker.load_weights(self.weights_label)
+		if self.model_maker.weights_label:
+			self.model_maker.load_weights()
 		return self.model_maker.model.fit(
 			self.data_provider.get_training_generator(),  #skip y since it is presented in the generator
 			epochs=epochs,

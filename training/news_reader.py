@@ -125,7 +125,7 @@ def perform_training():
 	news_data = NewsReaderData(news_reader_model,row_cache_label='test')
 	news_data.begin_load()
 	#pdb.set_trace()
-	model_composer = ModelComposer(news_reader_model,news_data)
+	model_composer = ModelComposer(news_reader_model,news_data,weights_label='test')
 	model_composer.train(epochs=30)
 	model_composer.test(' ') #put some test news snippet in here
 
