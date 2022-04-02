@@ -4,10 +4,12 @@ import sys
 from tqdm import tqdm
 
 import pdb
+import time
 
 
 from web.crawler import SeleniumHandler, By, XPathNavigator, Keys
-from utils import Database 
+from requests_html import HTML 
+from utils import Database, Inject
 
 from fundamental import CalendarEvent
 
@@ -52,6 +54,9 @@ class TradingEconomics(XPathNavigator):
 		#'MX':'Mexico',
 		#'PL':'Poland',		
 	}
+	
+	sql_file = 'queries/economic_calendar_upsert.sql'
+	sql_row = "(%(the_date)s,%(impact)s,%(country)s,%(description)s,%(actual)s,%(previous)s,%(consensus)s,%(forecast)s)"
 	
 	def __init__(self,selenium_handler):
 		super().__init__(selenium_handler,self.url)
@@ -127,6 +132,8 @@ class TradingEconomics(XPathNavigator):
 		date_btn = self.get_element(_dates_dd)
 		
 		self.click_on(date_btn)
+		
+		time.sleep(0.5)
 		start_date_field = self.by_id('startDate')
 		end_date_field = self.by_id('endDate')
 		
@@ -192,17 +199,71 @@ class TradingEconomics(XPathNavigator):
 					event = CalendarEvent(the_date,impact,country,description,actual,previous,consensus,forecast)
 					calendar_events.append(event)
 		return list(set(calendar_events))
+	
+	#use the requests inbuilt html parser on the snapshot of the page source instead of seleniums parse
+	def scrape_events(self,month):
+		time.sleep(2) #wait seconds for page to load
+		html = HTML(html=self.page_source())
 		
+		table_heads = html.xpath("//table[@id='calendar']/thead[@class='table-header']")
+		table_bodies = html.xpath("//table[@id='calendar']/tbody") #finds a million otherwise!
+		
+		assert len(table_heads) == len(table_bodies),f" {len(table_heads)} table heads yet {len(table_bodies)} table bodies for {month}"
+		
+		calendar_events = []
+		calendar_parts = list(zip(table_heads,table_bodies))
+		print(f"Reading {month}...")
+		for head,body in tqdm(calendar_parts):
+			date_str = head.xpath(".//tr//th[@colspan='3']",first=True).text
+			year,month,day = self.__handle_date(date_str)
+			for tr in tqdm(body.find('tr'), leave=False): #filter for repeats? 
+				td_items = tr.find('td.calendar-item')
+				impact_td = tr.find('td',first=True)
+				description_elem = tr.find('a.calendar-event',first=True)
+				if not description_elem:
+					continue
+				if len(td_items) < 5:
+					continue
+				country = self.country_map.get(td_items[0].text)  
+				time_str = impact_td.text
+				if country and time_str:
+					impact_span = impact_td.find('span',first=True) #holds rating
+					impact_class = impact_span.attrs.get('class',('',))[0]
+					impact = 1
+					if impact_class.endswith('2'):
+						impact = 2
+					if impact_class.endswith('3'):
+						impact = 3
+						
+					description = description_elem.text
+					actual = td_items[1].text
+					previous = td_items[2].text
+					consensus = td_items[3].text
+					forecast = td_items[4].text
+					
+					hour,minute = self.__handle_time(time_str)
+					try:
+						the_date = datetime.datetime(year,month,day,hour,minute)
+					except:
+						print('funny time?')
+					#pdb.set_trace()
+					event = CalendarEvent(the_date,impact,country,description,actual,previous,consensus,forecast)
+					calendar_events.append(event)
+		return list(set(calendar_events))
+				
 	
 	def load_months(self,months):
 		self.setup()
 		for month in months: 
 			self.gotomonth(month)
-			events = self.read_events(month) 
+			events = self.scrape_events(month) 
 			
-			#insert & update into db 
 			with Database(cache=False,commit=True) as cursor:
-				pass 
+				with open(self.sql_file,'r') as f:
+					query = f.read()
+					sql_rows = [cursor.mogrify(self.sql_row,dict(event._asdict())).decode() for event in events]
+					cursor.execute(query,{'calendar_events':Inject(','.join(sql_rows))})
+			
 	
 	@staticmethod
 	def __handle_date(date_str):
@@ -231,14 +292,16 @@ class TradingEconomics(XPathNavigator):
 	
 	@staticmethod
 	def __handle_time(time_str):
-		time = time_str.split(' ')[0].split(':')
+		timebits = time_str.split(' ')[0].split(':')
 		try:
-			hour = int(time[0])
-			minute = int(time[1])
+			hour = int(timebits[0])
+			minute = int(timebits[1])
 		except:
 			pdb.set_trace()
 		if time_str.endswith('PM') and hour < 12:
 			hour += 12
+		if time_str.endswith('AM') and hour == 12:
+			hour = 0
 		return hour, minute
 
 
@@ -266,7 +329,7 @@ def pull_calendar(n_months_back):
 		te = TradingEconomics(sh)
 		te.load_months(all_months)
 
-pull_calendar(2)
+pull_calendar(45)
 
 
 

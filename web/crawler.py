@@ -91,6 +91,9 @@ class Crawler:
 	def get(self,url):
 		return self.browser.get(url)
 	
+	def page_source(self):
+		return self.browser.page_source
+	
 	def goto(self,url): #handle any other protos? 
 		if not url.startswith('http'):
 			url = 'http://' + url 
