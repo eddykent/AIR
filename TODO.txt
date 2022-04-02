@@ -8,7 +8,7 @@ every candlestick and chart pattern should have a get_setups() function to retur
 explain() to return an explanation in terms of trading using the tool and draw_snapshot() for charting 
 
 setup object using bbs, keltner channels and RSI to test the backtester  --do this sooner!
-	StrategyComposer sounds cool
+	StrategyComposer sounds cool - for multiple setups and chart frames
 
 refactor currency strength nn to be of the same form as DataProvider etc 
 	

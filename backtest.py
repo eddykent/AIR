@@ -8,7 +8,7 @@ from psycopg2.extensions import AsIs as Inject
 from enum import Enum
 
 from utils import CurrencyPair, ListFileReader, overrides
-from setups import TradeDirection, TradeSignal
+from setups.trade_setup import TradeDirection, TradeSignal
 
 ##classes that take a set of trade signals and then test if they won/lost. Also report statistics (win streaks, percent loss, drawdowns??) 
 

@@ -11,7 +11,7 @@ import pdb
 #possibly organise/split this file into oscillators, volatility, trend followers and trend reversals ?
 import charting.chart_viewer as chv #get all chart viewing elements so we can also draw nice charts. The view can  be "added" to a candlestick chart where appropriate
 import charting.candle_stick_functions as csf
-from setups import TradeSignal, TradeDirection, SetupCriteria
+from setups.trade_setup import TradeSignal, TradeDirection, SetupCriteria
 from utils import overrides 
 
 
@@ -79,8 +79,7 @@ class Indicator:
 		
 	def draw_snapshot(self,candle_stream : list ,snapshot_index : int = -1) -> chv.ChartView:
 		"""
-		Generates a ChartView object from the given set of candles so the indicator can be plotted. It is up to the user of the 
-		indicator to know if the indicator should be plotted on a candle stick chart or whether it should be placed below it
+		Generates a ChartView object from the given set of candles so the indicator can be plotted. 
 		
 		Parameters
 		----------

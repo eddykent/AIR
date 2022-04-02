@@ -8,7 +8,7 @@ from typing import Optional, List
 import pdb 
 
 from utils import CurrencyPair, ListFileReader, overrides
-from trade_setup import TradeSignal, TradeDirection 
+from setups.trade_setup import TradeSignal, TradeDirection 
 
 
 #extend to be across time? 
