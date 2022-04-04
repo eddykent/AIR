@@ -28,7 +28,7 @@ trade_tracks_differences AS (
 	SELECT ts.signal_id,
 	ts.instrument,
 	ts.direction,
-	ts.entry_price,
+	ts.entry_price::DOUBLE PRECISION AS entry_price, --incase all are null
 	ts.take_profit_difference,
 	ts.stop_loss_difference,
 	sc.open_price,
