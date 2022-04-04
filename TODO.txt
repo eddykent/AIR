@@ -7,15 +7,15 @@ create setup() function on chart/candle patterns to be able to run backtests
 every candlestick and chart pattern should have a get_setups() function to return TradeSignals, detect() to return numpy blocks,
 explain() to return an explanation in terms of trading using the tool and draw_snapshot() for charting 
 
-setup object using bbs, keltner channels and RSI to test the backtester  --do this sooner!
-	StrategyComposer sounds cool - for multiple setups and chart frames
 
 refactor currency strength nn to be of the same form as DataProvider etc 
-	
+
+
 SCREENING - candle stick scanner for candle stick patterns and chart patterns. Use to determine entry points
 	- candlestick patterns at high timeframes 
 	- chart breakout patterns at lower timeframes (eg 4h) 
 	- chart breakout patterns again at lowest (15m?) timeframes to identify entry points 
+	StrategyComposer sounds cool - for multiple setups, filters and chart frames
 
 PLURALIZATION
 pluralise filters.py to use all times not just now so they can be used in backtesting --all filters need refactoring possibly to use indicators
@@ -23,6 +23,8 @@ pluralise all chart patterns. Start with match_pattern as  it already uses numpy
 	- scipy maximas/minimas should come in handy
 
 Create & test full RNN with candles_and_indicators.sql, currency_strengths, correlations etc & get_y_values.sql 
+
+data_pull scripts for getting latest data? 
 
 Write testing framework (to run a bunch of tests sequentially) and store the results. Then leave it running to find best param settings 
 report % wins, streaks etc   --go for similar behaviour to ProQuant 
@@ -38,7 +40,10 @@ jupyter for presenting front end trade setups and ideas
 
 pivot points? - use as a support/resistance & TP SL targets   - part of pluralization re-write
 
-economic calendar using https://tradingeconomics.com/calendar#
+refactor queries to use functions - eg candles -> indicators or similar. The better organisation might really help later on!
+
+https://www.dukascopy.com/swiss/english/marketwatch/historical/   -historic client sentiment information 
+	- use selenium to get latest data for use with volume indicators & client sentiment information :D 
 
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs
@@ -91,6 +96,7 @@ feed_collector articles should be grouped by instr name and then top 5 latest sh
 currency_strength_diff_auto_regression_rsi.sql is not producing enough rows to run in database_tests.py
 
 hour should not be a db query parameter - we can get the hour from the datetime passed into the query
+	lots of queries should be functions - need major sql refactor!
 
 selenium chrome driver - webdriver-manager cant auto detect chrome version - possibly permissions error
 
@@ -99,6 +105,8 @@ draw snapshot should have default candle index parameter to -1
 on 15 min chart, candles all look very "top-heavy" . Perhaps caused by something in the candle selector query
 
 parabolic sar, atx and other various indicators are not working correctly
+
+economic calendar values should have a unit column so fields can be numerical - change in DB and on scraper
 
 ONGOING: - stuff that might not ever have an end to it because it can always be made better
 fundamental stuff needs more testing to get it better - perhaps collecting results should be done by date not significance, and only use degree=1

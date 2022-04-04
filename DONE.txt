@@ -70,6 +70,10 @@ split all AI training into DataProvider, Trainer/Tester?, Composer?
 	AIComposer - Takes a data provider, a model and calls model.fit with some parameter settings?
 		 Also creates production-ready models and saves into /models  (tflite?)
 
+setup object using bbs, keltner channels and RSI to test the backtester  --do this sooner!
+
+economic calendar using https://tradingeconomics.com/calendar#
+
 BUGS:
 (FIXED)
 Currency strength from sentiment indicator! see:
