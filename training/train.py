@@ -311,7 +311,7 @@ class ModelComposer:
 		self.model_maker = model_maker
 		self.data_provider = data_provider
 	
-	def train(self,epochs=20):
+	def train(self,epochs=20): #extendable! can override this function :) 
 		if self.model_maker.weights_label:
 			self.model_maker.load_weights()
 		return self.model_maker.model.fit(

@@ -44,8 +44,8 @@ class NewsReaderData(DataProvider):
 	source_ref_duration_map = {	}
 	
 	parameters = {
-		'start_date':datetime.datetime(2022,1,1),
-		'end_date':datetime.datetime(2022,3,25)
+		'start_date':datetime.datetime(2019,1,1),
+		'end_date':datetime.datetime(2022,4,1)
 	}
 	
 	@overrides(DataProvider)
@@ -120,13 +120,13 @@ class NewsReaderData(DataProvider):
 
 
 def perform_training():
-	news_reader_model = NewsReaderModel()
+	news_reader_model = NewsReaderModel(weights_label='main_set')
 	news_reader_model.create_model()
-	news_data = NewsReaderData(news_reader_model,row_cache_label='test')
+	news_data = NewsReaderData(news_reader_model,row_cache_label='main_set')
 	news_data.begin_load()
 	#pdb.set_trace()
-	model_composer = ModelComposer(news_reader_model,news_data,weights_label='test')
-	model_composer.train(epochs=30)
+	model_composer = ModelComposer(news_reader_model,news_data)
+	model_composer.train(epochs=10)
 	model_composer.test(' ') #put some test news snippet in here
 
 

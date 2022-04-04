@@ -19,14 +19,17 @@ class ModelMaker:
 	parameters_directory = './models/parameters/'
 	
 	def __init__(self,parameters_label='',weights_label=''):
-		self.load_parameters(parameters_label)
-		if weights_label:
-			self.load_weights(weights_label)
-			self.weights_label = weights_label
+		
+		if parameters_label:
+			self.parameters_label = parameters_label
+			self.load_parameters()
+		self.weights_label = weights_label
 		
 	def create_model(self):
 		self._init()
 		self.model = self._define()
+		if self.weights_label:
+			self.load_weights()
 	
 	def save_parameters(self):
 		params_json = json.dumps(self.parameter_settings)
@@ -34,15 +37,15 @@ class ModelMaker:
 		with open(filename,'w') as f:
 			f.write(param_json)
 		
-	def load_parameters(self,parameters_label):
+	def load_parameters(self):
 		lfr = ListFileReader() #list file reader has capability of reading files that contain comments in
 		lfr.not_found_none = True
-		filename = self.__params_filename(parameters_label)
+		filename = self.__params_filename(self.parameters_label)
 		params_json = lfr.read_full_text(filename) #if not exists we dont care! :)
 		if params_json is None:
 			pass #log here
 		else:
-			self.parameter_settings = json.loads(params_json) 
+			self.parameter_settings = json.loads(params_json) #dict updater?
 	
 	def save_weights(self):
 		self.model.save_weights(self.__weights_filename(self.weights_label))
