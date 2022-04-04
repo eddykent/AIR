@@ -1,12 +1,12 @@
 
 import numpy as np 
 
+from utils import overrides
 
 from indicators.indicator import Indicator
 from indicators.moving_average import SMA, EMA
 from indicators.volatility import ATR
 from charting import candle_stick_functions as csf
-
 
 
 #bug when switch to uptrend -draw to see! 

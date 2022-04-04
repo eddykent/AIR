@@ -2,13 +2,16 @@
 import numpy as np
 
 
-from indicators.indicator import Indicator
+from utils import overrides
+
+from indicators.indicator import Indicator, Diff
 from indicators.moving_average import SMA, EMA
 from charting import candle_stick_functions as csf
 
 
+import pdb 
 
-#our RSI is between 0 and 1 for easier use with NNs  -
+#our RSI is between 0 and 1 for easier use with NNs  - bug - missing a value...
 class RSI(Indicator):
 	channel_keys = {'RSI':0, 'OVERBOUGHT':1, 'OVERSOLD':2} 
 	channel_styles = {'RSI':'bearish', 'OVERBOUGHT':'neutral', 'OVERSOLD':'neutral'}
@@ -21,8 +24,12 @@ class RSI(Indicator):
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
-		closes = candles[:,:,self.candle_channel]
-		rate_of_change = closes[:,1:] - closes[:,:-1]
+		
+		diff = Diff()
+		diff.diff = 1
+		differences = diff._perform(candles)
+		rate_of_change = differences[:,:,csf.close]
+		
 		up_moves = np.maximum(rate_of_change,0)
 		down_moves = np.abs(np.minimum(rate_of_change,0))
 		ema = EMA()

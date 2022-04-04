@@ -1,6 +1,7 @@
 #split into momentum.py and reversal.py?
 import numpy as np 
 
+from utils import overrides
 
 from indicators.indicator import Indicator
 from indicators.moving_average import SMA, EMA
