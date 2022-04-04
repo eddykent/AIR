@@ -9,7 +9,7 @@ import pdb
 from utils import Database, Inject, ListFileReader, TimeHandler
 
 
-candle_csv_directory = 'data'
+candle_csv_directory = 'data/csvs'
 
 csv_files = [fn for fn in os.listdir(candle_csv_directory) if fn.endswith('.csv')]
 
