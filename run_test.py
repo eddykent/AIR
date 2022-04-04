@@ -22,10 +22,12 @@
 #from tests.fundamental_test import *
 
 #from tests.indicators_test import *
-from tests.timeline_test import *
+#from tests.timeline_test import *
 #from tests.backtest_test import *
 
 #from tests.spacy_test import *
+
+from tests.setup_test import *
 
 #from tests.shape_patterns_test import *
 #from tests.candle_offset_test import *

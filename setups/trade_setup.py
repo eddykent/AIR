@@ -12,6 +12,7 @@ from utils import ListFileReader, Database
 from utils import overrides 
 import charting.chart_viewer as chv 
 
+#looks like you're setting up some kind of grammar!
 class TradeDirection(Enum):
 	SELL = -1
 	VOID = 0 
@@ -36,11 +37,11 @@ class Inequality(Enum):
 	LESS_THAN = -2
 	WITHIN = -1 #contained inside (usually refers to two values either side, used with expression, eg bollinger bands or something) 
 	VOID = 0 #standard -means to be ignored/deleted
-	OVERLAP = 1 #oposite to within? 
+	OVERLAP = 1 
 	MORE_THAN = 2
 	CROSS_UPWARDS = 3
 
-#if "sell if x exceeds y" etc - used for generating signals from indicators or chart patterns etc. stoploss can be a key to use, or a percent etc 
+#if "sell if x more_than y" etc - used for generating signals from indicators or chart patterns etc. stoploss can be a key to use, or a percent etc 
 SetupCriteria = namedtuple('SetupCriteria','direction expr1 ineq expr2 stop_type stop_loss take_profit') 
 #stop criteria separate?
 
@@ -103,16 +104,24 @@ class TradeSignal:
 			'length':self.length
 		}
 
+#class TradeHoldSignal:  -- will need an interest rate calculation
+#	This class holds the concept of holding a trade - 
+#	we can buy and leave open x candles or until another trade hold signal has fired instead of having a TP or SL. 
+#	This is risky though and it is probably better to always use the TP and SL levels. 
 
 class TradeSetup:	#this not just an indicator - does not have calculate() etc. It is its own thing that finds trade signals 	
 	
 	timeframe = 15 #15 min chart by default
 	instruments = [] #what trading instruments are we interested in?
+	criteria = [] #assume blank for now but we might be able to generalise the setup into criteria for use with auto calculating proquant style
+	currencies = []
+	grace_period = 10 #number of candles to go back to get an accurate reading at start_date
 	
 	def __init__(self,instruments,timeframe=15):
 		self.timeframe = timeframe
 		self.instruments = instruments
-	
+		lfr = ListFileReader()
+		self.currencies = lfr.read('fx_pairs/currencies.txt')
 	
 	#by default, get the setups and turn to -1s and 1s?
 	def detect(self,start_date : datetime, end_date : datetime) -> np.array:# - for AI - 0s and 1s or similar delivered from  get_setups()
@@ -178,7 +187,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		start_date = datetime.now() - timedelta(minutes=age_limit)
 		return self.get_setups(start_date,end_date)
 	
-	def draw_snapshot(self,start_date : datetime, end_date :datetime, trade_signal : TradeSignal = None) -> chv.ChartView #-add all chart views together. Consider what to do with start_date and end_date  
+	def draw_snapshot(self,start_date : datetime, end_date :datetime, trade_signal : TradeSignal = None) -> chv.ChartView: #-add all chart views together. Consider what to do with start_date and end_date  
 		"""
 		Generate a ChartView object that can be plotted and looked at for inspecting the signal generated from this setup.
 		All of  the indicators etc used should be plotted on this chart in this method. Start and end dates are needed to 
@@ -200,6 +209,68 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 			A chart view object of the drawing of this indicator 		"""
 		raise NotImplementedError('This method must be overridden')  #--incorrect? this needs to return a chart view with the trading rectangle 
 	
+	def get_days_back(self, start_date,end_date):
+		mins_in_day = 1440 
+		mins_before_start = self.timeframe * self.grace_period 
+		delta = end_date - start_date
+		days_back = delta.days + 1
+		days_back += int(mins_before_start / mins_in_day) + 1
+		days_back += int(delta.days/7) * 2   #buffer period 
+		days_back += 2
+		return days_back
+	
+	def get_timeline(self,candlesticks):
+		return candlesticks[0,:,-1] #1d? 
+	
+	def get_candlestick_data(self,start_date,end_date,block=False,query_params={}):
+		candles = []
+		
+		
+		days_back = self.get_days_back(start_date,end_date) 
+		
+		instruments = self.instruments
+		parameters = {
+			'the_date':end_date,
+			'instruments':self.instruments, #redundant but probably useful later when doing stocks 
+			'currencies':self.currencies, #perhaps going to be a pain in the arse when doing stocks 
+			'days_back':days_back,
+			'hour':end_date.hour,
+			'chart_resolution':self.timeframe,
+			'candle_offset':0
+		}
+		parameters.update(query_params)
+		with Database(commit=False,cache=True) as cursor:
+			with open('queries/candle_stick_selector.sql','r') as f:
+				query = f.read()
+				cursor.execute(query,parameters)
+				candles = cursor.fetchcandles(instruments)
+		
+		if block:#turn into an npblock of numbers instead of a bunch of streams 
+			candle_block = np.array([candles[instr] for instr in instruments if candles.get(instr)])
+			instruments = [instr for instr in instruments if candles.get(instr)]
+			candles = candle_block
+		return candles, instruments
+			
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
