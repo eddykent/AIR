@@ -102,7 +102,7 @@ class TimeHandler:
 	@staticmethod  #date has format Day/Month/Year 
 	def from_str_1(the_str,date_delimiter='.',time_delimiter=':'):
 		#09.03.2022 00:52:56
-		a_date,a_time = the_str.split(' ')
+		a_date,a_time = [t for t in the_str.split(' ') if t][:2]
 		date_bits = [int(re.sub('[^0-9]','',a)) for a in  a_date.split(date_delimiter)]
 		time_bits = [int(re.sub('[^0-9]','',a)) for a in  a_time.split(time_delimiter)]
 		d,m,y = date_bits[:3]
@@ -115,7 +115,7 @@ class TimeHandler:
 	@staticmethod #date has format Year/Month/Day 
 	def from_str_2(the_str,date_delimiter='-',time_delimiter=':'):
 		#09.03.2022 00:52:56
-		a_date,a_time = the_str.split(' ')
+		a_date,a_time = [t for t in the_str.split(' ') if t][:2]
 		date_bits = [int(re.sub('[^0-9]','',a)) for a in  a_date.split(date_delimiter)]
 		time_bits = [int(re.sub('[^0-9]','',a)) for a in  a_time.split(time_delimiter)]
 		y,m,d = date_bits[:3]
@@ -428,7 +428,6 @@ class Database:
 			except KeyError as ke:
 				return_dict[instrument] = None #warning?
 		return return_dict
-	
 	
 	def close(self):
 		self.cur.close()
