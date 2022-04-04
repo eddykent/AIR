@@ -42,6 +42,27 @@ CREATE TABLE economic_calendar (
 );
 
 --other sentiment tables? eg client_sentiment_info? 
+CREATE TABLE exchange_volume_hourly (
+	id BIGSERIAL PRIMARY KEY,
+	from_currency TEXT,
+	to_currency TEXT,
+	full_name TEXT,
+	bid_volume DOUBLE PRECISION,
+	ask_volume DOUBLE PRECISION,
+	the_date TIMESTAMP, 
+	captured_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	note TEXT
+);
+
+CREATE INDEX exchange_volume_hourly_from_currency_idx ON exchange_volume_hourly USING btree(from_currency);
+CREATE INDEX exchange_volume_hourly_to_currency_idx ON exchange_volume_hourly USING btree(to_currency);
+CREATE INDEX exchange_volume_hourly_full_name_idx ON exchange_volume_hourly USING btree(full_name);
+CREATE INDEX exchange_volume_hourly_the_date_idx ON exchange_volume_hourly USING btree(the_date);
+CREATE INDEX exchange_volume_hourly_the_date_full_name_idx ON exchange_volume_hourly USING btree(the_date,full_name);
+
+
+
+
 
 
 
