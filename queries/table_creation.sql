@@ -2,7 +2,8 @@
 
 -- Drop table
 
--- DROP TABLE public.exchange_value_tick;
+-- DROP TABLE public.exchange_value_tick; 
+-- TODO: Add index creation
 
 CREATE TABLE public.exchange_value_tick (
 	id bigserial NOT NULL,
