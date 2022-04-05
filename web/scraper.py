@@ -13,7 +13,8 @@ from collections import namedtuple
 
 import pdb
 
-
+import logging 
+log = logging.getLogger(__name__)
 
 
 ##format of a scraper object - a simple class that 'has a' html parsed inside it 
@@ -24,6 +25,7 @@ class Scraper:
 	html = None
 	#session = None
 	
+	
 	def __init__(self,source):
 		self.change_link(source)
 	
@@ -32,6 +34,7 @@ class Scraper:
 		raise NotImplementedError('This method must be overridden')
 	
 	def change_link(self,link):
+		log.debug(f"Performing get to {link}")
 		self.source = link
 		session = requests_html.HTMLSession()
 		response = session.get(self.source)
@@ -66,6 +69,7 @@ class Article:
 			self.source_ref = servername.lower().replace('www.','')
 			
 		except (ValueError,IndexError) as e:
+			log.warning(f"unable to extract a pretty source ref from {self.link}.\nUsing the full link as the source ref.",exec_info=True)
 			self.source_ref = link # not specific enough :( 
 	
 	@classmethod
@@ -119,9 +123,7 @@ class Article:
 				entry.link
 			)
 		except Exception as e:
-			print('Oh dear - it looks like some stuff is missing on one of the feeds.')
-			print(e)
-			pdb.set_trace()
+			log.error('Missing data on one of the feeds.',exec_info=True)
 		
 		if 'content' in entry:
 			this_article.full_text = entry.content[0].value			
@@ -217,13 +219,11 @@ class Article:
 			scraper = specialist_scraper(self.link)
 			self.full_text = scraper.scrape()
 			if self.full_text == '':
-				print("We are not able to get the full_text for "+self.link)
-				#pdb.set_trace()
+				module_log.warning(f"full_text was blank when scraping {self.link}. Using the title and summary instead.")
 				self.full_text = self.full_text_fallback()
 		else:
-			print("We are not able to get the full_text for "+self.link)
-			pdb.set_trace()
-			self.full_text = self.title + ' ' + self.summary #crude but will do for now
+			log.warning(f"Unable to get full_text for {self.link}. Using the title and summary instead.")
+			self.full_text = self.full_text_fallback() #crude but will do for now
 	
 	#no idea why ever this function would  be used 
 	def reset(self):
