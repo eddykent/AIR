@@ -115,7 +115,8 @@ TURN is_tutorial INTO A RATE BASED, NOT COUNT BASED THING?-- might not be that i
 
 
 
-
+(FIXED) Use logging to report issues found especially when scraping websites as it will probably be way easier
+	stuff is now logged in the database and also in a log file. warnings and above are printed to console 
 
 
 

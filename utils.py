@@ -7,7 +7,9 @@ import time
 import hashlib
 import pickle
 import os
+import sys
 import re
+import logging
 import multiprocessing 
 
 import numpy as np
@@ -18,7 +20,16 @@ from configparser import ConfigParser
 
 import pdb
 from psycopg2.extensions import AsIs as Inject
-	
+
+log = logging.getLogger(__name__)
+
+def overrides(interface_class):
+    def overrider(method):
+        assert(method.__name__ in dir(interface_class)), "method {} is not overriden by {}".format(method.__name__,interface_class.__name__)
+        return method
+    return overrider
+
+
 #turn type saftey on and off - useful for ensuring we get the correct type everywhere
 class TypeSafe:
 	
@@ -205,9 +216,111 @@ class TypedList:
 		self.the_list.extend(vs)
 		return self
 	
+
+class DisableLogger:
+	def __enter__(self):
+		logging.disable(logging.CRITICAL)
+		
+	def __exit__(self,exc_type,exc_value,exc_traceback):
+		logging.disable(logging.NOTSET)
+		
 	
-class Log:   ##learn how to use logger first
-	pass
+class DBDBLogHandler(logging.Handler):
+	"""
+	Custom log handler for inserting into the database all debug stuff. 
+	"""
+	
+	db_error = False 
+	sql_log_query = """
+	INSERT INTO debug_log(created,log,level,file,line,module,process,thread,funct,message,exc_info,exc_text,stack_info) 
+	VALUES (%(created)s,%(log)s,%(level)s,%(file)s,%(line)s,%(module)s,%(process)s,%(thread)s,%(funct)s,%(message)s,%(exc_info)s,%(exc_text)s,%(stack_info)s)
+	RETURNING 1;"""
+	sql_clear_old = "DELETE FROM debug_log WHERE created < %(clear_time)s RETURNING 1;"
+	
+	def __init__(self,skip_clean=False,elapse=7): 
+		logging.Handler.__init__(self)
+		if not skip_clean:
+			clear_time = datetime.datetime.utcnow() - datetime.timedelta(days=elapse)
+			try:
+				with Database(cache=False,commit=True) as db:
+					db.execute(self.sql_clear_old,{'clear_time':clear_time})
+			except:
+				self.setLevel(999999)
+				log.error('Error setting up the database logger!',exc_info=True)
+				self.db_error = True
+	
+	
+	@overrides(logging.Handler)
+	def emit(self,record):
+		if self.db_error:
+			return #skip if there was a db errror of any kind 
+		
+		params = {
+			'created': datetime.datetime.fromtimestamp(record.created),
+			'log': record.name,
+			'level': record.levelname,
+			'file': record.filename,
+			'line': record.lineno,
+			'process': record.processName ,
+			'thread': record.threadName,
+			'module':record.module,
+			'funct': record.funcName,
+			'message':record.msg,
+			'exc_info':str(record.exc_info),
+			'exc_text':record.exc_text,
+			'stack_info':str(record.stack_info)
+		}
+		try:
+			with Database(commit=True,cache=False) as db:
+				db.execute(self.sql_log_query,params)
+		except:
+			self.setLevel(999999) #turn this handler off 
+			log.error('Error setting up the database logger!',exc_info=True)
+			self.db_error = True
+	
+#create one instance of this class to set up the logger - (from entry point)
+class LogSetup:
+	
+	def __init__(self,skip_clean=False,file_elapse=7,db_elapse=10,use_file=True,use_stream=True,use_db=True):
+		if use_stream:
+			self.setup_stream()
+		if use_file:
+			self.setup_file(skip_clean,file_elapse)
+		if use_db:
+			self.setup_db(skip_clean,db_elapse)
+	
+	def setup_file(self,skip_clean,elapse):
+		if not os.path.isdir('logs'):#create logs directory if it doesnt exist.
+			os.mkdir('logs')
+		#delete any old log files here
+		right_now = datetime.datetime.now()
+		logfilename = 'logs/'+right_now.strftime("%d-%m-%y") + '.log'
+		
+		file_format = "%(asctime)s(%(msecs)d) %(levelname)-8s [%(filename)s:%(lineno)s]: %(message)s"
+		logfile = logging.FileHandler(logfilename,mode='a')
+		logfile.setLevel(logging.WARNING)
+		logfile.setFormatter(logging.Formatter(file_format))
+		
+		logger = logging.getLogger()
+		logger.addHandler(logfile)
+	
+	def setup_stream(self):
+		stream_format = "[%(filename)s:%(lineno)s] %(levelname)-8s:  %(message)s"
+		logstream = logging.StreamHandler()#usual print 
+		logstream.setLevel(logging.INFO)
+		logstream.setFormatter(logging.Formatter(stream_format))
+		logger = logging.getLogger()
+		logger.addHandler(logstream)
+	
+	def setup_db(self,skip_clean,elapse):
+		logdb = DBDBLogHandler(skip_clean=skip_clean,elapse=elapse)
+		logdb.setLevel(logging.DEBUG)
+		logger = logging.getLogger()
+		logger.addHandler(logdb)
+		
+		
+		
+	
 
 class TaskHandler:  #collect tasks and then wait for them all to finish using multiprocessing 
 	pass
@@ -595,14 +708,6 @@ class SplitAndPrepare:
 			test = post_funct(test)
 		return np.array(train), np.array(validate), np.array(test)
 		
-		
-
-def overrides(interface_class):
-    def overrider(method):
-        assert(method.__name__ in dir(interface_class)), "method {} is not overriden by {}".format(method.__name__,interface_class.__name__)
-        return method
-    return overrider
-
 
 
 

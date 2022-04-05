@@ -4,6 +4,9 @@
 # for example, to run chart_tests.py run this: 
 # from tests.chart_tests import *
 
+from utils import LogSetup
+LogSetup()
+
 #from tests.web_crawling_tests import *
 
 
@@ -27,7 +30,8 @@
 
 #from tests.spacy_test import *
 
-from tests.setup_test import *
+#from tests.setup_test import *
+from tests.logging_test import *
 
 #from tests.shape_patterns_test import *
 #from tests.candle_offset_test import *

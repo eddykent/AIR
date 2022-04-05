@@ -5,7 +5,31 @@
 -- DROP TABLE public.exchange_value_tick; 
 -- TODO: Add index creation
 
-CREATE TABLE public.exchange_value_tick (
+--DROP TABLE IF EXISTS debug_log;
+CREATE TABLE debug_log (
+	id BIGSERIAL PRIMARY KEY, --  DEFAULT uuid_generate_v4() PRIMARY KEY,  --id is sequential so we can always determine the log order
+	created TIMESTAMP NOT NULL, --convert float to timestamp 
+	log TEXT,--name
+	--login TEXT, --from path? 
+	level TEXT,--levelname
+	file TEXT, 
+	line INT,
+	module TEXT, 
+	process TEXT, --processName
+	thread TEXT, --threadName
+	funct TEXT,--funcName
+	message TEXT,--msg
+	exc_info TEXT,
+	exc_text TEXT, 
+	stack_info TEXT
+);
+
+
+
+
+
+
+CREATE TABLE exchange_value_tick (
 	id bigserial NOT NULL,
 	from_currency text NOT NULL,
 	to_currency text NOT NULL,
