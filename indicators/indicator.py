@@ -228,10 +228,21 @@ class Diff(Indicator):
 		padshape = (later.shape[0],self.diff,later.shape[2])
 		return np.concatenate([np.zeros(padshape), later - earlier],axis=1)
 
-
-
-
-
+#these are actually provided in a toolkit with keras? 
+#class Normalisation(Indicatior):
+#	
+#	channel_keys = {'NORMED':0,'HIGHEST':1,'LOWEST':2} 
+#	channel_styles = {'NORMED':'neutral','HIGHEST':'bearish','LOWEST':'bullish'}
+#	candle_sticks = False
+#
+#	normalisation_window = 50
+#	candle_channel = csf.close
+#	
+#	def _perform(self,candles):
+#		pass
+#	
+#class Standardisation(Indicator):
+	
 
 
 
