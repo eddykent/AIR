@@ -190,7 +190,7 @@ all_results AS (
 		JSON_BUILD_OBJECT(
 			'BUY', CASE WHEN buy_win THEN 1 ELSE 0 END,  --only care when hit a winning trade, otherwise 
 			'SELL', CASE WHEN sell_win THEN 1 ELSE 0 END, --it is treated as a loss 
-			'the_date',the_date
+			'the_date',start_date
 		)
 	) AS day_result, 
 	day_number
