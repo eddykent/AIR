@@ -20,7 +20,8 @@ pluralise filters.py to use all times not just now so they can be used in backte
 	--all filters need refactoring possibly to use indicators
 	--they also need a now() kinda function for handling when we want to actually perform trades 
 pluralise all chart patterns. Start with match_pattern as  it already uses numpy. other chart patterns may be a re-write 
-	- scipy maximas/minimas should come in handy
+	- scipy maximas/minimas should come in handy. 
+	- before doing this, ensure candle_stick_pattern is correct so we got a base to go from 
 
 Create & test full RNN with candles_and_indicators.sql, currency_strengths, correlations etc & get_y_values.sql 
 
@@ -92,9 +93,10 @@ Practice will also land you a high paying datascience role if you move jobs...
 
 Getting stuff from multiple websites should be async so we can query em all at the same tim
 
-feed_collector articles should be grouped by instr name and then top 5 latest should be picked 
+feed_collector articles should be grouped by instr name and then top 5 latest should be picked - filter? 
 
 currency_strength_diff_auto_regression_rsi.sql is not producing enough rows to run in database_tests.py
+	--this didnt work well anyway!
 
 hour should not be a db query parameter - we can get the hour from the datetime passed into the query
 	lots of queries should be functions - need major sql refactor!
@@ -124,5 +126,7 @@ add new styles to charts?:
 	seanavy - deep blue
 	sunglow - bright yellow
 
-change charts to use datetime on x axis (removing weekends)
+change charts to use datetime on x axis (removing weekends) - use values and dvalue
+
+
 
