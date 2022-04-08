@@ -23,11 +23,11 @@ AS $$
 --quarts are 15m, halfs are 30m and quads are 4h candles 
 
 BEGIN
-	DROP TABLE IF EXISTS _return_candles;
+	DROP TABLE IF EXISTS _get_candles_from_currencies;
 
 	--build candles of our chosen chart size 
-	CREATE TEMPORARY TABLE _return_candles
-	--ON COMMIT DROP --consider  
+	CREATE TEMPORARY TABLE _get_candles_from_currencies
+	ON COMMIT DROP --consider  
 	AS (
 		WITH selected_candles AS (
 			SELECT evt.from_currency, evt.to_currency,
@@ -86,13 +86,12 @@ BEGIN
 		)
 		SELECT * FROM time_indexed_candles
 	);
+	
+	CREATE INDEX _get_candles_from_currencies_row_index_idx ON _get_candles_row_index USING btree(row_index);
+	CREATE INDEX _get_candles_from_currencies_full_name_idx ON _get_candles_from_currencies USING btree(full_name);
+	CREATE INDEX _get_candles_from_currencies_the_date_idx ON _get_candles_from_currencies USING btree(the_date); --check
 
-	CREATE INDEX _return_candles_from_currency_idx ON _return_candles USING btree(from_currency);
-	CREATE INDEX _return_candles_to_currency_idx ON _return_candles USING btree(to_currency);
-	CREATE INDEX _return_candles_full_name_idx ON _return_candles USING btree(full_name);
-	CREATE INDEX _return_candles_the_date_idx ON _return_candles USING btree(the_date); --check
-
-	RETURN QUERY SELECT * FROM _return_candles; 
+	RETURN QUERY SELECT * FROM _get_candles_from_currencies; 
 
 END
 $$ LANGUAGE plpgsql;
@@ -100,5 +99,5 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION get_candles_from_currencies(TEXT[], timestamp, int, int, int) IS 'From a set of currencies, and a timestamp, get the associated forex candles.';
 
 --TEST
---SELECT * FROM get_candles_from_currencies(ARRAY['EUR','USD','GBP'], '07 Mar 2022 12:30:00'::timestamp, 100) 
+--SELECT * FROM get_candles_from_currencies(ARRAY['EUR','USD','GBP','JPY'], '07 Mar 2022 12:30:00'::timestamp, 100) 
 
