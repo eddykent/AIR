@@ -1,7 +1,7 @@
 --function for taking in a set of candles and returning their difference
 
-DROP FUNCTION IF EXISTS candles_time_diff(_candles_tmp TEXT, _difference INT );
-CREATE OR REPLACE FUNCTION candles_time_diff(_candles_tmp TEXT, _difference INT DEFAULT 1)
+DROP FUNCTION IF EXISTS trading.candles_time_diff(_candles_tmp TEXT, _difference INT );
+CREATE OR REPLACE FUNCTION trading.candles_time_diff(_candles_tmp TEXT, _difference INT DEFAULT 1)
 RETURNS TABLE (
 	row_index INTEGER, 
 	full_name TEXT,
@@ -39,7 +39,7 @@ BEGIN
 END
 $$ LANGUAGE plpgsql; 
 
-COMMENT ON FUNCTION candles_time_diff(TEXT, INTEGER) IS 'From a set of candles, get their difference from the candles before them.';
+COMMENT ON FUNCTION trading.candles_time_diff(TEXT, INTEGER) IS 'From a set of candles, get their difference from the candles before them.';
 
 --TEST
 --DROP TABLE IF EXISTS candles_tmp CASCADE;
