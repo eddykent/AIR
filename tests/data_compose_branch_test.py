@@ -6,6 +6,7 @@ import pdb
 from utils import Database, DataComposer 
 
 result = []
+rsi_result = [] 
 
 this_date = datetime.datetime(2022,3,7)
 

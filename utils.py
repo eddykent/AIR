@@ -724,6 +724,7 @@ class DataComposer:
 		new_composer._function_register = self._function_register
 		#new_composer._prev_function_signature = None
 		new_composer._call_queue = []
+		new_composer._end_join_tables = [] #dont know what they are yet! 
 		new_composer.cursor = self.cursor #needed?
 		new_composer._temp_tables = self._temp_tables[-1:] #only keep last temp table - we will call from this one onwards 
 		return new_composer
@@ -788,15 +789,20 @@ class DataComposer:
 		
 		#pdb.set_trace()
 		self.cursor.execute(returning_sql)
-		return self.cursor.fetchall()
+		return [r for r in self.cursor.fetchall()]
 	
 	def	execute(self):	#execute up to this point in case we wnat to branch and then call different results? 
 		#only call if the current temp_table has not been created - perhaps record this? 
 		sql_code = self.to_sql()
-		pdb.set_trace()
-		self._sql_code = sql_code
-		self.cursor.execute(sql_code,no_results=True)
-	
+		if sql_code.strip():
+			pdb.set_trace()
+			self._sql_code = sql_code
+			self.cursor.execute(sql_code,no_results=True)
+			#clear function calls and start from current? 
+			self._call_queue = self._call_queue[-1:] #keep only last call 
+		else:
+			log.debug(f"No sql code to run!")
+		
 	#find what the next function wants and marry up the column name nicely... 
 	def __auto_alias(self,current_call,next_call):
 		#for each returned result in this current call, ensure the alias will put it into value or into candle form 
@@ -948,9 +954,10 @@ class DataComposer:
 			sql_lines.append(sql_line)
 
 		
-		temp_tables = [t for t in self._temp_tables if t]
+		temp_tables = [fc['temp_table'] for fc in func_calls if fc and fc['temp_table'] and fc['temp_table']['branch'] == self._this_branch]
 		drop_if_exists_cascade = 'DROP TABLE IF EXISTS %(temp_table)s CASCADE;'
 		drops = [self.cursor.mogrify(drop_if_exists_cascade,{'temp_table':Inject(t['name'])}).decode() for t in temp_tables]
+		
 		return '\n'.join(drops) + '\n' + '\n'.join(sql_lines)
 	
 	def __alias_sql(self,aliases,keep_old=True):

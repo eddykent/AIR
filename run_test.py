@@ -34,8 +34,8 @@ LogSetup() #think of how to rmeove this line
 #from tests.setup_test import *
 #from tests.logging_test import *
 #from tests.data_compose_test import *
-#from tests.data_compose_branch_test import *
-from tests.data_compose_fork_test import *
+from tests.data_compose_branch_test import *
+#from tests.data_compose_fork_test import *
 
 
 #from tests.shape_patterns_test import *
