@@ -41,13 +41,17 @@ jupyter for presenting front end trade setups and ideas
 
 pivot points? - use as a support/resistance & TP SL targets   - part of pluralization re-write
 
-refactor queries to use functions - eg f : candles -> indicators or similar. The better organisation might really help later on!
+refactor queries to use functions - eg f : candles -> indicators or similar. The better organisation might really help later on! -nearly done just test
+forking 
+	- aliaes to next branch temp table broken 
+	- fork breaks - missing temp tables ==> unable to call result on a branch for some reason. 
 
 https://www.dukascopy.com/swiss/english/marketwatch/historical/   -historic client sentiment information 
 	- use selenium to get latest data for use with volume indicators & client sentiment information :D 
 	- add dukascopy to config.ini
 
 demand forecasting with ai - use bid/ask volumes and perhaps RSI and write an NN to give the next client sentiment
+			- rate, acceleration etc 
 
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs
@@ -56,7 +60,7 @@ and so on. The idea is that concepts from other currencies can be found
 across all currencies. 
 Then run it on all 28 by running 7 networks at once (7*4 = 28)
 
-create a correlation tool for this 
+create a correlation tool for this & also lag correlations projection in sql function...
 Cross correlation matrix - get which pairs are high correlated to work 
 out which ones to train together with. 
 
@@ -86,6 +90,7 @@ python->Cython integration for some chart patterns to speed them up (harmonics &
 
 OWN FEAR & GREED INDEX - research & calculate how it works etc 
 
+research more about quantconnect - might have some useful things or even might be able to sell strategies there 
 
 BUGS:
 Perhaps using pandas data frames will be more efficient and better for the whole thing? 
@@ -111,12 +116,17 @@ parabolic sar, atx and other various indicators are not working correctly
 
 economic calendar values should have a unit column so fields can be numerical - change in DB and on scraper
 
+data composer bugs 
+	- fork breaks
+	- temp table lost when branching 
+	- alias lost when branching too 
+
 ONGOING: - stuff that might not ever have an end to it because it can always be made better
 fundamental stuff needs more testing to get it better - perhaps collecting results should be done by date not significance, and only use degree=1
 
 all chart patterns need tuning & testing properly - need refactor to use numpy or similar
 
-some drawing indicators eg ichimoku
+some drawing indicators eg ichimoku, macd
 
 add new styles to charts?:
 	wealthy -golden / dark yellow
