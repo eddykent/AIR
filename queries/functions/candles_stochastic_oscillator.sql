@@ -1,7 +1,7 @@
 --function for taking in a set of candles and returning stochastic oscillator values
 --DEPENDS ON EMA
-DROP FUNCTION IF EXISTS candles_stochastic_oscillator(_candles_tmp TEXT, _period INTEGER, _fast_d INTEGER, _slow_d INTEGER);
-CREATE OR REPLACE FUNCTION candles_stochastic_oscillator(_candles_tmp TEXT, _period INTEGER DEFAULT 14, _fast_d INTEGER DEFAULT 3, _slow_d INTEGER DEFAULT 3)
+DROP FUNCTION IF EXISTS trading.candles_stochastic_oscillator(_candles_tmp TEXT, _period INTEGER, _fast_d INTEGER, _slow_d INTEGER);
+CREATE OR REPLACE FUNCTION trading.candles_stochastic_oscillator(_candles_tmp TEXT, _period INTEGER DEFAULT 14, _fast_d INTEGER DEFAULT 3, _slow_d INTEGER DEFAULT 3)
 RETURNS TABLE (
 	row_index INTEGER, 
 	full_name TEXT,
@@ -69,7 +69,7 @@ BEGIN
 END
 $$ LANGUAGE plpgsql; 
 
-COMMENT ON FUNCTION candles_stochastic_oscillator(TEXT, INTEGER, INTEGER, INTEGER) IS 'From a set of candles and a period, get the stochastic oscillator values';
+COMMENT ON FUNCTION trading.candles_stochastic_oscillator(TEXT, INTEGER, INTEGER, INTEGER) IS 'From a set of candles and a period, get the stochastic oscillator values';
 
 --TEST
 --DROP TABLE IF EXISTS candles_tmp CASCADE;

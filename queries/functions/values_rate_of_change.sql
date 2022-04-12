@@ -1,6 +1,6 @@
 --function for taking in a set of valus and returning their rate of change
-DROP FUNCTION IF EXISTS values_rate_of_change(_values_tmp TEXT, _difference INT );
-CREATE OR REPLACE FUNCTION values_rate_of_change(_values_tmp TEXT, _difference INT DEFAULT 1)
+DROP FUNCTION IF EXISTS trading.values_rate_of_change(_values_tmp TEXT, _difference INT );
+CREATE OR REPLACE FUNCTION trading.values_rate_of_change(_values_tmp TEXT, _difference INT DEFAULT 1)
 RETURNS TABLE (
 	row_index INTEGER, 
 	full_name TEXT,
@@ -40,7 +40,7 @@ BEGIN
 END
 $$ LANGUAGE plpgsql; 
 
-COMMENT ON FUNCTION values_rate_of_change(TEXT, INTEGER) IS 'From a set of values, get their rate of change (multiply by 100 to get percentage)';
+COMMENT ON FUNCTION trading.values_rate_of_change(TEXT, INTEGER) IS 'From a set of values, get their rate of change (multiply by 100 to get percentage)';
 
 --TEST
 --DROP TABLE IF EXISTS values_tmp CASCADE;

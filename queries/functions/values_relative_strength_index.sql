@@ -1,8 +1,8 @@
 --function for calculating RSI values from the close price a given set of candles. 
 --DEPENDS: values_rate_of_change, EMA 
 
-DROP FUNCTION IF EXISTS values_relative_strength_index(_values_tmp TEXT, _period INT, _difference INT);
-CREATE OR REPLACE FUNCTION values_relative_strength_index(_values_tmp TEXT, _period INT DEFAULT 14, _difference INT DEFAULT 1)
+DROP FUNCTION IF EXISTS trading.values_relative_strength_index(_values_tmp TEXT, _period INT, _difference INT);
+CREATE OR REPLACE FUNCTION trading.values_relative_strength_index(_values_tmp TEXT, _period INT DEFAULT 14, _difference INT DEFAULT 1)
 RETURNS TABLE (
 	row_index INTEGER, 
 	full_name TEXT,
@@ -28,7 +28,7 @@ BEGIN
 			GREATEST(r.rate,0) AS up_move,
 			ABS(LEAST(r.rate,0)) AS down_move,
 			ROW_NUMBER() OVER (PARTITION BY r.full_name ORDER BY r.the_date ASC) AS time_index
-			FROM values_rate_of_change('__rsi_tmp',_difference) AS r 
+			FROM trading.values_rate_of_change('__rsi_tmp',_difference) AS r 
 			WINDOW w AS (PARTITION BY r.full_name ORDER BY r.the_date ASC ROWS BETWEEN (_period - 1) PRECEDING AND CURRENT ROW)	
 		),
 		avg_moves AS (
@@ -63,7 +63,7 @@ BEGIN
 END
 $$ LANGUAGE plpgsql; 
 
-COMMENT ON FUNCTION values_relative_strength_index(TEXT, INTEGER, INTEGER) IS 'From a set of values, get their relative strength index';
+COMMENT ON FUNCTION trading.values_relative_strength_index(TEXT, INTEGER, INTEGER) IS 'From a set of values, get their relative strength index';
 
 --TEST
 --DROP TABLE IF EXISTS values_tmp CASCADE;

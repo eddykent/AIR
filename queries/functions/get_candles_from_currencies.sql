@@ -2,8 +2,8 @@
 --quarts are 15m, halfs are 30m and quads are 4h candles 
 
 --from currencies 
-DROP FUNCTION IF EXISTS get_candles_from_currencies(TEXT[], timestamp, int, int, int);
-CREATE OR REPLACE FUNCTION get_candles_from_currencies(_currencies TEXT[], _this_date TIMESTAMP, _days_back INTEGER, _chart_resolution INTEGER DEFAULT 15, _candle_offset INTEGER DEFAULT 0)
+DROP FUNCTION IF EXISTS trading.get_candles_from_currencies(TEXT[], timestamp, int, int, int);
+CREATE OR REPLACE FUNCTION trading.get_candles_from_currencies(_currencies TEXT[], _this_date TIMESTAMP, _days_back INTEGER, _chart_resolution INTEGER DEFAULT 15, _candle_offset INTEGER DEFAULT 0)
 RETURNS TABLE (
 	row_index INTEGER,	
 	from_currency TEXT,
@@ -23,11 +23,19 @@ AS $$
 --quarts are 15m, halfs are 30m and quads are 4h candles 
 
 BEGIN
+	
+	DROP TABLE IF EXISTS __currencies_tmp; 
+	CREATE TEMPORARY TABLE __currencies_tmp 
+	ON COMMIT DROP 
+	AS ( 
+		SELECT UNNEST(_currencies) AS currency
+	);
+	
 	DROP TABLE IF EXISTS _get_candles_from_currencies;
 
 	--build candles of our chosen chart size 
 	CREATE TEMPORARY TABLE _get_candles_from_currencies
-	ON COMMIT DROP --consider  
+	ON COMMIT DROP  
 	AS (
 		WITH selected_candles AS (
 			SELECT evt.from_currency, evt.to_currency,
@@ -37,8 +45,8 @@ BEGIN
 			evt.close_price, 
 			evt.the_date - (_candle_offset || ' mins')::INTERVAL AS the_date
 			FROM exchange_value_tick evt 
-			WHERE evt.from_currency  = ANY(_currencies) 
-			AND evt.to_currency = ANY(_currencies)
+			WHERE evt.from_currency  = ANY(SELECT currency FROM __currencies_tmp) 
+			AND evt.to_currency = ANY(SELECT currency FROM __currencies_tmp)
 			AND evt.the_date < _this_date
 			AND evt.the_date >= _this_date -  (_days_back || ' days')::INTERVAL --600 = 400 + 200 (days_back + normalisation_window)
 		), 
@@ -87,7 +95,7 @@ BEGIN
 		SELECT * FROM time_indexed_candles
 	);
 	
-	CREATE INDEX _get_candles_from_currencies_row_index_idx ON _get_candles_row_index USING btree(row_index);
+	CREATE INDEX _get_candles_from_currencies_row_index_idx ON _get_candles_from_currencies USING btree(row_index);
 	CREATE INDEX _get_candles_from_currencies_full_name_idx ON _get_candles_from_currencies USING btree(full_name);
 	CREATE INDEX _get_candles_from_currencies_the_date_idx ON _get_candles_from_currencies USING btree(the_date); --check
 
@@ -96,7 +104,7 @@ BEGIN
 END
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION get_candles_from_currencies(TEXT[], timestamp, int, int, int) IS 'From a set of currencies, and a timestamp, get the associated forex candles.';
+COMMENT ON FUNCTION trading.get_candles_from_currencies(TEXT[], timestamp, int, int, int) IS 'From a set of currencies, and a timestamp, get the associated forex candles.';
 
 --TEST
 --SELECT * FROM get_candles_from_currencies(ARRAY['EUR','USD','GBP','JPY'], '07 Mar 2022 12:30:00'::timestamp, 100) 

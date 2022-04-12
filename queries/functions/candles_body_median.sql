@@ -1,7 +1,7 @@
 --function for taking in a set of candles and returning their body median
 
-DROP FUNCTION IF EXISTS candles_body_median(_candles_tmp TEXT);
-CREATE OR REPLACE FUNCTION candles_body_median(_candles_tmp TEXT)
+DROP FUNCTION IF EXISTS trading.candles_body_median(_candles_tmp TEXT);
+CREATE OR REPLACE FUNCTION trading.candles_body_median(_candles_tmp TEXT)
 RETURNS TABLE (
 	row_index INTEGER, 
 	full_name TEXT,
@@ -33,7 +33,7 @@ BEGIN
 END
 $$ LANGUAGE plpgsql; 
 
-COMMENT ON FUNCTION candles_body_median(TEXT) IS 'From a set of candles, get their mean price';
+COMMENT ON FUNCTION trading.candles_body_median(TEXT) IS 'From a set of candles, get their mean price';
 
 --TEST
 --DROP TABLE IF EXISTS candles_tmp CASCADE;

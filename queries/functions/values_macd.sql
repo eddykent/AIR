@@ -1,7 +1,7 @@
 --function for taking in a set of values and returning their macd (moving averages convergence divergence)
 
-DROP FUNCTION IF EXISTS values_macd(_values_tmp TEXT,  _period INTEGER, _fast INTEGER, _slow INTEGER);
-CREATE OR REPLACE FUNCTION values_macd(_values_tmp TEXT,  _period INTEGER DEFAULT 9, _fast INTEGER DEFAULT 12, _slow INTEGER DEFAULT 26)
+DROP FUNCTION IF EXISTS trading.values_macd(_values_tmp TEXT,  _period INTEGER, _fast INTEGER, _slow INTEGER);
+CREATE OR REPLACE FUNCTION trading.values_macd(_values_tmp TEXT,  _period INTEGER DEFAULT 9, _fast INTEGER DEFAULT 12, _slow INTEGER DEFAULT 26)
 RETURNS TABLE (
 	row_index INTEGER, 
 	full_name TEXT,
@@ -51,7 +51,7 @@ BEGIN
 END
 $$ LANGUAGE plpgsql; 
 
-COMMENT ON FUNCTION values_macd(TEXT, INTEGER, INTEGER, INTEGER) IS 'From a set of values, get the macd line and signal line.';
+COMMENT ON FUNCTION trading.values_macd(TEXT, INTEGER, INTEGER, INTEGER) IS 'From a set of values, get the macd line and signal line.';
 
 --TEST
 --DROP TABLE IF EXISTS values_tmp CASCADE;

@@ -1,6 +1,6 @@
 --function for taking in a set of values and returning a standardised version of  them bounded between 0 and 1
-DROP FUNCTION IF EXISTS values_rolling_standardised(_values_tmp TEXT,  _period INTEGER);
-CREATE OR REPLACE FUNCTION values_rolling_standardised(_values_tmp TEXT,  _period INTEGER)
+DROP FUNCTION IF EXISTS trading.values_rolling_standardised(_values_tmp TEXT,  _period INTEGER);
+CREATE OR REPLACE FUNCTION trading.values_rolling_standardised(_values_tmp TEXT,  _period INTEGER)
 RETURNS TABLE (
 	row_index INTEGER, 
 	full_name TEXT,
@@ -48,7 +48,7 @@ BEGIN
 END
 $$ LANGUAGE plpgsql; 
 
-COMMENT ON FUNCTION values_rolling_standardised(TEXT, INTEGER) IS 'From a set of values, return their normed value.';
+COMMENT ON FUNCTION trading.values_rolling_standardised(TEXT, INTEGER) IS 'From a set of values, return their normed value.';
 
 --TEST
 --DROP TABLE IF EXISTS values_tmp CASCADE;

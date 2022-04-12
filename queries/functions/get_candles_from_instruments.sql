@@ -2,8 +2,8 @@
 --quarts are 15m, halfs are 30m and quads are 4h candles 
 
 --from currencies 
-DROP FUNCTION IF EXISTS get_candles_from_instruments(TEXT[], timestamp, int, int, int);
-CREATE OR REPLACE FUNCTION get_candles_from_instruments(_instruments TEXT[], _this_date TIMESTAMP, _days_back INTEGER, _chart_resolution INTEGER DEFAULT 15, _candle_offset INTEGER DEFAULT 0)
+DROP FUNCTION IF EXISTS trading.get_candles_from_instruments(TEXT[], timestamp, int, int, int);
+CREATE OR REPLACE FUNCTION trading.get_candles_from_instruments(_instruments TEXT[], _this_date TIMESTAMP, _days_back INTEGER, _chart_resolution INTEGER DEFAULT 15, _candle_offset INTEGER DEFAULT 0)
 RETURNS TABLE (
 	row_index INTEGER,	
 	from_currency TEXT,
@@ -96,7 +96,7 @@ BEGIN
 END
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION get_candles_from_instruments(TEXT[], timestamp, int, int, int) IS 'From a set of instruments, and a timestamp, get the associated forex candles.';
+COMMENT ON FUNCTION trading.get_candles_from_instruments(TEXT[], timestamp, int, int, int) IS 'From a set of instruments, and a timestamp, get the associated forex candles.';
 
 --TEST
 --SELECT * FROM get_candles_from_instruments(ARRAY['EUR/USD','GBP/JPY'], '07 Mar 2022 12:30:00'::timestamp, 100, 240,120) 

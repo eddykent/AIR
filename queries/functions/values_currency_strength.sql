@@ -1,7 +1,7 @@
 --function for taking in a set of forex values, combining them to return a strength value of each currency
 --DEPENDS ON EMA
-DROP FUNCTION IF EXISTS values_currency_strength(_values_tmp TEXT);
-CREATE OR REPLACE FUNCTION values_currency_strength(_values_tmp TEXT)
+DROP FUNCTION IF EXISTS trading.values_currency_strength(_values_tmp TEXT);
+CREATE OR REPLACE FUNCTION trading.values_currency_strength(_values_tmp TEXT)
 RETURNS TABLE (
 	row_index INTEGER, 
 	currency TEXT,
@@ -14,6 +14,7 @@ BEGIN
 	EXECUTE FORMAT('ALTER TABLE %s RENAME TO __values_currency_strength_tmp', _values_tmp); --possibly just use formatter -- might NOT be parallelizable 
 	DROP TABLE IF EXISTS __values_currency_strength_results;
 	
+	DROP TABLE IF EXISTS __forex_candles_tmp;
 	CREATE TEMPORARY TABLE __forex_candles_tmp
 	ON COMMIT DROP 
 	AS (
@@ -22,7 +23,7 @@ BEGIN
 			--vcs.row_index, --this is now o longer used 
 			vcs.full_name,
 			vcs.the_date, 
-			vcs.value,
+			(vcs.value * 2) - 1 AS value, --value goes FROM BETWEEN 0 AND 1 TO BETWEEN -1 AND 1
 			NULLIF(SPLIT_PART(vcs.full_name, '/', 1),'') AS from_currency,
 			NULLIF(SPLIT_PART(vcs.full_name, '/', 2),'') AS to_currency
 			FROM __values_currency_strength_tmp vcs
@@ -35,6 +36,7 @@ BEGIN
 	CREATE INDEX IF NOT EXISTS __forex_candles_tmp_to_currency_idx ON __forex_candles_tmp USING btree(to_currency);
 	--index from currency & to_currency
 	
+	DROP TABLE IF EXISTS __currencies_tmp CASCADE;
 	CREATE TEMPORARY TABLE __currencies_tmp
 	ON COMMIT DROP 
 	AS (
@@ -57,7 +59,8 @@ BEGIN
 		SELECT c.currency FROM currencies c
 	);
 	CREATE INDEX IF NOT EXISTS __currencies_tmp_currency_idx ON __currencies_tmp USING btree(currency); --necessary?
-
+	
+	DROP TABLE IF EXISTS __dates_tmp CASCADE;
 	CREATE TEMPORARY TABLE __dates_tmp 
 	ON COMMIT DROP 
 	AS (
@@ -65,6 +68,7 @@ BEGIN
 	);
 	CREATE INDEX IF NOT EXISTS __dates_tmp_the_date_idx ON __dates_tmp USING btree(the_date); --necessary?
 	
+	DROP TABLE IF EXISTS __friends_tmp CASCADE; 
 	CREATE TEMPORARY TABLE __friends_tmp 
 	ON COMMIT DROP 
 	AS (
@@ -78,6 +82,7 @@ BEGIN
 	CREATE INDEX IF NOT EXISTS __friends_tmp_currency_idx ON __friends_tmp USING btree(currency);
 	CREATE INDEX IF NOT EXISTS __friends_tmp_the_date_idx ON __friends_tmp USING btree(the_date);
 	
+	DROP TABLE IF EXISTS __enemies_tmp CASCADE; 
 	CREATE TEMPORARY TABLE __enemies_tmp 
 	ON COMMIT DROP 
 	AS (
@@ -91,6 +96,7 @@ BEGIN
 	CREATE INDEX IF NOT EXISTS __enemies_tmp_currency_idx ON __enemies_tmp USING btree(currency);
 	CREATE INDEX IF NOT EXISTS __enemies_tmp_the_date_idx ON __enemies_tmp USING btree(the_date);
 	
+	DROP TABLE IF EXISTS __currency_the_date_tmp CASCADE;
 	CREATE TEMPORARY TABLE __currency_the_date_tmp 
 	ON COMMIT DROP 
 	AS (
@@ -103,6 +109,7 @@ BEGIN
 	CREATE INDEX IF NOT EXISTS __currency_the_date_tmp_row_index_idx ON __currency_the_date_tmp USING btree(row_index);
 	CREATE INDEX IF NOT EXISTS __currency_the_date_tmp_currency_idx ON __currency_the_date_tmp USING btree(currency);
 	CREATE INDEX IF NOT EXISTS __currency_the_date_tmp_the_date_idx ON __currency_the_date_tmp USING btree(the_date);
+	
 	
 	CREATE TEMPORARY TABLE __values_currency_strength_results 
 	ON COMMIT DROP
@@ -141,16 +148,16 @@ BEGIN
 END
 $$ LANGUAGE plpgsql; 
 
-COMMENT ON FUNCTION values_currency_strength(TEXT) IS 'From a set of candles and a period, get the stochastic oscillator values';
+COMMENT ON FUNCTION trading.values_currency_strength(TEXT) IS 'From a set of forex candles, use the value to get their currency strength ';
 
 --TEST
-DROP TABLE IF EXISTS candles_tmp CASCADE;
-DROP TABLE IF EXISTS values_tmp CASCADE;
-DROP TABLE IF EXISTS rates_tmp CASCADE;
-SELECT * INTO candles_tmp FROM get_candles_from_currencies(ARRAY['EUR','USD','JPY','AUD','NZD','CAD','CHF','GBP'], '07 Mar 2022 12:30:00'::timestamp, 100, 15);
-SELECT row_index, full_name, the_date, typical_price AS value INTO values_tmp FROM candles_typical_price('candles_tmp');
-SELECT row_index, full_name, the_date, rate AS value INTO rates_tmp FROM values_rate_of_change('values_tmp',1); 
-SELECT * FROM values_currency_strength('rates_tmp')
+--DROP TABLE IF EXISTS candles_tmp CASCADE;
+--DROP TABLE IF EXISTS values_tmp CASCADE;
+--DROP TABLE IF EXISTS rates_tmp CASCADE;
+--SELECT * INTO candles_tmp FROM get_candles_from_currencies(ARRAY['EUR','USD','JPY','AUD','NZD','CAD','CHF','GBP'], '07 Mar 2022 12:30:00'::timestamp, 100, 15);
+--SELECT row_index, full_name, the_date, typical_price AS value INTO values_tmp FROM candles_typical_price('candles_tmp');
+--SELECT row_index, full_name, the_date, rate AS value INTO rates_tmp FROM values_rate_of_change('values_tmp',1); 
+--SELECT * FROM values_currency_strength('rates_tmp')
 
 
 

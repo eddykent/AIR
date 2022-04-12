@@ -1,7 +1,7 @@
 --function for taking in a set of candles and returning their average true range
 --DEPENDS ON EMA
-DROP FUNCTION IF EXISTS candles_average_true_range(_candles_tmp TEXT, _period INTEGER );
-CREATE OR REPLACE FUNCTION candles_average_true_range(_candles_tmp TEXT, _period INTEGER DEFAULT 14)
+DROP FUNCTION IF EXISTS trading.candles_average_true_range(_candles_tmp TEXT, _period INTEGER );
+CREATE OR REPLACE FUNCTION trading.candles_average_true_range(_candles_tmp TEXT, _period INTEGER DEFAULT 14)
 RETURNS TABLE (
 	row_index INTEGER, 
 	full_name TEXT,
@@ -45,7 +45,7 @@ BEGIN
 END
 $$ LANGUAGE plpgsql; 
 
-COMMENT ON FUNCTION candles_average_true_range(TEXT, INTEGER) IS 'From a set of candles and a period, get their average true range';
+COMMENT ON FUNCTION trading.candles_average_true_range(TEXT, INTEGER) IS 'From a set of candles and a period, get their average true range';
 
 --TEST
 --DROP TABLE IF EXISTS candles_tmp CASCADE;

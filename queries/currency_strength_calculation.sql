@@ -32,7 +32,7 @@ WITH selected_candles AS (
 	high_price,
 	low_price,
 	close_price, 
-	the_date - INTERVAL '120 mins' AS the_date
+	the_date - INTERVAL '0 mins' AS the_date
 	FROM exchange_value_tick evt 
 	WHERE from_currency  = ANY(SELECT currency FROM tmp_currencies) AND to_currency = ANY(SELECT currency FROM tmp_currencies)
 	AND the_date < (DATE '24 Feb 2022' + INTERVAL '12 hours')
@@ -47,7 +47,7 @@ candle_indexs AS (
 	TO_TIMESTAMP (FLOOR(( EXTRACT ('EPOCH' FROM (the_date )) ) / (60*15) ) * (60*15)) AT TIME ZONE 'UTC' AS the_date,
 	the_date::DATE AS date_day, --day_index ? 
 	--the_date,
-	(EXTRACT(MINUTE FROM the_date) + 60 * EXTRACT (HOUR FROM the_date))::INT / 240::INT AS candle_index
+	(EXTRACT(MINUTE FROM the_date) + 60 * EXTRACT (HOUR FROM the_date))::INT / 15::INT AS candle_index
 	FROM selected_candles
 ),
 candles_start_end AS (
@@ -87,7 +87,7 @@ time_indexed_candles AS (
 	c.high_price,
 	c.low_price,
 	c.close_price,
-	c.the_date + INTERVAL '120 mins' AS the_date,
+	c.the_date + INTERVAL '0 mins' AS the_date,
 	t.time_index 
 	FROM candles c 
 	JOIN time_indexs t ON c.the_date = t.the_date
