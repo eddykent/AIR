@@ -41,11 +41,6 @@ jupyter for presenting front end trade setups and ideas
 
 pivot points? - use as a support/resistance & TP SL targets   - part of pluralization re-write
 
-refactor queries to use functions - eg f : candles -> indicators or similar. The better organisation might really help later on! -nearly done just test
-forking 
-	- aliaes to next branch temp table broken 
-	- fork breaks - missing temp tables ==> unable to call result on a branch for some reason. 
-
 https://www.dukascopy.com/swiss/english/marketwatch/historical/   -historic client sentiment information 
 	- use selenium to get latest data for use with volume indicators & client sentiment information :D 
 	- add dukascopy to config.ini
@@ -103,9 +98,6 @@ feed_collector articles should be grouped by instr name and then top 5 latest sh
 currency_strength_diff_auto_regression_rsi.sql is not producing enough rows to run in database_tests.py
 	--this didnt work well anyway!
 
-hour should not be a db query parameter - we can get the hour from the datetime passed into the query
-	lots of queries should be functions - need major sql refactor!
-
 selenium chrome driver - webdriver-manager cant auto detect chrome version - possibly permissions error
 
 draw snapshot should have default candle index parameter to -1 - will be fixed in chart_pattern refactor
@@ -116,10 +108,8 @@ parabolic sar, atx and other various indicators are not working correctly
 
 economic calendar values should have a unit column so fields can be numerical - change in DB and on scraper
 
-data composer bugs 
-	- fork breaks
-	- temp table lost when branching 
-	- alias lost when branching too 
+query refactor - alias broken in tests/data_compose_branch_test  
+
 
 ONGOING: - stuff that might not ever have an end to it because it can always be made better
 fundamental stuff needs more testing to get it better - perhaps collecting results should be done by date not significance, and only use degree=1
