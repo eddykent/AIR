@@ -3,9 +3,9 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 
-from keras.models import Sequential
+from keras.models import Sequential,Model
 from keras.layers import Dense
-from keras.layers import LSTM,Bidirectional
+from keras.layers import LSTM, Bidirectional, Input
 import spacy
 
 from models.model_base import ModelMaker
@@ -67,12 +67,14 @@ class NewsReaderModel(ModelMaker):
 	@overrides(ModelMaker)
 	def _define(self):
 		maxlen = self.parameters.get('story_length',650)
-		model = Sequential()
-		model.add(Bidirectional(LSTM(150,return_sequences=True,input_shape=(maxlen,300))))
-		model.add(Bidirectional(LSTM(100))) 
-		model.add(Dense(100,activation='relu'))
-		model.add(Dense(2)) #no activation?
+		inp = Input(shape=(maxlen,300))
+		b1 = Bidirectional(LSTM(150,return_sequences=True,input_shape=(maxlen,300)))(inp)
+		b2 = Bidirectional(LSTM(100))(b1)
+		d1 = Dense(100,activation='relu')(b2)
+		d2 = Dense(2)(d1) #no activation?
+		model = keras.Model(inp,d2)
 		model.compile(loss='mse',optimizer=keras.optimizers.Adam(learning_rate=0.0001))
+		#model(tf.ones(input_shape))
 		return model
 	
 #the beauty of this is we can actually override NewsReaderModel and call a different _define function to experiment with many models!
