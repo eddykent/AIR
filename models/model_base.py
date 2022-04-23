@@ -4,6 +4,10 @@ from tensorflow import keras
 
 import json
 from os.path import join as file_namer
+import logging
+import pdb
+
+log = logging.getLogger(__name__)
 
 from utils import ListFileReader
 
@@ -17,6 +21,7 @@ class ModelMaker:
 	weights_label = '' 
 	weights_directory = './models/weights/'
 	parameters_directory = './models/parameters/'
+	n_inputs = 1#automate somehow?
 	
 	def __init__(self,parameters_label='',weights_label=''):
 		
@@ -28,6 +33,9 @@ class ModelMaker:
 	def create_model(self):
 		self._init()
 		self.model = self._define()
+		
+		#set n_inputs here
+		
 		if self.weights_label:
 			self.load_weights()
 	
@@ -52,10 +60,19 @@ class ModelMaker:
 	
 	def load_weights(self):
 		filename = self.__weights_filename(self.weights_label)
+		exists = False
 		try:
-			self.model.load_weights(filename)
+			open(filename).close()
+			exists = True
 		except FileNotFoundError as e:
-			print(f"Unable to load weights {filename}. Using new weights.")
+			log.warning(f"Unable to load weights {filename}. Using new weights.",exc_info=True) #stops here? #
+			exists = False
+		if exists:
+			try:
+				self.model.load_weights(filename)
+			except Exception as e:
+				log.warning(f"Unable to load weights {filename}. Using new weights.",exc_info=True) #stops here? 
+		log.debug('Finished loading weights')
 	
 	def __params_filename(self,parameters_label):
 		return file_namer(self.parameters_directory,self.__class__.__name__ + parameters_label+'.json')
@@ -72,6 +89,12 @@ class ModelMaker:
 	def postprocess_y(self,result):
 		return result
 	
+	#consider compile options?
+	def recompile(self,*args,**kwargs):
+		weights = model.get_weights() 
+		model.compile(*args,**kwargs)
+		model.set_weights(weights) 
+	
 	#methods to override
 	def _define(self):
 		raise NotImplementedError('This method must be overridden')
@@ -85,7 +108,11 @@ class ModelLoader:
 	model_maker = None
 	
 	def __init__(self,model_maker):
-		self.model_maker.load_weights()
+		self.model_maker = model_maker
+		if self.model_maker.model is None:
+			self.model_maker.create_model()
+		else:
+			self.model_maker.load_weights() #ensure weights are loaded
 	
 	def invoke(self,data):
 		X = self.model_maker.preprocess_x(data)

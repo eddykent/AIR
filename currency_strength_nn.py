@@ -139,7 +139,6 @@ dense = keras.layers.Dense(64,activation='relu',activity_regularizer=l2_reg)(den
 dense = keras.layers.Dropout(dropout_chance)(dense)
 dense = keras.layers.Dense(8,activation='sigmoid')(dense)
 
-
 model = keras.Model([inp1,inp2],dense)
 #model.summary()
 

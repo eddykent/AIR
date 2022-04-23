@@ -24,7 +24,6 @@ from utils import ListFileReader
 
 ##caching with data providers could be done by row in a temp table or temp pickles. But it will make a mess so clean it up afterwards! 
 #cached rows are stored in "pickles/cobwebs" since there is 1 primary dictionary object and many rows all stored as guid filenames
-
 class ValidationMode(Enum):
 	START = -1 #use the start values of the list of samples
 	RANDOM = 0 #use random list of samples 
@@ -143,7 +142,7 @@ class DataProvider: #cobweb functions?
 	#__cache_forward_pass = False #set to true once we have a cobweb, if we are caching. 
 	cobweb = None #cobwebs for storing row data on the disk
 	
-	def __init__(self,model_maker,row_cache_label=False,validation_mode=ValidationMode.RANDOM,training_batch_size=32,validation_batch_size=5,parameters={}): #parameter settings? start/end dates etc? 
+	def __init__(self,model_maker,row_cache_label=False,overwrite_cache=False,validation_mode=ValidationMode.RANDOM,training_batch_size=32,validation_batch_size=5,parameters={}): #parameter settings? start/end dates etc? 
 		self.model_maker = model_maker #used for preprocess_x and preprocess_y in _generate
 		if parameters:
 			self.parameters = parameters
@@ -151,6 +150,9 @@ class DataProvider: #cobweb functions?
 			#pdb.set_trace()
 			self.cobweb_label = row_cache_label
 			self.load_cache()
+			if overwrite_cache:
+				CobwebCache.clear_cobweb(self.cobweb)
+				self.load_cache() #start from beginning 
 	
 		#return DataGenerator object using self as the DataProvider
 	def get_training_generator(self):
@@ -174,6 +176,7 @@ class DataProvider: #cobweb functions?
 		collection_indexs = indexs
 		collected = {}
 		
+		#pdb.set_trace()
 		if self.cobweb and not validation:
 			collected = self.cobweb.fetch_rows(indexs) #handle when indexs = None/0 length
 			collection_indexs = [i for i in indexs if i not in collected or collected[i] is None]
@@ -209,6 +212,15 @@ class DataProvider: #cobweb functions?
 			X = cX
 			Y = cY
 		
+		#pdb.set_trace()
+		if self.model_maker.n_inputs > 1:
+			Xs = list(zip(*X))
+			#log?
+			assert len(Xs) == self.model_maker.n_inputs, f"Number of inputs is incorrect. There should be {self.model_maker.n_inputs} but counted {len(Xs)}..."
+			newXs = []
+			for x in Xs:
+				newXs.append(np.array(x))
+			X = newXs
 		return X,Y
 	
 	def begin_load(self,validation_split=0.1):
@@ -233,7 +245,7 @@ class DataProvider: #cobweb functions?
 				self.validation_parts.append(data_instruction_list.pop(i))
 				count = count + 1
 			self.training_parts = data_instruction_list
-	
+		
 	def load_cache(self):
 		fn = self.__cobweb_locator(self.cobweb_label)
 		self.cobweb = CobwebCache.load_cobweb(fn)	
@@ -300,7 +312,24 @@ class DataGenerator(keras.utils.Sequence):
 			self.data_provider.model_maker.save_weights()
 
 
- #training & testing using model.fit or model.fit_generator etc. Also used to generate models like tensorflow lite etc ?
+
+# After so many iterations, look for a stopping point. Do this by extending EarlyStopping
+class EarlyStoppingAfter(keras.callbacks.EarlyStopping):
+
+	start_epoch = 10
+
+	def __init__(self, start_epoch=100,**kwargs): # add argument for starting epoch
+		super(EarlyStoppingAfter, self).__init__(**kwargs) 
+		self.start_epoch = start_epoch
+
+	def on_epoch_end(self, epoch, logs=None):
+		if epoch > self.start_epoch:
+			super().on_epoch_end(epoch, logs)
+
+
+
+
+#training & testing using model.fit or model.fit_generator etc. Also used to generate models like tensorflow lite etc ?
 # load a model & a data provider. Then train it and produce weights. A ModelLoader in the production system can then load the model and weights 
 class ModelComposer:
 	
@@ -314,6 +343,7 @@ class ModelComposer:
 	def train(self,epochs=20): #extendable! can override this function :) 
 		if self.model_maker.weights_label:
 			self.model_maker.load_weights()
+		
 		return self.model_maker.model.fit(
 			self.data_provider.get_training_generator(),  #skip y since it is presented in the generator
 			epochs=epochs,
@@ -321,6 +351,9 @@ class ModelComposer:
 			batch_size=self.data_provider.training_batch_size,
 			validation_batch_size=self.data_provider.validation_batch_size
 		)
+	
+	#def recompile(self, ...):
+		
 	
 	def save(self,new_weights_label=None): #incase we want to save it to a different file	
 		if new_weights_label is not None:
