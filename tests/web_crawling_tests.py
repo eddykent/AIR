@@ -1,13 +1,10 @@
 
 
 import time 
+import datetime
 
 
-
-from web.crawler import Crawler, SeleniumHandler
-from web.client_sentiment_indicators import Dukascopy
-from utils import ListFileReader
-
+from utils import ListFileReader, Database
 
 #with SeleniumHandler() as sh:
 #sh = SeleniumHandler()  #will need to fix error with webdriver-manager to auto-detect chrome version somehow (report in install_instructions.md)
@@ -20,14 +17,55 @@ def wait_for_me():
 	input()
 
 
-#url = 'forexclientsentiment.com/client-sentiment'
-url = 'https://www.dukascopy.com/swiss/english/marketwatch/sentiment/'
-lfr = ListFileReader()
-fx_pairs = lfr.read('fx_pairs/fx_mains.txt') + lfr.read('fx_pairs/currencies.txt')
+def client_sentiment():
+	
+	from web.crawler import Crawler, SeleniumHandler
+	from web.client_sentiment_indicators import Dukascopy
+	from utils import ListFileReader
 
-with SeleniumHandler(hidden=True) as sh:
-	fcsc = Dukascopy(sh,url,fx_pairs)
-	client_sentiment = fcsc.get_client_sentiment_info()
-	#wait_for_me()
+	#url = 'forexclientsentiment.com/client-sentiment'
+	url = 'https://www.dukascopy.com/swiss/english/marketwatch/sentiment/'
+	lfr = ListFileReader()
+	fx_pairs = lfr.read('fx_pairs/fx_mains.txt') + lfr.read('fx_pairs/currencies.txt')
 
-print(client_sentiment)
+	with SeleniumHandler(hidden=True) as sh:
+		fcsc = Dukascopy(sh,url,fx_pairs)
+		client_sentiment = fcsc.get_client_sentiment_info()
+		#wait_for_me()
+
+	print(client_sentiment)
+
+def get_volumes():
+
+	from data.tools.dukascopy import DukascopyVolumes #DukascopyCandles
+	from web.crawler import Crawler, SeleniumHandler
+	
+	url = 'https://www.dukascopy.com/swiss/english/marketwatch/historical/'
+	
+	lfr = ListFileReader()
+	
+	instruments = lfr.read('fx_pairs/fx_mains.txt') #['EUR/USD','USD/JPY','GBP/AUD']
+	date_from = datetime.datetime(2020,1,1,0,0)
+	date_to = datetime.datetime.now()
+	cursor = Database(commit=True,cache=False)
+	with SeleniumHandler() as sh:
+		duk = DukascopyVolumes(sh,url,cursor)
+		duk.set_gets(instruments, date_from, date_to)
+		duk.get_all_instruments()
+		wait_for_me()
+
+
+get_volumes()
+
+
+
+
+
+
+
+
+
+
+
+
+

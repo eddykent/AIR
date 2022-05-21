@@ -219,7 +219,7 @@ class Article:
 			scraper = specialist_scraper(self.link)
 			self.full_text = scraper.scrape()
 			if self.full_text == '':
-				module_log.warning(f"full_text was blank when scraping {self.link}. Using the title and summary instead.")
+				log.warning(f"full_text was blank when scraping {self.link}. Using the title and summary instead.")
 				self.full_text = self.full_text_fallback()
 		else:
 			log.warning(f"Unable to get full_text for {self.link}. Using the title and summary instead.")

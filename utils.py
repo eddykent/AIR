@@ -119,8 +119,8 @@ class TimeHandler:
 		d,m,y = date_bits[:3]
 		h,n = time_bits[:2] 
 		s = 0
-		if len(time_bits) > 2:
-			s = time_bits[2]
+		#if len(time_bits) > 2:
+		#	s = time_bits[2]
 		return datetime.datetime(y,m,d,h,n,s)
 	
 	@staticmethod #date has format Year/Month/Day 
@@ -780,12 +780,16 @@ class DataComposer:
 				SELECT the_date, count(1) as n, json_object_agg(full_name,json_obj)
 				FROM create_json_blobs
 				GROUP BY the_date 
+			),
+			max_row AS (
+				SELECT MAX(n) AS should_be FROM collected_dates
 			)
-			SELECT * FROM collected_dates 
+			SELECT cd.* FROM collected_dates cd, max_row
+			WHERE cd.n = max_row.should_be
 			ORDER BY the_date ASC
-			'''#hmm.. incorrect! work it out in a bit
+			'''
 		else:
-			returning_sql = 'SELECT * FROM end_results_table_tmp;'
+			returning_sql = 'SELECT * FROM end_results_table_tmp;' #doing some other thing without JSON then 
 		
 		#pdb.set_trace()
 		self.cursor.execute(returning_sql)
@@ -795,7 +799,7 @@ class DataComposer:
 		#only call if the current temp_table has not been created - perhaps record this? 
 		sql_code = self.to_sql()
 		if sql_code.strip():
-			pdb.set_trace()
+			#pdb.set_trace()
 			self._sql_code = sql_code
 			self.cursor.execute(sql_code,no_results=True)
 			#clear function calls and start from current? 

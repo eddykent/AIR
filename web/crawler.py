@@ -5,13 +5,14 @@ from selenium.webdriver import ChromeOptions
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
-from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException
+from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException, ElementNotInteractableException
 
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 
 from webdriver_manager.chrome import ChromeDriverManager
+#from webdriver_manager.utils import ChromeType
 
 import os 
 import re
@@ -210,6 +211,18 @@ class Crawler:
 	
 	def crawl(self):
 		raise NotImplementedError('This method must be overridden')
+	
+	def poll_interaction(self, interaction_function, poll_length_seconds):
+		start = time.time()
+		while time.time() - start < poll_length_seconds:
+			try:
+				interaction_function()
+				return 
+			except ElementNotInteractableException:
+				time.sleep(0.2) #keep trying every 5th of a second
+		raise ElementNotInteractableException(f"element not interactable, even after {time.time() - start} seconds.")
+			
+			
 
 #wrapper class for crawler that is powered by xpath to crawl a webpage and find elements. Always start from the root nod
 class XPathNavigator(Crawler):

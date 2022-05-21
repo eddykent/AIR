@@ -8,6 +8,7 @@ every candlestick and chart pattern should have a get_setups() function to retur
 explain() to return an explanation in terms of trading using the tool and draw_snapshot() for charting 
 
 refactor currency strength nn to be of the same form as DataProvider etc 
+	- find out what is still to do!
 
 SCREENING - candle stick scanner for candle stick patterns and chart patterns. Use to determine entry points
 	- candlestick patterns at high timeframes 
@@ -46,7 +47,10 @@ https://www.dukascopy.com/swiss/english/marketwatch/historical/   -historic clie
 	- add dukascopy to config.ini
 
 demand forecasting with ai - use bid/ask volumes and perhaps RSI and write an NN to give the next client sentiment
-			- rate, acceleration etc 
+		- rate, acceleration etc (day of week, hour of day) 
+
+volume indicators - TVI, VWAP, MVWAP, OBV, Delta, AskVWAP, BidVWAP, others?
+
 
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs
@@ -67,6 +71,8 @@ Fundamental analysis/signals - use RSS feeds and a feed reader to get
 sentiment for currencies and for currency pairs  - Twitter and Reddit, https://www.fx.co/en
 
 AI to read news and learn trends - 60k news articles to learn from! 
+
+AI to learn fitness values of chart patterns 
 
 test chart patterns and practice drawing them - gradient descent for finding params? 
 shape based and trending are pretty broken and need fixing up 
@@ -109,6 +115,9 @@ parabolic sar, atx and other various indicators are not working correctly
 economic calendar values should have a unit column so fields can be numerical - change in DB and on scraper
 
 query refactor - alias broken in tests/data_compose_branch_test  
+
+logging - debug level not going into database
+
 
 
 ONGOING: - stuff that might not ever have an end to it because it can always be made better

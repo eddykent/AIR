@@ -7,7 +7,7 @@
 from utils import LogSetup
 LogSetup() #think of how to rmeove this line
 
-#from tests.web_crawling_tests import *
+from tests.web_crawling_tests import *
 
 
 #from tests.typedlist_test import *
@@ -34,7 +34,7 @@ LogSetup() #think of how to rmeove this line
 #from tests.setup_test import *
 #from tests.logging_test import *
 #from tests.data_compose_test import *
-from tests.data_compose_branch_test import *
+#from tests.data_compose_branch_test import *
 #from tests.data_compose_fork_test import *
 
 
