@@ -51,6 +51,8 @@ demand forecasting with ai - use bid/ask volumes and perhaps RSI and write an NN
 
 volume indicators - TVI, VWAP, MVWAP, OBV, Delta, AskVWAP, BidVWAP, others?
 
+currency buying/selling pressure from bids & asks (contrarian to currency strength?) (rsi?)
+
 
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs
@@ -77,6 +79,7 @@ AI to learn fitness values of chart patterns
 test chart patterns and practice drawing them - gradient descent for finding params? 
 shape based and trending are pretty broken and need fixing up 
 
+
 ADVANCED: 
 Make a NN that takes a sequence of candlesticks and indicators AND a list of 28  
 trades (1 per fx) and attempt to predict a confidence score (0 = lose, 1 = win) per
@@ -92,6 +95,7 @@ python->Cython integration for some chart patterns to speed them up (harmonics &
 OWN FEAR & GREED INDEX - research & calculate how it works etc 
 
 research more about quantconnect - might have some useful things or even might be able to sell strategies there 
+
 
 BUGS:
 Perhaps using pandas data frames will be more efficient and better for the whole thing? 

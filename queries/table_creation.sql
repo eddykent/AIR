@@ -79,6 +79,11 @@ CREATE TABLE exchange_volume_hourly (
 	note TEXT
 );
 
+CREATE INDEX exchange_volume_hourly_from_currency_idx ON exchange_volume_hourly USING btree(from_currency);
+CREATE INDEX exchange_volume_hourly_to_currency_idx ON exchange_volume_hourly USING btree(to_currency);
+CREATE INDEX exchange_volume_hourly_full_name_idx ON exchange_volume_hourly USING btree(full_name);
+CREATE INDEX exchange_volume_hourly_the_date_idx ON exchange_volume_hourly USING btree(the_date);
+CREATE INDEX exchange_volume_hourly_the_date_full_name_idx ON exchange_volume_hourly USING btree(the_date,full_name);
 
 CREATE TABLE exchange_volume_tick (
 	id BIGSERIAL PRIMARY KEY,
@@ -92,11 +97,11 @@ CREATE TABLE exchange_volume_tick (
 	note TEXT
 );
 
-CREATE INDEX exchange_volume_hourly_from_currency_idx ON exchange_volume_hourly USING btree(from_currency);
-CREATE INDEX exchange_volume_hourly_to_currency_idx ON exchange_volume_hourly USING btree(to_currency);
-CREATE INDEX exchange_volume_hourly_full_name_idx ON exchange_volume_hourly USING btree(full_name);
-CREATE INDEX exchange_volume_hourly_the_date_idx ON exchange_volume_hourly USING btree(the_date);
-CREATE INDEX exchange_volume_hourly_the_date_full_name_idx ON exchange_volume_hourly USING btree(the_date,full_name);
+CREATE INDEX exchange_volume_tick_from_currency_idx ON exchange_volume_hourly USING btree(from_currency);
+CREATE INDEX exchange_volume_tick_to_currency_idx ON exchange_volume_hourly USING btree(to_currency);
+CREATE INDEX exchange_volume_tick_full_name_idx ON exchange_volume_hourly USING btree(full_name);
+CREATE INDEX exchange_volume_tick_the_date_idx ON exchange_volume_hourly USING btree(the_date);
+CREATE INDEX exchange_volume_tick_the_date_full_name_idx ON exchange_volume_hourly USING btree(the_date,full_name);
 
 
 

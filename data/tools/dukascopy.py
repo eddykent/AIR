@@ -304,7 +304,7 @@ class DukascopyData(Crawler): #change to Crawler?
 		download_btn.click()
 		self.handle_login() #does nothing if the modal is not displayed
 		
-	def long_poll_click_save_csv(self,expire=600): #10 min expire 
+	def long_poll_click_save_csv(self,expire=1800): #30 min expire 
 		start = time.time() 
 		get_button = lambda: self.browser.find_element(By.XPATH,"//div[@class='d-Wh-Xh-Zh-p']//div[contains(@class,'a-b-c') and contains(text(),'Save as .csv')]")
 		get_info = lambda: self.browser.find_element(By.XPATH,"//p[@class='d-Wh-Xh-Yh']")
