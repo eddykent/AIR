@@ -6,6 +6,7 @@ from utils import overrides
 from indicators.indicator import Indicator
 from charting import candle_stick_functions as csf
 
+import pdb
 
 class SMA(Indicator):
 	channel_keys = {'SMA':0}
@@ -61,8 +62,82 @@ class MultiMovingAverage(Indicator):
 		return result 
 
 
-#DEMA, TEMA, TMA (triangular)
-#weighted? other moving average types?
+#ensure it is known that the start values will not be accurate (nan+nan+..+7*x1 + 8*x2) not (1*x1 + 2*x2 ...) 
+class WMA(Indicator):
+	channel_keys = {'WMA':0}
+	channel_styles = {'WMA':'neutral'}
+	candle_sticks = True
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		windows = self._sliding_windows(candles)[:,:,self.candle_channel,:] #select the correct candle channel
+		#weights = ?
+		weights_singular = np.arange(start=1,stop=self.period+1)
+		weights = np.broadcast_to(weights_singular,shape=windows.shape)
+		result = np.sum(windows*weights,axis=2)  / np.sum(weights,axis=2)
+		return result[:,:,np.newaxis]
+
+
+#double moving average
+class DEMA(Indicator):
+	channel_keys = {'DEMA':0}
+	channel_styles = {'DEMA':'neutral'}
+	candle_sticks = True
+	
+	MA = EMA #so we can change it to sma if we want
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		closes = candles[:,:,self.candle_channel,np.newaxis]
+		ma = self.MA()
+		ma.candle_channel = 0
+		ma1 = ma._perform(closes)
+		ma2 = ma._perform(ma1)
+		dema = (ma1 * 2)  - ma2
+		return dema
+
+
+#triple moving average
+class TEMA(Indicator):
+	channel_keys = {'TEMA':0}
+	channel_styles = {'TEMA':'neutral'}
+	candle_sticks = True
+	
+	MA = EMA
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		closes = candles[:,:,self.candle_channel,np.newaxis]
+		ma = self.MA()
+		ma.candle_channel = 0
+		ma1 = ma._perform(closes)
+		ma2 = ma._perform(ma1)
+		ma3 = ma._perform(ma2)
+		tema = (ma1 * 3)  - (ma2 * 3) + ma3
+		return tema
+
+
+
+# - park for now
+#trianglar moving average  -?? 
+#class TMA(Indicator): 
+#	channel_keys = {'TMA':0}
+#	channel_styles = {'TMA':'neutral'}
+#	candle_sticks = True
+#	
+#	@overrides(Indicator)
+#	def _perform(self,candles):
+#		return candles
+#
+#
+
+
+
+
+
+
+
+
 
 
 
