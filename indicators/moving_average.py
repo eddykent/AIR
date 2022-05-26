@@ -52,7 +52,8 @@ class MultiMovingAverage(Indicator):
 		ma.candle_channel = self.candle_channel
 		
 		result = ma._perform(candles)
-		ma_key = ma.channel_keys[ma.channel_keys.keys()[0]]
+		ma_key_name = list(ma.channel_keys.keys())[0] #always first
+		ma_key = ma.channel_keys[ma_key_name]
 		
 		ma.candle_channel = ma_key
 		for i in range(self.repeats-1):
@@ -60,7 +61,8 @@ class MultiMovingAverage(Indicator):
 		return result 
 
 
-#weighted? other moving average types
+#DEMA, TEMA, TMA (triangular)
+#weighted? other moving average types?
 
 
 

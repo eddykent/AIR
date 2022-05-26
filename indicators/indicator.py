@@ -1,6 +1,7 @@
 
 from collections import namedtuple
 from typing import Optional, List
+from enum import Enum
 
 import numpy as np 
 
@@ -14,6 +15,10 @@ import charting.candle_stick_functions as csf
 from setups.trade_setup import TradeSignal, TradeDirection, SetupCriteria
 from utils import overrides 
 
+class CandleType(Enum):
+	CANDLE = 0
+	VOLUME = 1
+	CANDLE_VOLUME = 2
 
 class Indicator:
 	
@@ -34,6 +39,13 @@ class Indicator:
 	period = 20
 	candle_channel = csf.close
 	candle_sticks = False
+	candle_type = CandleType.CANDLE; 
+	
+	candle_type_dimension_map = {
+		CandleType.CANDLE : 4,
+		CandleType.VOLUME : 2,
+		CandleType.CANDLE_VOLUME : 6
+	}
 	
 	def pass_instrument_names(self,_instrument_names):
 		self.instrument_names = _instrument_names
@@ -183,7 +195,8 @@ class Indicator:
 		datetime_values = np_candle_streams[:,:,-1].T
 		timeline = datetime_values[:,0:1]		
 		assert np.all(datetime_values == np.broadcast_to(timeline, datetime_values.shape)), "timelines are out of sync - try calculate_multiple" 
-		np_candles = np_candle_streams[:,:,:4].astype(np.float64)
+		candle_dim = self.candle_type_dimension_map[self.candle_type]
+		np_candles = np_candle_streams[:,:,:candle_dim].astype(np.float64)
 		return np_candles, timeline 
 	
 	def _pad_start(self,np_candles,period): #this is needed to preserve the length of the streams
@@ -229,19 +242,25 @@ class Diff(Indicator):
 		return np.concatenate([np.zeros(padshape), later - earlier],axis=1)
 
 #these are actually provided in a toolkit with keras? 
-#class Normalisation(Indicatior):
-#	
-#	channel_keys = {'NORMED':0,'HIGHEST':1,'LOWEST':2} 
-#	channel_styles = {'NORMED':'neutral','HIGHEST':'bearish','LOWEST':'bullish'}
-#	candle_sticks = False
-#
-#	normalisation_window = 50
-#	candle_channel = csf.close
-#	
-#	def _perform(self,candles):
-#		pass
-#	
-#class Standardisation(Indicator):
+class Bounded(Indicator):
+	
+	channel_keys = {'NORMED':0,'HIGHEST':1,'LOWEST':2} 
+	channel_styles = {'NORMED':'neutral','HIGHEST':'bearish','LOWEST':'bullish'}
+	candle_sticks = False
+
+	period = 50
+	
+	def _perform(self,candles):
+		values = candles[:,:,self.candle_channel,np.newaxis]
+		windows = self._sliding_windows(values)
+		maxs = np.nanmax(windows,axis=3)
+		mins = np.nanmin(windows,axis=3)
+		normed = (values - mins) / (maxs - mins)
+		normed[np.isnan(normed)] = 0
+		return np.concatenate([normed,maxs,mins],axis=2)
+		
+	
+#class Standardisation(Indicator): 
 	
 
 

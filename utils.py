@@ -542,8 +542,9 @@ class Database:
 	
 	def flush(self):
 		self.rows = [] 
+		#self.cur.flush()
 		
-	
+	#move to somewhere else
 	def fetchcandles(self,instruments):
 		return_dict = {} 	
 		
@@ -767,6 +768,8 @@ class DataComposer:
 			table_joins.append('JOIN '+end_table['name']+' t'+str(ti+1)+ ' ON t0.row_index = t'+str(ti+1)+'.row_index')
 			
 		sql_result_table += '\n'.join(table_joins)
+		
+		#pdb.set_trace()
 		self.cursor.execute(sql_result_table,no_results=True) #do some kind of caching here to prevent executing twice? 
 		
 		returning_sql = ''
@@ -791,7 +794,7 @@ class DataComposer:
 		else:
 			returning_sql = 'SELECT * FROM end_results_table_tmp;' #doing some other thing without JSON then 
 		
-		#pdb.set_trace()
+		
 		self.cursor.execute(returning_sql)
 		return [r for r in self.cursor.fetchall()]
 	
@@ -995,7 +998,66 @@ class DataComposer:
 				if not found:
 					log.error(f"Function {function_signature['name']} - alias {new_name} was not able to be linked to any return columns.")
 		return returns 
-		
+	
+	#convert a candle result into candles for indicators 
+	@staticmethod 
+	def as_candles(candle_result,instruments):
+		return_dict = {} 	
+		for instrument in instruments:
+			try:
+				return_dict[instrument] = sorted([
+				[
+					snapshot[2][instrument]['open_price'],
+					snapshot[2][instrument]['high_price'],	
+					snapshot[2][instrument]['low_price'],
+					snapshot[2][instrument]['close_price'],
+					snapshot[0] #the date should always go at the bottom of the candle
+				]
+				for snapshot in candle_result],key=lambda c:c[-1]) #sort into chronological order 
+			except KeyError as ke:
+				log.warning(f"Unable to find '{instrument}'.",exc_info=True)
+				return_dict[instrument] = None 
+		return return_dict
+	
+	@staticmethod 
+	def as_volumes(volume_result,instruments):
+		return_dict = {} 	
+		for instrument in instruments:
+			try:
+				return_dict[instrument] = sorted([
+				[
+					snapshot[2][instrument]['bid_volume'],
+					snapshot[2][instrument]['ask_volume'],	
+					snapshot[0] #the date should always go at the bottom of the candle
+				]
+				for snapshot in candle_result],key=lambda c:c[-1]) #sort into chronological order 
+			except KeyError as ke:
+				log.warning(f"Unable to find '{instrument}'.",exc_info=True)
+				return_dict[instrument] = None 
+		return return_dict
+	
+	@staticmethod 
+	def as_candles_volumes(candle_result,instruments):
+		return_dict = {} 	
+		for instrument in instruments:
+			try:
+				return_dict[instrument] = sorted([
+				[
+					snapshot[2][instrument]['open_price'],
+					snapshot[2][instrument]['high_price'],	
+					snapshot[2][instrument]['low_price'],
+					snapshot[2][instrument]['close_price'],
+					snapshot[2][instrument]['bid_volume'],
+					snapshot[2][instrument]['ask_volume'],
+					snapshot[0] #the date should always go at the bottom of the candle
+				]
+				for snapshot in candle_result],key=lambda c:c[-1]) #sort into chronological order 
+			except KeyError as ke:
+				log.warning(f"Unable to find '{instrument}'.",exc_info=True)
+				return_dict[instrument] = None 
+		return return_dict
+	
+	
 #prepares all database results that have dates into samples ready for a learning algorithm
 #In other words, this does all the painful timeseries preprocessing
 #in -> raw database results of the form [timestamp, n, dictionary] (both raw x and y data). 
