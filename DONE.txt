@@ -77,6 +77,11 @@ economic calendar using https://tradingeconomics.com/calendar#
 refactor queries to use functions - eg f : candles -> indicators or similar. The better organisation might really help later on! -nearly done just test
 	- aliaes to next branch temp table broken 
 
+https://www.dukascopy.com/swiss/english/marketwatch/historical/   -historic client sentiment information 
+	- use selenium to get latest data for use with volume indicators & client sentiment information :D 
+	- add dukascopy to config.ini
+
+
 BUGS:
 (FIXED)
 Currency strength from sentiment indicator! see:

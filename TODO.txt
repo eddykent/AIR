@@ -10,13 +10,16 @@ explain() to return an explanation in terms of trading using the tool and draw_s
 refactor currency strength nn to be of the same form as DataProvider etc 
 	- find out what is still to do!
 
+sql functions for correlations (cross & auto) 
+
+
 SCREENING - candle stick scanner for candle stick patterns and chart patterns. Use to determine entry points
 	- candlestick patterns at high timeframes 
 	- chart breakout patterns at lower timeframes (eg 4h) 
 	- chart breakout patterns again at lowest (15m?) timeframes to identify entry points 
 	StrategyComposer sounds cool - for multiple setups, filters and chart frames
 
-PLURALIZATION
+PLURALIZATION - filters! 
 pluralise filters.py to use all times not just now so they can be used in backtesting 
 	--all filters need refactoring possibly to use indicators
 	--they also need a now() kinda function for handling when we want to actually perform trades 
@@ -40,11 +43,8 @@ ASYNC all webcalls in the fundmental analysis! Async for AI too? -- probably pre
 
 jupyter for presenting front end trade setups and ideas
 
-pivot points? - use as a support/resistance & TP SL targets   - part of pluralization re-write
+pivot points? - use as a support/resistance & TP SL targets   - part of pluralization re-write - goes in ChartPattern.py 
 
-https://www.dukascopy.com/swiss/english/marketwatch/historical/   -historic client sentiment information 
-	- use selenium to get latest data for use with volume indicators & client sentiment information :D 
-	- add dukascopy to config.ini
 
 demand forecasting with ai - use bid/ask volumes and perhaps RSI and write an NN to give the next client sentiment
 		- rate, acceleration etc (day of week, hour of day) 
@@ -75,6 +75,8 @@ sentiment for currencies and for currency pairs  - Twitter and Reddit, https://w
 AI to read news and learn trends - 60k news articles to learn from! 
 
 AI to learn fitness values of chart patterns 
+
+AI to forcast buying/selling pressure of currencies 
 
 test chart patterns and practice drawing them - gradient descent for finding params? 
 shape based and trending are pretty broken and need fixing up 
