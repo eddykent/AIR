@@ -9,7 +9,7 @@ import charting.chart_viewer as chv
 
 
 #Matching = namedtuple('Matching','haystack_index candle_index error_value')
-###CHANGE TO USE NUMPY FOR SPEED! 
+###CHANGE TO USE NUMPY FOR SPEED! - pluralise for backtesting 
 ##make a needle (use the current memory window and the close price)
 ##make a haystack (use all the chart candles close prices) 
 ##make a distance function (L2 norm/mse should be fine) 
@@ -23,7 +23,7 @@ class MatchPattern(ChartPattern):
 	haystack_window = 400 #length back to look in haystack
 	haystack = np.array([]) #list of other candle streams (including this one) 
 	#can be handled from the test/point of usage
-	projection_length = 8 #number of candles after the haystack index to use as guide for the trad
+	projection_length = 10 #number of candles after the haystack index to use as guide for the trad
 	n_projections = 20 #select top x best candles from the haystack for use in projecting price
 	
 	endings_to_check = 5
