@@ -10,7 +10,7 @@ import pdb
 from utils import CurrencyPair, ListFileReader, overrides
 from setups.trade_setup import TradeSignal, TradeDirection 
 
-
+from indicators.volume import ClientSentiment
 #extend to be across time? 
 
 #each filter takes a result from one instance in time. Perhaps they can be extended to allow for filtering trade signals across different times? 
@@ -38,13 +38,10 @@ class InstanceTradeFilter:
 class TimelineTradeFilter:
 	
 	expire = 360 #6 hours -anything after 6 hours can be considered forgotten. Can be changed for different things 
-	timelines = {} #the full timelines of stuff to be used in the filtering
 	
 	def filter(self,trades):
-		return [t for t in trades if self.check_instrument(t.instrument,t.direction)]
+		return [t for t in trades if self.check_instrument(t.instrument,t.direction,t.the_date)]
 	
-	def load_timelines(self,timelines):
-		self.timelines = timelines
 	
 	def check_instrument(self,instrument,direction=TradeDirection.VOID,the_date=datetime.datetime.now()):
 		raise NotImplementedError('This method must be overridden')
@@ -217,7 +214,68 @@ class CrossFilter(InstanceTradeFilter):
 
 
 
+class IndicatorFilter:  ##base this on an indicator so any indicator can be used as a filter? 
+	
+	expire = 1440 #full day - the timeline should have dates in it at a higher resolution 
+	indicator = None
+	results = None
+	
+	def __init__(self,indicator : Indicator, results : np.array): #pass candles instead?
+		self.indicator = indicator
+
+	def check_instrument(self,instrument,direction,the_date):
+		raise NotImplementedError('This method must be overridden')
+
+	def _closest_time_index(self,the_date):
+		timeline = self.indicator.timeline[:,0]
+		end_date = the_date 
+		start_date = the_date - datetime.timedelta(minutes=self.expire)
+		mask = (timeline >= the_date) & (timeline =< end_date)
+		inds = np.where(mask)[0]
+		if len(inds):
+			return inds[-1] #get latest most recent index - might be different for news?
+		return None #not found 
+		
+		
+	def _instrument_index(self,instrument):
+		instruments = self.indicator.instrument_names 
+		if instrument in instruments:
+			return instruments.index(instrument)
+		return None
 
 
+class ClientSentimentFilter(IndicatorFilter):
+	
+	threshold = 0.6
+	
+	def check_instrument(self,instrument, direction, the_date):
+		ti = self._closest_time_index(the_date)
+		ii = self._instrument_index(instrument) 
+		if ti and ii:
+			value = self.results[ti,ii,:]
+			long_val = value[0]
+			short_val = value[1]
+			if direction == TradeDirection.BULLISH:
+				if long_val > self.threshold:
+					return False
+			if direction == TradeDirection.BEARISH:
+				if short_val > self.threshold:
+					return False
+		return True
+
+class NewsFilter(IndicatorFilter):
+	expire = 360 #6 hours
+	pass   #this will need the AI passed to it and stuff... and perhaps a cache for faster access 
+
+
+
+
+
+
+
+
+
+
+	
 
 
