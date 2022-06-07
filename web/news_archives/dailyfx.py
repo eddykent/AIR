@@ -25,7 +25,7 @@ earliest_year = 2022 #edit for back
 years = [y for y in range(earliest_year,this_year)]
 months = [m for m in range(1,13)]
 
-months_years = [(m,y) for m in months for y in years] + [(m,this_year) for m in months if m < this_month]
+months_years = [(m,y) for m in months for y in years] + [(m,this_year) for m in months if m <= this_month]
 monthly_urls = [monthly_url_str.format(year=y,month=m) for (m,y) in months_years]
 
 source_title = 'DailyFX - Market News'

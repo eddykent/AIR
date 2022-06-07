@@ -11,10 +11,10 @@ daily_url_str = 'https://www.fxstreet.com/news/all?date={year:0>4}-{month:0>2}-{
 source_ref = 'fxstreet.com'
 source_title = 'fxstreet.com'
 
-days_back = 30
+days_back = 12
 today = datetime.datetime.now()
 today = datetime.datetime(today.year,today.month,today.day)
-start_day = today - datetime.timedelta(days=10)
+start_day = today - datetime.timedelta(days=1) #offset because of time strings like 'x minutes ago'
 
 all_days = [start_day-datetime.timedelta(days=i) for i in range(0,days_back)]
 
@@ -48,7 +48,7 @@ class FXStreetExtra(Scraper): #make a class that reads a bit more stuff from the
 		full_text = '\n'.join([fb.text for fb in full_text_bits])
 		
 		author_elem = self.html.xpath("//article[@class='fxs_article']/header/span/a[@data-gtmid='lateralnavigation-post-author']")
-		author = author_elem[0].text
+		author = author_elem[0].text if author_elem else '?'
 		
 		return full_text, author, summary 
 
@@ -72,10 +72,14 @@ for article_d in tqdm(article_data):
 
 print('Fixing dates...')
 for article_d in tqdm(relevant_articles):
-	h, m = article_d['time'].split(',')[1][:-3].strip().split(':') #
-	base_date = article_d['the_date']
-	article_d['the_date'] = datetime.datetime(base_date.year,base_date.month,base_date.day,int(h),int(m))
-	del article_d['time']
+	try:
+		h, m = article_d['time'].split(',')[1][:-3].strip().split(':') #
+		base_date = article_d['the_date']
+		article_d['the_date'] = datetime.datetime(base_date.year,base_date.month,base_date.day,int(h),int(m))
+		del article_d['time']
+	except:
+		print(f"check  - article article_d['time'] = '{article_d['time']}'")
+		pdb.set_trace()
 
 print('Reading full stories... ')
 read_stories = []

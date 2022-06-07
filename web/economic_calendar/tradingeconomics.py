@@ -304,7 +304,7 @@ class TradingEconomics(XPathNavigator):
 			hour = 0
 		return hour, minute
 
-
+#export ? 
 def pull_calendar(n_months_back):
 	the_date = datetime.datetime.now() 
 
@@ -329,7 +329,7 @@ def pull_calendar(n_months_back):
 		te = TradingEconomics(sh)
 		te.load_months(all_months)
 
-pull_calendar(45)
+pull_calendar(5)
 
 
 
