@@ -262,10 +262,48 @@ class ClientSentimentFilter(IndicatorFilter):
 				if short_val > self.threshold:
 					return False
 		return True
+		
 
+class SpreadTimeFilter(TimelineTradeFilter):
+	
+	bad_spread_times = {
+		'hour':22,
+		'min':0,
+		'region':30 #minutes 
+	}
+	
+	def check_instrument(self,instrument, direction, the_date):
+		the_time = {
+			'hour':the_date.hour,
+			'min':the_date.min
+		}
+		
+		for bst in self.bad_spread_times:
+			if bst['region'] > self.time_diff(the_time,bst):
+				#means we are close to this time, so lets avoid trading this.
+				return False 
+		
+		
+	
+	def time_diff(time1,time2):
+		return abs((time1['hour'] - time2['hour'])*60  + time1['min'] - time2['min'])
+		
+		
+#trhis is a bad way of doing it. rework it 
 class NewsFilter(IndicatorFilter):
 	expire = 360 #6 hours
-	pass   #this will need the AI passed to it and stuff... and perhaps a cache for faster access 
+	ai_invoker = None
+	#this will need the AI passed to it and stuff... and perhaps a cache for faster access 
+	
+	def pass_ai(self,ai):
+		self.ai_invoker = ai 
+	
+	def check_instrument(self,instrument,direction,the_date):
+		the_timeline = self.indicator.timelines.get(instrument)
+		if the_timeline:
+			relevant_timeline = [td for td in the_timeline if td.the_date < the_date and td.the_date ]
+		
+		return True
 
 
 

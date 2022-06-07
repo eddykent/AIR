@@ -417,6 +417,10 @@ class NewsIndicator(Indicator):
 		self.article_collector.analyse_articles(self.text_analyser)
 		self.timelines = self.article_collector.to_article_timelines() #what about findings? 
 		
+		#pdb.set_trace()
+		#print('done some timeline calculating here...')
+		
+		
 		
 	
 	def generate_setups(self,criteria : list) -> list:
@@ -460,8 +464,9 @@ class NewsIndicator(Indicator):
 
 
 
-
-
+#instead of loading all articles in place, load the publish times then load the article separately and test it
+#against an AI of choice if the news is good or bad. This can then be used for a faster news filter 
+#class LazyNewsIndicator(Indicator):
 
 
 
