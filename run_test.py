@@ -14,6 +14,7 @@ LogSetup() #think of how to rmeove this line
 
 #from tests.candle_stick_tests import *
 
+from tests.chart_pattern_test import *
 #from tests.chart_pattern_support_resistance_test import *
 #from tests.matching_test import *
 
@@ -25,7 +26,7 @@ LogSetup() #think of how to rmeove this line
 #from tests.fundamental_test import *     # <<<<<<run this to get latest articles easily. 
 #from tests.news_reader_invoke_test import * #more testing required!  
 
-from tests.timeline_test import *
+#from tests.timeline_test import *
 #from tests.backtest_test import *
 
 #from tests.spacy_test import *

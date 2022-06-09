@@ -64,6 +64,7 @@ class CandleStickPattern(Indicator):
 		np_low = np_candles[:,:,csf.low]
 		np_close = np_candles[:,:,csf.close]
 		
+		
 		open_windows = np.lib.stride_tricks.sliding_window_view(np_open,window_shape=self._required_candles,axis=1)
 		high_windows = np.lib.stride_tricks.sliding_window_view(np_high,window_shape=self._required_candles,axis=1)
 		low_windows = np.lib.stride_tricks.sliding_window_view(np_low,window_shape=self._required_candles,axis=1)
@@ -175,7 +176,7 @@ class SoldiersAndCrows(CandleStickPattern):
 		candle1 = candle_windows[:,0,:]
 		candle2 = candle_windows[:,1,:]
 		candle3 = candle_windows[:,2,:]
-		all_fat = csf.fat(candle1,self.fat_tolerance) & csf.fat(candle2,self.fat_tolerance) & csf.fat(candle3,self.fat_tolerance)
+		allfat = csf.fat(candle1,self.fat_tolerance) & csf.fat(candle2,self.fat_tolerance) & csf.fat(candle3,self.fat_tolerance)
 		
 		stepups = csf.step_up(candle1,candle2) & csf.step_up(candle2,candle3)
 		stepdowns = csf.step_down(candle1,candle2) & csf.step_down(candle2,candle3)
