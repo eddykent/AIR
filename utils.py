@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 def overrides(interface_class):
     def overrider(method):
-        assert(method.__name__ in dir(interface_class)), "method {} is not overriden by {}".format(method.__name__,interface_class.__name__)
+        assert (method.__name__ in dir(interface_class)), f"method {method.__name__} is not overriden by {interface_class.__name__}"
         return method
     return overrider
 
