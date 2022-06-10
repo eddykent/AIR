@@ -2,6 +2,7 @@ import datetime
 import time
 
 import numpy as np
+import pdb
 
 
 from charting.match_pattern import MatchPattern
@@ -37,14 +38,14 @@ database_response = cur.fetchall()
 
 match_pattern = MatchPattern()
 
-haystack = [match_pattern.to_candles(database_response,pair) for pair in fx_pairs]
-match_pattern.set_haystack(haystack)
-candle_stream = match_pattern.to_candles(database_response,'EUR/USD')
+all_candles = cur.fetchcandles(fx_pairs)
 
-t0  = time.time()
-chart_result = match_pattern.detect(candle_stream)
-t1 = time.time()
-print(f"Drawing time for {match_pattern.__class__.__name__} was {t1-t0}")
+haystack = np.array([all_candles[pair] for pair in fx_pairs])[:,:,:4]
+haystack = haystack.astype(np.float64)
+pdb.set_trace()
+match_pattern.set_haystack(haystack)
+candle_stream = np.array(all_candles.get('EUR/USD'))[np.newaxis,:,:]
+
 
 def draw(snapshot_index):
 	chart_view = match_pattern.draw_snapshot(candle_stream,snapshot_index)
