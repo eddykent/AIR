@@ -26,6 +26,7 @@ pluralise filters.py to use all times not just now so they can be used in backte
 pluralise all chart patterns. Start with match_pattern as  it already uses numpy. other chart patterns may be a re-write 
 	- scipy maximas/minimas should come in handy. 
 	- before doing this, ensure candle_stick_pattern is correct so we got a base to go from 
+	- match_pattern.py: backtesting and drawing still todo 
 
 Create & test full RNN with candles_and_indicators.sql, currency_strengths, correlations etc & get_y_values.sql 
 
@@ -53,6 +54,7 @@ volume indicators - TVI, VWAP, MVWAP, OBV, Delta, AskVWAP, BidVWAP, others?
 
 currency buying/selling pressure from bids & asks (contrarian to currency strength?) (rsi?)
 
+lazy loading for news AI backtesting 
 
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs
