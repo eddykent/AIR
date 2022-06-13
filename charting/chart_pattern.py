@@ -231,8 +231,8 @@ class SupportAndResistance(ChartPattern):  #group together points along the pric
 		
 		#consider putting in own function?
 		maxs = np.nanmax(values,axis=1)
-		mins = np.nanmin(values,axis=1) 
-		ranges = maxs - mins 
+		mins = np.nanmin(values,axis=1)
+		ranges = maxs - mins
 		steps = ranges / self._number_buckets
 		lower_bounds = np.outer(steps,np.arange(0,self._number_buckets)) + np.broadcast_to(mins,shape=(self._number_buckets,mins.shape[0])).T
 		upper_bounds = np.outer(steps,np.arange(1,self._number_buckets+1)) + np.broadcast_to(mins,shape=(self._number_buckets,mins.shape[0])).T
@@ -244,11 +244,11 @@ class SupportAndResistance(ChartPattern):  #group together points along the pric
 		value_buckets = np.stack([values]*self._number_buckets,axis=2)
 		bucket_mask = (lowers <= value_buckets) & (value_buckets <= uppers) #this tells us for each bucket, if a value belongs in it or not 
 		
-		bucket_multipliers = np.stack([np.arange(xtreme_windows.shape[1])]*xtreme_windows.shape[0],axis=0) 
+		bucket_multipliers = np.stack([np.arange(xtreme_windows.shape[1])]*xtreme_windows.shape[0],axis=0)
 		bucket_multipliers = bucket_multipliers / (xtreme_windows.shape[1]) #values now are between 0 and 1
 		
 		bucket_multipliers = (bucket_multipliers * self._early_influence) + (1 - self._early_influence)
-		bucket_multipliers = np.stack([bucket_multipliers]*self._number_buckets,axis=2) #put one for each bucket 
+		bucket_multipliers = np.stack([bucket_multipliers]*self._number_buckets,axis=2) #put one for each bucket
 		
 		bucket_values = np.sum(bucket_mask * bucket_multipliers,axis=1)
 		
@@ -257,7 +257,15 @@ class SupportAndResistance(ChartPattern):  #group together points along the pric
 		_, sr_counts = np.unique(window_index,return_counts=True)
 		
 		max_sr_count = np.max(sr_counts)
-		window_srs = np.full((sr_counts.shape[0],max_sr_count),np.nan)
+		window_srs = np.full((xtreme_windows.shape[0],max_sr_count),np.nan)  #values of support and resistance lines
+		
+		cum_counts = np.concatenate([np.array([0]), np.cumsum(sr_counts)[:-1]])
+		neg_array = np.repeat(cum_counts,sr_counts)
+		sr_index = np.arange(neg_array.shape[0])  - neg_array  #don't care about trailing nans 
+		
+		window_srs[window_index,sr_index] = medians[window_index,bucket_index]
+		
+		#now need to figure out how to measure the quality of the breakout/if one has happened. 
 		
 		
 		print('do something with xtreme_windows')
