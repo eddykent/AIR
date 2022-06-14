@@ -38,12 +38,14 @@ class ChartPattern(Indicator):
 	#precalculated values 
 	_window_index = None 
 	
+	
 	#@overrides(Indicator)
 	def explain(self):
 		return """
 		A chart pattern is an arrangement of extreme points from a selection of candles or values. 
 		When they are arranged in a particular way they form a pattern. 
 		"""
+	
 	
 	@overrides(Indicator)
 	def _perform(self,np_candles,mask=None):   #allow for caching / inserting the extreme points or something so other chart patterns can be initalised with 1 dataset
@@ -97,22 +99,16 @@ class ChartPattern(Indicator):
 		#minima = None
 		
 		#for _ in range(0,self._xtreme_degree):  #add this back in and remove log.warning 
-			
-		#the_highs = np.full(high_windows.shape,np.nan) #put into new array 
-		#the_lows = np.full(low_windows.shape,np.nan)
 		maxima = scipy.signal.argrelmax(high_windows,axis=2)
 		minima = scipy.signal.argrelmax(low_windows,axis=2)
 		
-		#the_highs[maxima] = highs_masked[maxima]
-		#the_lows[minima] = lows_masked[minima]
+		#maxima/minima reducing algorithm 
+		#for _ in range (0,self._xtreme_degree-1):
+		#	local_maxima 
+		#	local_minima 
 			
-		#highs_masked = np.copy(the_highs) #update the masks (in other words, nan out all the non-extremes)
-		#lows_masked = np.copy(the_lows)
-			
-		#del the_highs #free up space incase py persists these in memory after the loop 
-		#del the_lows  
-			
-		#pdb.set_trace()
+		
+		
 		max_vals = high_windows[maxima]
 		min_vals = low_windows[minima]
 		
@@ -133,7 +129,6 @@ class ChartPattern(Indicator):
 		all_extr = np.concatenate([minimum_points,maximum_points]) #all extremes 
 		
 		window_numbers = (number_windows * all_extr[:,0]) + all_extr[:,1]
-		#pdb.set_trace()
 		
 		all_extr_windows_labeled = np.concatenate([window_numbers[:,np.newaxis],all_extr],axis=1)
 		sort_by_window = all_extr_windows_labeled[:,0]
@@ -147,13 +142,10 @@ class ChartPattern(Indicator):
 		all_extr_windows_labeled = all_extr_windows_labeled[sort_by_window_then_time.argsort()] 
 		
 		#adjust time indexs to be of the same as the np_candles time axis  something like this:? 
-		all_extr_windows_labeled[:,3] = all_extr_windows_labeled[:,2] + all_extr_windows_labeled[:,3]
-		#pdb.set_trace()
+		all_extr_windows_labeled[:,3] = all_extr_windows_labeled[:,2] + all_extr_windows_labeled[:,3] 
 		
-		
-		if mask is not None:
-			pass #purge out windows that we are not interested in here. 
-		
+			
+			
 		duplicate_window_map = np.stack([all_extr_windows_labeled[:,1],all_extr_windows_labeled[:,2]], axis=1).astype(np.int)
 		window_map = np.unique(duplicate_window_map,axis=0).T #takes some time to get uniques...
 		
@@ -173,6 +165,19 @@ class ChartPattern(Indicator):
 		#	xtreme_windows[dwi,xi,:] = rhs
 		#pdb.set_trace()
 		xtreme_windows[(duplicate_window_index,xtreme_index)] = all_extr_windows_labeled[:,3:]
+		
+		pdb.set_trace() 
+		#mask = self.create_mask(np_candles,[0,1,3],[1,3,4,5,6])
+		
+		if mask is not None:
+			this_mask = mask[:,-number_windows:] #1 mask per window - chop off useless first ones
+			instrument_indexs, window_indexs = np.where(this_mask) 
+			select_indexs = (number_windows * instrument_indexs) + window_indexs
+			
+			xtreme_windows = xtreme_windows[select_indexs]
+			window_map = window_map[:,select_indexs]
+			breakout_windows = breakout_windows[select_indexs]
+		
 		
 		#time_took = time.time() - t0
 		#print(f"write to windows took {time_took}s")		
@@ -199,17 +204,55 @@ class ChartPattern(Indicator):
 		
 		
 		#result = chart_result.reshape((np_candles.shape[0],number_windows,chart_result.shape[-1])) #incorrect 
-		return result_space #padd with 0s? 
+		pad_len = np_candles.shape[1] - number_windows
+		pad_depth = chart_result.shape[-1]
+		pad_height = np_candles.shape[0]
+		padding = np.zeros((pad_height,pad_len,pad_depth))
 		
+		return np.concatenate([padding,result_space],axis=1)
+		
+	
+	
+	#def _generate_xtreme_windows() #use for getting the extreme points for each window 
+	
 	
 	def _chart_perform(self,xtreme_windows, breakout_windows): 
 		raise NotImplementedError('This method must be overridden')
 	
 	
+	
 	@overrides(Indicator)
 	def detect(self,candle_stream,candle_stream_index=-1,criteria=[]): #for now, ignore criteria 
 		return self.calculate(candle_stream,candle_stream_index)
-
+	
+	@overrides(Indicator)
+	def draw_snapshot(self,np_candles,snapshot_index,instrument_index):
+		mask = self._create_mask(np_candles,instrument_index,snapshot_index)
+		
+		windows = self.generate_xtreme_windows(xtreme_degree=1)
+		#draw each window extreme points onto the chart 
+		
+		
+	
+	def create_mask(self,np_candles,instrument_index,time_index=None): #produces a mask with true on the indexs we want
+		
+		mask = np.full(np_candles.shape[0:2],0)
+		number_windows = np_candles.shape[1] - self._required_candles + 1 - self._breakout_candles
+		
+		#feels like a hack here... 
+		mask[instrument_index,:] = mask[instrument_index,:] + 1
+		if time_index is None:
+			mask = mask * 2 
+		else:
+			mask[:,time_index] = mask[:,time_index] + 1
+		
+		#pdb.set_trace()
+		mask[mask < 2] = 0 
+		mask[mask == 2] = 1
+		
+		return mask
+		
+	
 
 class SupportAndResistance(ChartPattern):  #group together points along the price line, show resistance/support lines where there are significant groups 
 	
@@ -265,16 +308,62 @@ class SupportAndResistance(ChartPattern):  #group together points along the pric
 		
 		window_srs[window_index,sr_index] = medians[window_index,bucket_index]
 		
-		#now need to figure out how to measure the quality of the breakout/if one has happened. 
-		
+		#now need to figure out how to measure the quality of the breakout/if one has happened.
+		#think of a number of tests that can be done for each window using the breakout candles. 
+		# touching test 
+		# fuck-through test 
+		# else?
 		
 		print('do something with xtreme_windows')
 		pdb.set_trace()
 		
 		return np.zeros((xtreme_windows.shape[0],4)) #eg 4 results per entry
 
-#class PivotPoints(ChartPattern)
-
+#not sure if this really belongs here 
+class PivotPoints(ChartPattern):
+	
+	_breakout_candles = 1 #only need to see where the current candle is to see if we are
+	#close to a pivot point or not. 
+	
+	def _day_indices(self):
+		
+		t0 = time.time() 
+		timeline = self.timeline[:,0]
+		
+		np_timeline = np.empty((timeline.shape[0],6))
+		
+		fyears = lambda dt : dt.year 
+		fmonths = lambda dt : dt.month
+		fdays = lambda dt : dt.day
+		fhours = lambda dt : dt.hour
+		fmins = lambda dt : dt.minute
+		
+		for i,td in enumerate(timeline):	
+			np_timeline[i,0] = fyears(td)
+			np_timeline[i,1] = fmonths(td)
+			np_timeline[i,2] = fdays(td)
+			np_timeline[i,3] = fhours(td)
+			np_timeline[i,4] = fmins(td)
+			np_timeline[i,5] = td.weekday() #get the day of week on the end for helping merge fri and sun
+		
+		np_timeline = np_timeline.astype(np.int)
+		print(f"timeline iteration generation took {time.time() - t0}s")
+		
+		pdb.set_trace()
+		print('use np_timeline to find the days. (merge fri/sunday night)?')
+		
+		
+		
+	@overrides(ChartPattern)
+	def _perform(self,np_candles):
+		day_indexs = self._day_indices()
+		
+		
+		
+	
+	
+	
+	
 
 
 
