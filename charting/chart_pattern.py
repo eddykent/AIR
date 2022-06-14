@@ -10,7 +10,7 @@ from charting.candle_stick_pattern import *
 import charting.candle_stick_functions as csf
 from indicators.indicator import Indicator
 
-
+import charting.chart_viewer as chv
 
 import logging 
 log = logging.getLogger(__name__)
@@ -48,66 +48,59 @@ class ChartPattern(Indicator):
 	
 	
 	@overrides(Indicator)
-	def _perform(self,np_candles,mask=None):   #allow for caching / inserting the extreme points or something so other chart patterns can be initalised with 1 dataset
-		np_opens = np_candles[:,:,csf.open]
+	def _perform(self,np_candles,mask=None,return_flat=False):   #allow for caching / inserting the extreme points or something so other chart patterns can be initalised with 1 dataset
+		
+		
+		xtreme_windows, window_map = self._generate_xtreme_windows(np_candles,mask,self._xtreme_degree,self._precandles)
+		breakout_windows = self._get_breakout_windows(np_candles,mask,self._precandles)
+		
+		chart_result = self._chart_perform(xtreme_windows, breakout_windows) 
+		
+		if return_flat:
+			return np.concatenate([window_map,chart_result],axis=1) #return the flat list of the results we have 
+		
+		number_windows = np_candles.shape[1] - self._required_candles + 1 - self._breakout_candles
+		
+		#then unmasking/expanding here - needs to be shaped properly since we might not have all the windows
+		result_space = np.full((np_candles.shape[0],number_windows,chart_result.shape[-1]),np.nan)
+		result_space[window_map[0],window_map[1]] = chart_result
+		
+		
+		#result = chart_result.reshape((np_candles.shape[0],number_windows,chart_result.shape[-1])) #incorrect 
+		pad_len = np_candles.shape[1] - number_windows
+		pad_depth = chart_result.shape[-1]
+		pad_height = np_candles.shape[0]
+		padding = np.zeros((pad_height,pad_len,pad_depth))
+		
+		return np.concatenate([padding,result_space],axis=1)
+		
+	
+	
+	def _generate_xtreme_windows(self,np_candles,mask=None,xtreme_degree=1,precandles=None): #use for getting the extreme points for each window 
+
+		
+		if xtreme_degree > 1:
+			log.warning("_xtreme_degree of more than 1 has not yet been implemented. Change some stuff around below and add a for loop to get it working. ")
+
+		
+		number_windows = np_candles.shape[1] - self._required_candles + 1 - self._breakout_candles
+		
 		np_highs = np_candles[:,:,csf.high] 
 		np_lows = np_candles[:,:,csf.low]
-		np_closes = np_candles[:,:,csf.close]
 		
-		if callable(self._precandles):
-			pass #swap this out to be something to get highs and lows from np_candles (eg typical price)
+		if callable(precandles):
+			pass # perform precandles on np_candles 
 		
-		if self._xtreme_degree > 1:
-			log.warning("_xtreme_degree of more than 1 has not yet been implemented. Change some stuff around below and add a for loop to get it working. ")
-		
-		assert self._breakout_candles > 0, f"There must be at least one breakout candle for chart detection to work. breakout = {self._breakout_candles}"
-		assert self._xtreme_degree > 0, f"Extreme points need to be calculated for chart patterns to work. degree = {self._xtreme_degree}"
-		#assert self._min_required_candles >= 0, f"How is the minimum required candles below 0? ({self._min_required_candles})"
-		#assert self._min_required_candles <= self._required_candles, f"Minimum required candles ({self._min_required_candles}) must be smaller than the required candles ({self._required_candles})."
-		
-		#left_pad_n = self._required_candles - self._min_required_candles   -makes it too complex. add later if needed
-		#if left_pad_n > 0: #we can start from earlier than the required candles window, so lets add padding to do so 
-		#	left_pad = np.full((np_candles.shape[0],left_pad_n),np.nan)
-		#	np_highs = np.concatenate([left_pad,np_highs],axis=1)
-		#	np_lows = np.concatenate([left_pad,np_lows],axis=1)
-			
 		#now stride trick
 		high_windows = np.lib.stride_tricks.sliding_window_view(np_highs[:,:-self._breakout_candles],window_shape=self._required_candles,axis=1)
 		low_windows = np.lib.stride_tricks.sliding_window_view(np_lows[:,:-self._breakout_candles],window_shape=self._required_candles,axis=1)
 		
-		
-		
-		
-		number_windows = np_candles.shape[1] - self._required_candles + 1 - self._breakout_candles
 		assert high_windows.shape[1] == number_windows, "number of windows is not accurate"
 		assert low_windows.shape[1] == number_windows, "number of windows is not accurate"
-		#highs_masked = np.copy(high_windows)
-		#lows_masked = np.copy(low_windows)
 		
-		#set up the breakout windows
-		bo_open_windows = np.lib.stride_tricks.sliding_window_view(np_opens,window_shape=self._breakout_candles,axis=1)
-		bo_high_windows = np.lib.stride_tricks.sliding_window_view(np_highs,window_shape=self._breakout_candles,axis=1)
-		bo_low_windows = np.lib.stride_tricks.sliding_window_view(np_lows,window_shape=self._breakout_candles,axis=1)
-		bo_close_windows = np.lib.stride_tricks.sliding_window_view(np_closes,window_shape=self._breakout_candles,axis=1)
-		
-		breakout_windows = np.stack([bo_open_windows,bo_high_windows,bo_low_windows,bo_close_windows],axis=3)
-		breakout_clip = breakout_windows.shape[1] - number_windows
-		breakout_windows = breakout_windows[:,breakout_clip:,:,:]
-		breakout_windows = breakout_windows.reshape((breakout_windows.shape[0]*breakout_windows.shape[1],breakout_windows.shape[2],breakout_windows.shape[3]))
-		
-		#maxima = None
-		#minima = None
-		
-		#for _ in range(0,self._xtreme_degree):  #add this back in and remove log.warning 
+		#for _ in range(0,xtreme_degree):  #add this back in and remove log.warning 
 		maxima = scipy.signal.argrelmax(high_windows,axis=2)
-		minima = scipy.signal.argrelmax(low_windows,axis=2)
-		
-		#maxima/minima reducing algorithm 
-		#for _ in range (0,self._xtreme_degree-1):
-		#	local_maxima 
-		#	local_minima 
-			
-		
+		minima = scipy.signal.argrelmin(low_windows,axis=2)
 		
 		max_vals = high_windows[maxima]
 		min_vals = low_windows[minima]
@@ -144,8 +137,7 @@ class ChartPattern(Indicator):
 		#adjust time indexs to be of the same as the np_candles time axis  something like this:? 
 		all_extr_windows_labeled[:,3] = all_extr_windows_labeled[:,2] + all_extr_windows_labeled[:,3] 
 		
-			
-			
+		
 		duplicate_window_map = np.stack([all_extr_windows_labeled[:,1],all_extr_windows_labeled[:,2]], axis=1).astype(np.int)
 		window_map = np.unique(duplicate_window_map,axis=0).T #takes some time to get uniques...
 		
@@ -166,9 +158,6 @@ class ChartPattern(Indicator):
 		#pdb.set_trace()
 		xtreme_windows[(duplicate_window_index,xtreme_index)] = all_extr_windows_labeled[:,3:]
 		
-		pdb.set_trace() 
-		#mask = self.create_mask(np_candles,[0,1,3],[1,3,4,5,6])
-		
 		if mask is not None:
 			this_mask = mask[:,-number_windows:] #1 mask per window - chop off useless first ones
 			instrument_indexs, window_indexs = np.where(this_mask) 
@@ -176,46 +165,45 @@ class ChartPattern(Indicator):
 			
 			xtreme_windows = xtreme_windows[select_indexs]
 			window_map = window_map[:,select_indexs]
+		
+		return xtreme_windows, window_map 
+		
+		
+	
+	def _get_breakout_windows(self,np_candles,mask=None,precandles=None):
+		
+		if callable(precandles):
+			pass 
+		
+		np_opens = np_candles[:,:,csf.open]
+		np_highs = np_candles[:,:,csf.high] 
+		np_lows = np_candles[:,:,csf.low]
+		np_closes = np_candles[:,:,csf.close]
+		
+		bo_open_windows = np.lib.stride_tricks.sliding_window_view(np_opens,window_shape=self._breakout_candles,axis=1)
+		bo_high_windows = np.lib.stride_tricks.sliding_window_view(np_highs,window_shape=self._breakout_candles,axis=1)
+		bo_low_windows = np.lib.stride_tricks.sliding_window_view(np_lows,window_shape=self._breakout_candles,axis=1)
+		bo_close_windows = np.lib.stride_tricks.sliding_window_view(np_closes,window_shape=self._breakout_candles,axis=1)
+		
+		number_windows = np_candles.shape[1] - self._required_candles + 1 - self._breakout_candles
+		
+		breakout_windows = np.stack([bo_open_windows,bo_high_windows,bo_low_windows,bo_close_windows],axis=3)
+		breakout_clip = breakout_windows.shape[1] - number_windows
+		breakout_windows = breakout_windows[:,breakout_clip:,:,:]
+		breakout_windows = breakout_windows.reshape((breakout_windows.shape[0]*breakout_windows.shape[1],breakout_windows.shape[2],breakout_windows.shape[3]))
+		
+		if mask is not None:
+			this_mask = mask[:,-number_windows:] #1 mask per window - chop off useless first ones
+			instrument_indexs, window_indexs = np.where(this_mask) 
+			select_indexs = (number_windows * instrument_indexs) + window_indexs
+			
 			breakout_windows = breakout_windows[select_indexs]
 		
-		
-		#time_took = time.time() - t0
-		#print(f"write to windows took {time_took}s")		
-		#window_indexer, counts = np.unique(duplicate_window_indexs,axis=0,return_counts=True)
-		
-
-		#now padd with the min_required candles?
-		#if self._min_required_candles < self._required_candles:
-		#	left_pad = np.full(np.nan,shape=(np_candles.shape[0],self._min_required_candles,self._required_candles))
-			
-		
-		#then make a flat list of the views up to the extrema with n candle gap? 
-		#might not want to make it as windows for now...
-
-		#chart_windows = self._sliding_windows(np_candles) #ouch! this surely will break the ram?  
-		#could change it to only slide on extreme point coordinates & dos some fancy tricks with the candles in the chart_perform
-		
-		#consider masking here to reduce the number of xtreme_windows to pass
-		chart_result = self._chart_perform(xtreme_windows, breakout_windows) 
-		
-		#then unmasking/expanding here - needs to be shaped properly since we might not have all the windows
-		result_space = np.full((np_candles.shape[0],number_windows,chart_result.shape[-1]),np.nan)
-		result_space[window_map[0],window_map[1]] = chart_result
-		
-		
-		#result = chart_result.reshape((np_candles.shape[0],number_windows,chart_result.shape[-1])) #incorrect 
-		pad_len = np_candles.shape[1] - number_windows
-		pad_depth = chart_result.shape[-1]
-		pad_height = np_candles.shape[0]
-		padding = np.zeros((pad_height,pad_len,pad_depth))
-		
-		return np.concatenate([padding,result_space],axis=1)
-		
+		return breakout_windows 
 	
 	
-	#def _generate_xtreme_windows() #use for getting the extreme points for each window 
-	
-	
+	#This function should operate on an np list of windows, independently of the time frame and the instrument. 
+	#the mapping is taken care of in perform 
 	def _chart_perform(self,xtreme_windows, breakout_windows): 
 		raise NotImplementedError('This method must be overridden')
 	
@@ -228,13 +216,21 @@ class ChartPattern(Indicator):
 	@overrides(Indicator)
 	def draw_snapshot(self,np_candles,snapshot_index,instrument_index):
 		mask = self._create_mask(np_candles,instrument_index,snapshot_index)
+		xtreme_windows, _ = self._generate_xtreme_windows(np_candles,mask,xtreme_degree=self._xtreme_degree,precandles=self._precandles)
 		
-		windows = self.generate_xtreme_windows(xtreme_degree=1)
 		#draw each window extreme points onto the chart 
+		this_view = chv.ChartView()
+		for xw in xtreme_windows:	
+			
+			min_points = [chv.Point(x,y) for (x,y,t) in xw if t == 0]
+			max_points = [chv.Point(x,y) for (x,y,t) in xw if t == 1]
+			this_view.draw('debug bullish points',min_points)
+			this_view.draw('debug bearish points',max_points)
+					
+		return this_view
 		
 		
-	
-	def create_mask(self,np_candles,instrument_index,time_index=None): #produces a mask with true on the indexs we want
+	def _create_mask(self,np_candles,instrument_index,time_index=None): #produces a mask with true on the indexs we want
 		
 		mask = np.full(np_candles.shape[0:2],0)
 		number_windows = np_candles.shape[1] - self._required_candles + 1 - self._breakout_candles
