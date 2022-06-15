@@ -26,10 +26,14 @@ class ChartPattern(Indicator):
 	
 	_required_candles = 100 # a chart pattern is a long pattern of extreme points
 	#_xtremes = np.array([]) # and it has all the extreme points cached ready for use in shapes & trends 
-	_xtreme_degree = 1 #number of times to apply extreme finding algorithm. Need to figure out how to do degree > 1
+	
+	_xtreme_degree = 2 #number of times to apply extreme finding algorithm. Need to figure out how to do degree > 1 - warning 
+	#- a high degree might chop off relevant max/min and some windows may have 0 hits 
+	
 	
 	#number of candles to start the detected pattern from 
-	_breakout_candles = 3 #surely this should be for use AFTER the chart pattern?
+	_breakout_candles = 3 #surely this should be for use AFTER the chart pattern? 
+	
 	#_breakout_offset = 2 #how many steps forward/back to go to place the breakout candles 
 	
 	
@@ -49,7 +53,6 @@ class ChartPattern(Indicator):
 	
 	@overrides(Indicator)
 	def _perform(self,np_candles,mask=None,return_flat=False):   #allow for caching / inserting the extreme points or something so other chart patterns can be initalised with 1 dataset
-		
 		
 		xtreme_windows, window_map = self._generate_xtreme_windows(np_candles,mask,self._xtreme_degree,self._precandles)
 		breakout_windows = self._get_breakout_windows(np_candles,mask,self._precandles)
@@ -73,22 +76,103 @@ class ChartPattern(Indicator):
 		padding = np.zeros((pad_height,pad_len,pad_depth))
 		
 		return np.concatenate([padding,result_space],axis=1)
+	
+	#get the max and min points and repeat if desired to get "less local" points 
+	def _get_maxs_mins(self,high_windows,low_windows,xtreme_degree):
+		#if xtreme_degree > 1:
+		#	log.warning("_xtreme_degree of more than 1 has not yet been implemented. Change some stuff around below and add a for loop to get it working. ")
 		
+		assert high_windows.shape[1] == low_windows.shape[1], "Windows changed between lowers and highers "
+		number_windows = high_windows.shape[1]
+		
+		maxima = scipy.signal.argrelmax(high_windows,axis=2)
+		minima = scipy.signal.argrelmin(low_windows,axis=2)
+		
+		index_map = np.stack([np.arange(self._required_candles)]*number_windows,axis=0)
+		index_map = np.stack([index_map]*high_windows.shape[0],axis=0)
+		
+		#index_map = np.copy(index_map)
+		#mimimum_index_map = np.copy(index_map)
+		
+		for _ in range(1,xtreme_degree):
+				
+			#handle max change 
+			max_vals = high_windows[maxima]	
+			max_vals = max_vals[:,np.newaxis]
+			
+			maxima_tups = np.stack(maxima,axis=1)
+			maximum_points = np.concatenate([maxima_tups,max_vals],axis=1)
+			
+			max_window_numbers = (number_windows * maximum_points[:,0]) + maximum_points[:,1]
+			
+			re_maximum_points = np.concatenate([max_window_numbers[:,np.newaxis],maximum_points],axis=1)
+			window_coords, counts = np.unique(re_maximum_points[:,0],return_counts=True)
+			max_extr_count = np.max(counts) 
+			
+			these_maximums = np.full((high_windows.shape[0],number_windows,max_extr_count),np.nan)
+			new_max_index_map = np.full((high_windows.shape[0],number_windows,max_extr_count),np.nan)
+			
+			
+			cum_counts = np.concatenate([np.array([0]), np.cumsum(counts)[:-1]])
+			neg_array = np.repeat(cum_counts,counts)
+			max_index = np.arange(neg_array.shape[0]) - neg_array
+			#pdb.set_trace()
+			
+			these_maximums[maxima[0],maxima[1],max_index] = high_windows[maxima]
+			new_max_index_map[maxima[0],maxima[1],max_index] = index_map[maxima]
+			
+			new_maxima = scipy.signal.argrelmax(these_maximums,axis=2) #map back somehow... 
+			new_maxima_end = new_max_index_map[new_maxima].astype(np.int)
+			maxima = (new_maxima[0],new_maxima[1],new_maxima_end)
+			
+			
+			
+			
+			#handle min change
+			min_vals = low_windows[minima]	
+			min_vals = min_vals[:,np.newaxis]
+			
+			minima_tups = np.stack(minima,axis=1)
+			minimum_points = np.concatenate([minima_tups,min_vals],axis=1)
+			
+			min_window_numbers = (number_windows * minimum_points[:,0]) + minimum_points[:,1]
+			
+			re_minimum_points = np.concatenate([min_window_numbers[:,np.newaxis],minimum_points],axis=1)
+			window_coords, counts = np.unique(re_minimum_points[:,0],return_counts=True)
+			min_extr_count = np.max(counts) 
+			
+			these_minimums = np.full((low_windows.shape[0],number_windows,min_extr_count),np.nan)
+			new_min_index_map = np.full((low_windows.shape[0],number_windows,min_extr_count),np.nan)
+			
+			
+			cum_counts = np.concatenate([np.array([0]), np.cumsum(counts)[:-1]])
+			neg_array = np.repeat(cum_counts,counts)
+			min_index = np.arange(neg_array.shape[0]) - neg_array
+			#pdb.set_trace()
+			
+			these_minimums[minima[0],minima[1],min_index] = low_windows[minima]
+			new_min_index_map[minima[0],minima[1],min_index] = index_map[minima]
+			
+			new_minima = scipy.signal.argrelmin(these_minimums,axis=2) #map back somehow... 
+			new_minima_end = new_min_index_map[new_minima].astype(np.int)
+			minima = (new_minima[0],new_minima[1],new_minima_end)
+			
+			
+			
+		return maxima, minima 
 	
 	
 	def _generate_xtreme_windows(self,np_candles,mask=None,xtreme_degree=1,precandles=None): #use for getting the extreme points for each window 
 
 		
-		if xtreme_degree > 1:
-			log.warning("_xtreme_degree of more than 1 has not yet been implemented. Change some stuff around below and add a for loop to get it working. ")
-
-		
+			
 		number_windows = np_candles.shape[1] - self._required_candles + 1 - self._breakout_candles
 		
 		np_highs = np_candles[:,:,csf.high] 
 		np_lows = np_candles[:,:,csf.low]
 		
 		if callable(precandles):
+			#np_candles_again = precandles._perform(np_candles)
 			pass # perform precandles on np_candles 
 		
 		#now stride trick
@@ -98,9 +182,8 @@ class ChartPattern(Indicator):
 		assert high_windows.shape[1] == number_windows, "number of windows is not accurate"
 		assert low_windows.shape[1] == number_windows, "number of windows is not accurate"
 		
-		#for _ in range(0,xtreme_degree):  #add this back in and remove log.warning 
-		maxima = scipy.signal.argrelmax(high_windows,axis=2)
-		minima = scipy.signal.argrelmin(low_windows,axis=2)
+		
+		maxima,minima = self._get_maxs_mins(high_windows, low_windows, xtreme_degree)
 		
 		max_vals = high_windows[maxima]
 		min_vals = low_windows[minima]
@@ -252,7 +335,7 @@ class ChartPattern(Indicator):
 
 class SupportAndResistance(ChartPattern):  #group together points along the price line, show resistance/support lines where there are significant groups 
 	
-	_required_candles = 100
+	_required_candles = 200
 	_number_buckets = 10 #increase for resolution/accuracy? 
 	_early_influence = 0.4 #how much should earlier points count towards the bucket count 
 	
@@ -310,7 +393,7 @@ class SupportAndResistance(ChartPattern):  #group together points along the pric
 		# fuck-through test 
 		# else?
 		
-		print('do something with xtreme_windows')
+		#print('do something with xtreme_windows')
 		pdb.set_trace()
 		
 		return np.zeros((xtreme_windows.shape[0],4)) #eg 4 results per entry
@@ -353,6 +436,7 @@ class PivotPoints(ChartPattern):
 	@overrides(ChartPattern)
 	def _perform(self,np_candles):
 		day_indexs = self._day_indices()
+		
 		
 		
 		
