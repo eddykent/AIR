@@ -21,12 +21,12 @@ query = ''
 with open('queries/candle_stick_selector.sql','r') as f:
 	query = f.read()
 
-the_date = datetime.datetime(2022,2,25,16,0)
+the_date = datetime.datetime(2022,5,27,16,0)
 params = {
-	'chart_resolution':15,
+	'chart_resolution':60,
 	'the_date':the_date,
 	'hour':the_date.hour,
-	'days_back':30,
+	'days_back':50,
 	'candle_offset':0,
 	'currencies':currencies		
 }
@@ -40,7 +40,7 @@ article_collector = ArticleCollector()
 article_collector.pass_articles(rss)
 
 text_analyser = TextAnalysis()
-this_instrument = 'GBP/USD'
+this_instrument = 'USD/JPY'
 
 #pdb.set_trace()
 candles = cur.fetchcandles(fx_pairs)

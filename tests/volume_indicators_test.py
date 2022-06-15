@@ -28,7 +28,7 @@ candles = []
 with Database(commit=False, cache=False) as cursor: 
 	composer = DataComposer(cursor) #.candles(params).call()...
 	#composer.call('get_candles_volumes_from_currencies',{'currencies':currencies,'this_date':the_date,'days_back':100,'chart_resolution':15})
-	composer.call('get_candles_volumes_from_currencies',{'currencies':currencies,'this_date':the_date,'days_back':50,'chart_resolution':60})
+	composer.call('get_candles_volumes_from_currencies',{'currencies':currencies,'this_date':the_date,'days_back':50,'chart_resolution':240})
 
 	candle_result = composer.result(as_json=True)
 	candles = composer.as_candles_volumes(candle_result,fx_pairs)

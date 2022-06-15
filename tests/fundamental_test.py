@@ -13,9 +13,9 @@ assert __name__ != "__main__", "You must run tests through the run_test.py hoist
 	
 lfr = ListFileReader()
 lfr.errors = 'ignore'
-fx_pairs = lfr.read('fx_pairs/fx_mains.txt')
-cs = ClientSentiment()##put fx pairs in!
-cs.fetch()
+#fx_pairs = lfr.read('fx_pairs/fx_mains.txt')
+#cs = ClientSentiment()##put fx pairs in!
+#cs.fetch()
 	
 
 rss = feedco.RSSCollect(lfr.read('sources/rss_feeds.txt'))
@@ -24,14 +24,17 @@ rss = feedco.RSSCollect(lfr.read('sources/rss_feeds.txt'))
 #	('GBP/USD',['GBP/USD','GBPUSD','GBP','usd','CABLE'])  #put after USD to be detected second - but usd matches USD so all the other keys can be added (but in lower case) to this
 	#which is why helper is needed! :) 
 #]
-rss.parse_feeds()
+rss.parse_feeds() #this goes online and grabs the latest news
 kwh = KeywordMapHelper()
 ta = TextAnalysis(kwh)
 
 #consider pickle.load(f), open('pickles/stories.pkl') to get faster test result
 
-rss.analyse_articles(ta)
-rss.collect()
+aco = feedco.ArticleCollector()
+aco.pass_articles(rss)
+aco.analyse_articles(ta)
+aco.save_articles()
+aco.collect()
 
 
 
