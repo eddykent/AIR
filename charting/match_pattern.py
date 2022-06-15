@@ -109,6 +109,29 @@ class MatchPatternInstance(Indicator):
 		
 		assert self._haystack_query is not None, "You must first provide haystack data with set_haystack(...)"
 		
+		full_paths, distances = self._get_haystack_paths(np_candles)
+		
+		play_outs = np.cumprod(full_paths[:,self._needle_length:],axis=1)
+		#stats we probably want to get from the paths
+		end_moves = play_outs[:,:,-1] - 1 #turn it back to a difference (centered around 0)
+		
+		bias = np.sum(end_moves,axis=1)
+		udr = np.divide(np.sum(end_moves > 0,axis=1),np.sum(end_moves < 0,axis=1)) #np.divide to not report warning for inf
+		average_end = np.mean(end_moves,axis=1)
+		std = np.std(end_moves,axis=1)
+		query_error = np.mean(distances,axis=1)
+		query_std = np.std(distances,axis=1)
+		
+		#pdb.set_trace()
+		#print('check_paths')
+		return np.stack([bias,udr,average_end,std,query_error,query_std]) # the result for each channel :D 
+		
+	#@overrides(Indicator)
+	#def calculate_multiple(self,candle_streams,candle_stream_index):
+	#	#this is  different to the standard then?
+	#	pass 
+	
+	def _get_haystack_paths(self,np_candles):
 		values = np_candles[:,:,csf.close]
 		
 		if self._precandles and callable(self._precandles._perform):
@@ -127,41 +150,80 @@ class MatchPatternInstance(Indicator):
 		haystack_paths = np.zeros((values.shape[0],self._n_predictions,self._needle_length))
 		
 		#need some way of vectorizing this bit for speed 
-		for c in range(0,values.shape[0]):
-			predicted_paths[c,:,:] = self._haystack_result[result_indexs[c,:]]
-			haystack_paths[c,:,:] = self._haystack_paths[result_indexs[c,:]] 
+		#for c in range(0,values.shape[0]):
+		predicted_paths[:,:,:] = self._haystack_result[result_indexs[:,:]]
+		haystack_paths[:,:,:] = self._haystack_paths[result_indexs[:,:]] 
 			
 		#for drawing the paths on a chart
 		full_paths = np.concatenate([haystack_paths,predicted_paths],axis=2)
-		max_paths = np.max(full_paths,axis=1) #for drawing bounds 
-		min_paths = np.min(full_paths,axis=1)
-		
-		#stats we probably want to get from the paths
-		end_moves = predicted_paths[:,:,-1] - 1 #turn it back to a difference (centered around 0)
-		
-		bias = np.sum(end_moves,axis=1)
-		udr = np.divide(np.sum(end_moves > 0,axis=1),np.sum(end_moves < 0,axis=1)) #np.divide to not report warning for inf
-		average_end = np.mean(end_moves,axis=1)
-		std = np.std(end_moves,axis=1)
-		query_error = np.mean(distances,axis=1)
-		query_std = np.std(distances,axis=1)
-		
-		#pdb.set_trace()
-		#print('check_paths')
-		return np.stack([bias,udr,average_end,std,query_error,query_std]) # the result for each channel :D 
-		
-	#@overrides(Indicator)
-	#def calculate_multiple(self,candle_streams,candle_stream_index):
-	#	#this is  different to the standard then?
-	#	pass 
+		return full_paths, distances
 
+	@overrides(Indicator)
+	def draw_snapshot(self,np_candles,snapshot_index,instrument_index=0):
+		#np_candles, _ = self._construct(np_candles)
+		full_paths, distances = self._get_haystack_paths(np_candles)
+		paths = full_paths[instrument_index]
+		anchor = np_candles[instrument_index,-self._needle_length,csf.close] #close? or typical? :/ 
+		#expand paths to be of similar value to the anchor		
+		
+		anchorn = np.stack([anchor]*paths.shape[0],axis=0)
+		paths = np.concatenate([anchorn[:,np.newaxis],paths],axis=1) #add anchor price 
+		paths = np.cumprod(paths,axis=1)[:,1:]
+		
+		x_start = np_candles.shape[1] - self._needle_length
+		x_axis = range(x_start,x_start+self._needle_length+self._prediction_length)
+		
+		
+		this_view = chv.ChartView()
+		
+		best_path = []
+		for (x,y) in zip(x_axis,paths[0]):
+			best_path.append(chv.Point(x,y))
+		
+		all_path = [] 
+		for path in paths: 
+			for (x,y) in zip(x_axis,path):
+				all_path.append(chv.Point(x,y)) #s deliberately missed off since we are working with a single path with None points
+			all_path.append(chv.Point(None,None))
+		
+		confuse_path = []
+		for (x,y) in zip(x_axis,np.min(paths,axis=0)):
+			confuse_path.append(chv.Point(x,y))
+		confuse_path.append(chv.Point(None,None))
+		for (x,y) in zip(x_axis,np.max(paths,axis=0)):
+			confuse_path.append(chv.Point(x,y))
+		
+		this_view.draw('faint_traces neutral paths',all_path)
+		this_view.draw('price_actions bearish paths',confuse_path)		
+		this_view.draw('price_actions keyinfo paths',best_path)
+		
+		return this_view 
 
+		
+		
+		
+		
 
 #an improved version of the match pattern class that is backtestable. This instance is very slow compared to 
 #the MatchPatternInstance class so it should really only be used for backtesting purposes. In otherwords, 
 #do not use this class when filtering/finding signals for right now. 
 class MatchPattern(Indicator):
-	pass
+	channel_keys = {'BIAS':0,'BIAS_RATIO':1,'AVERAGE':2,'STD':3,'ERROR':4,'ERROR_STD':5} 
+	#channel_styles = {'BIAS':'neutral','BIAS_RATIO':'neutral','AVERAGE':'neutral','STD':'neutral','ERROR':'neutral','ERROR_STD':'neutral'} 
+	candle_sticks = True
+	
+	_haystack_step = 100 #for every 100 candles, create a new haystack (downsampling)
+	_haystack_window = 2000 #limit to this many candles ago for speed & integrity (very old stuff is not as useful) 
+	_precandles = None # call this to get single values per candle first. If it is None then close is used. 
+	
+	_haystack_query = None #a scipy kdtree with m = self._need_length
+	_haystack_paths = None
+	_haystack_result = None #an example of what happened next with a similar pattern 
+	#_haystack_needle_position_diff =  3# ?place where the needle is in relation to the haystack?
+	
+	_needle_length = 10 
+	_prediction_length = 5
+	_n_predictions = 20
 
 
 
