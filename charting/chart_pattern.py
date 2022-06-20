@@ -27,7 +27,7 @@ class ChartPattern(Indicator):
 	_required_candles = 100 # a chart pattern is a long pattern of extreme points
 	#_xtremes = np.array([]) # and it has all the extreme points cached ready for use in shapes & trends 
 	
-	_xtreme_degree = 2 #number of times to apply extreme finding algorithm. Need to figure out how to do degree > 1 - warning 
+	_xtreme_degree = 1 #number of times to apply extreme finding algorithm. Need to figure out how to do degree > 1 - warning 
 	#- a high degree might chop off relevant max/min and some windows may have 0 hits 
 	
 	
@@ -56,8 +56,9 @@ class ChartPattern(Indicator):
 		
 		xtreme_windows, window_map = self._generate_xtreme_windows(np_candles,mask,self._xtreme_degree,self._precandles)
 		breakout_windows = self._get_breakout_windows(np_candles,mask,self._precandles)
+		x_start_positions = self._get_x_positions(np_candles,mask)
 		
-		chart_result = self._chart_perform(xtreme_windows, breakout_windows) 
+		chart_result = self._chart_perform(xtreme_windows, breakout_windows, x_start_positions) 
 		
 		if return_flat:
 			return np.concatenate([window_map,chart_result],axis=1) #return the flat list of the results we have 
@@ -76,6 +77,23 @@ class ChartPattern(Indicator):
 		padding = np.zeros((pad_height,pad_len,pad_depth))
 		
 		return np.concatenate([padding,result_space],axis=1)
+	
+	def _get_x_positions(self,np_candles,mask):
+		
+		number_windows = np_candles.shape[1] - self._required_candles + 1 - self._breakout_candles
+		
+		x_positions_singular = np.arange(self._required_candles,number_windows + self._required_candles)
+		x_positions = np.concatenate([x_positions_singular]*np_candles.shape[0])
+		
+		
+		if mask is not None:
+			this_mask = mask[:,-number_windows:] #1 mask per window - chop off useless first ones
+			instrument_indexs, window_indexs = np.where(this_mask) 
+			select_indexs = (number_windows * instrument_indexs) + window_indexs
+			
+			x_positions = x_positions[select_indexs]
+		
+		return x_positions
 	
 	#get the max and min points and repeat if desired to get "less local" points 
 	def _get_maxs_mins(self,high_windows,low_windows,xtreme_degree):
@@ -287,7 +305,7 @@ class ChartPattern(Indicator):
 	
 	#This function should operate on an np list of windows, independently of the time frame and the instrument. 
 	#the mapping is taken care of in perform 
-	def _chart_perform(self,xtreme_windows, breakout_windows): 
+	def _chart_perform(self,xtreme_windows, breakout_windows, x_start_pos): 
 		raise NotImplementedError('This method must be overridden')
 	
 	
@@ -330,8 +348,26 @@ class ChartPattern(Indicator):
 		mask[mask == 2] = 1
 		
 		return mask
-		
 	
+	@staticmethod #use this method to place jagged masks along time into a new array 
+	def _mask_to_flatlist(npw_array,mask,fill_value=np.nan,just_right=False):
+		w_index, p_index = np.where(mask)
+		return ChartPattern._premask_to_flatlist(npw_array,w_index,p_index,fill_value,just_right)
+		
+	@staticmethod
+	def _premask_to_flatlist(npw_array,w_index, p_index,fill_value=np.nan,just_right=False):
+		_, counts = np.unique(w_index,return_counts=True)
+		max_counts = np.max(counts) 
+		destination_shape = (npw_array.shape[0],max_counts,npw_array.shape[-1])
+		destination = np.full((destination_shape),fill_value)
+		cum_counts = np.concatenate([np.array([0]), np.cumsum(counts)[:-1]])
+		neg_array = np.repeat(cum_counts,counts)
+		if just_right:
+			buffers = np.repeat(np.max(counts) - counts,counts) #buffers push the xtremes forwards so nan values are first
+			neg_array = neg_array - buffers
+		np_index = np.arange(w_index.shape[0]) - neg_array
+		destination[w_index,np_index] = npw_array[w_index,p_index]
+		return destination
 
 class SupportAndResistance(ChartPattern):  #group together points along the price line, show resistance/support lines where there are significant groups 
 	
@@ -340,7 +376,7 @@ class SupportAndResistance(ChartPattern):  #group together points along the pric
 	_early_influence = 0.4 #how much should earlier points count towards the bucket count 
 	
 	@overrides(ChartPattern)
-	def _chart_perform(self, xtreme_windows, breakout_windows):			
+	def _chart_perform(self, xtreme_windows, breakout_windows, x_start_pos):			
 		#for each window find the values & collect/group. 
 		#use the group of values to determine support/resistance areas 
 		#use the support/resistance to see if price bounced. 
@@ -387,6 +423,8 @@ class SupportAndResistance(ChartPattern):  #group together points along the pric
 		
 		window_srs[window_index,sr_index] = medians[window_index,bucket_index]
 		
+		#window_srs = self._premask_to_flatlist(medians,window_index, bucket_index) #experiment that went wrong (:
+		
 		#now need to figure out how to measure the quality of the breakout/if one has happened.
 		#think of a number of tests that can be done for each window using the breakout candles. 
 		# touching test 
@@ -397,7 +435,12 @@ class SupportAndResistance(ChartPattern):  #group together points along the pric
 		pdb.set_trace()
 		
 		return np.zeros((xtreme_windows.shape[0],4)) #eg 4 results per entry
-
+	
+	#@overrides(Indicator)
+	#def draw_snapshot(self,np_candles,snapshot_index,instrument_index):
+	#	pass
+	
+	
 #not sure if this really belongs here 
 class PivotPoints(ChartPattern):
 	

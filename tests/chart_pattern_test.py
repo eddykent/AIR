@@ -6,8 +6,9 @@
 import datetime 
 
 from utils import Database, DataComposer, Configuration, ListFileReader
-#from charting.chart_pattern import SupportAndResistance, PivotPoints
+from charting.chart_pattern import SupportAndResistance, PivotPoints
 from charting.match_pattern import MatchPatternInstance
+from charting.trend_pattern import SymmetricTriangle
 import charting.chart_viewer as chv
 
 lfr = ListFileReader()
@@ -28,11 +29,14 @@ with Database(commit=False, cache=False) as cursor:
 
 #chart_pattern = SupportAndResistance()
 #chart_pattern = PivotPoints()
-chart_pattern  = MatchPatternInstance()
+#chart_pattern  = MatchPatternInstance()
+chart_pattern = SymmetricTriangle()
+
+
 instrument_index = 2
 
 candle_streams = [candles[fx] for fx in fx_pairs]
-chart_pattern.set_haystack(candle_streams)
+#chart_pattern.set_haystack(candle_streams)
 
 results = chart_pattern.calculate_multiple(candle_streams)
 
