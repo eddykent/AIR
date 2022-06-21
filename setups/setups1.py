@@ -3,9 +3,12 @@ import pdb
 
 from utils import overrides
 
+
 from setups.trade_setup import *
 from indicators.volatility import BollingerBands, KeltnerChannel, ATR
 from indicators.reversal import RSI
+from indicators.trend import ADX 
+from indicators.moving_average import EMA
 from indicators.indicator import Typical
 
 #https://medium.com/codex/trading-stocks-using-bollinger-bands-keltner-channel-and-rsi-in-python-980e87e8109d
@@ -79,7 +82,7 @@ class BB_KC_RSI(TradeSetup):
 		buy_coords = np.stack(np.where(buy_signals),axis=1)
 		sell_coords = np.stack(np.where(sell_signals),axis=1)
 		
-		#now build the signals!  --
+		#now build the signals!  --could go in its own function?
 		for (instrument_index,timeline_index) in buy_coords:
 			if timeline[timeline_index] < start_date:
 				continue
@@ -111,9 +114,56 @@ class BB_KC_RSI(TradeSetup):
 		return trade_signals
 
 
+#https://www.youtube.com/watch?v=vBM0imYSzxI
+class ADX_EMA_RSI(TradeSetup):
 
-
-
+	#rsi(3,20,80), adx(5,30), ema(50)
+	
+	grace_period = 60#need atleast 60 datapoints to look back on to get an accurate reading 
+	
+	def __init__(self,*args,**kwargs):
+		super().__init__(*args,**kwargs)
+	
+	@overrides(TradeSetup)
+	def get_setups(self,start_date,end_date):
+		candlesticks, available_instruments = self.get_candlestick_data(start_date,end_date,block=True) 
+		adx = ADX()
+		rsi = RSI() 
+		ema = EMA() 
+		
+		adx.period = 5
+		
+		rsi.period = 3
+		rsi.overbought = 0.8 
+		rsi.oversold = 0.2
+		#rsi.candle_channel = csf.close
+		
+		ema.period = 50
+		#ema.candle_channel = csf.close
+		
+		adx_result = adx.calculate_multiple(candlesticks)
+		rsi_result = rsi.calculate_multiple(candlesticks)
+		ema_result = ema.calculate_multiple(candlesticks)[:,:,0]
+		
+		adx_mask = adx_result > 30 
+		
+		rsi_buy = rsi_result[:,:,0] < rsi_result[:,:,2]# could change to 0.2
+		rsi_sell = rsi_result[:,:,0] > rsi_result[:,:,1] #could change to 0.8
+		
+		adx_filter = adx_result[:,:,0] > 30  #adx must be larger than 30 
+		
+		ema_buy = ema_result < candlesticks[:,:,csf.low]
+		ema_sell = ema_result > candlesticks[:,:,csf.high]
+		
+		buy_signals = ema_buy & adx_filter & rsi_buy
+		sell_signals = ema_sell & adx_filter & rsi_sell
+		
+		return self.generate_using_atr(candlesticks,available_instruments,start_date,buy_signals,sell_signals,tp_factor=4,sl_factor=4)
+		
+		
+		
+		
+		
 
 
 

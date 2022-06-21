@@ -11,6 +11,8 @@ import numpy as np
 from utils import ListFileReader, Database
 from utils import overrides 
 import charting.chart_viewer as chv 
+from charting import candle_stick_functions as csf
+
 
 #looks like you're setting up some kind of grammar!
 class TradeDirection(Enum):
@@ -104,7 +106,7 @@ class TradeSignal:
 			'length':self.length
 		}
 
-#class TradeHoldSignal:  -- will need an interest rate calculation
+#class TradeSignalPair:  -- will need an interest rate calculation
 #	This class holds the concept of holding a trade - 
 #	we can buy and leave open x candles or until another trade hold signal has fired instead of having a TP or SL. 
 #	This is risky though and it is probably better to always use the TP and SL levels. 
@@ -184,7 +186,8 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 			A bunch of trade signals that were found from now up to age_limit minutes ago. 
 		"""
 		end_date = datetime.now() 
-		start_date = datetime.now() - timedelta(minutes=age_limit)
+		start_date = datetime.now() - timedelta(minutes=age_limit) 
+		start_date = start_date - timedelta(minutes=self.grace_period * self.timeframe)  #use grace period too to ensure quality signals 
 		return self.get_setups(start_date,end_date)
 	
 	def draw_snapshot(self,start_date : datetime, end_date :datetime, trade_signal : TradeSignal = None) -> chv.ChartView: #-add all chart views together. Consider what to do with start_date and end_date  
@@ -251,8 +254,59 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 			candles = candle_block
 		return candles, instruments
 			
+	
+	def generate_using_atr(self,candlesticks,available_instruments,start_date,buy_signals,sell_signals,tp_factor=5,sl_factor=3):
+		from indicators.volatility import ATR
+		from indicators.indicator import Typical
+		timeline = self.get_timeline(candlesticks)
+		
+		#need to set up the TP and SL values! 
+		average_true_range = ATR() #use for setting TP and SL - perhaps pull this into its own function 
+		average_true_range_values = average_true_range.calculate_multiple(candlesticks)
+		
+		tp_distances = tp_factor * average_true_range_values[:,:,0]
+		sl_distances = sl_factor * average_true_range_values[:,:,0]
 
-
+		typical = Typical()
+		typical_values = typical.calculate_multiple(candlesticks) #could be used for entry?
+		entry_prices = typical_values[:,:,0]
+		
+		trade_signals = []
+		
+		#export these? would be much faster for any further computation such as filtering...
+		buy_coords = np.stack(np.where(buy_signals),axis=1)
+		sell_coords = np.stack(np.where(sell_signals),axis=1)
+		
+		#now build the signals!  --could go in its own function?
+		for (instrument_index,timeline_index) in buy_coords:
+			if timeline[timeline_index] < start_date:
+				continue
+			the_date = timeline[timeline_index]
+			instrument = available_instruments[instrument_index]
+			strategy_ref = self.__class__.__name__
+			direction = TradeDirection.BUY
+			entry = None #consider entry_prices[instrument_index,timeline_index]
+			take_profit_distance = tp_distances[instrument_index,timeline_index]
+			stop_loss_distance = sl_distances[instrument_index,timeline_index]
+			
+			ts = TradeSignal.from_full(the_date,instrument,strategy_ref,direction,entry,take_profit_distance,stop_loss_distance)
+			trade_signals.append(ts)
+		
+		for (instrument_index,timeline_index) in sell_coords:
+			if timeline[timeline_index] < start_date:
+				continue
+			the_date = timeline[timeline_index]
+			instrument = available_instruments[instrument_index]
+			strategy_ref = self.__class__.__name__
+			direction = TradeDirection.SELL
+			entry = None #consider entry_prices[instrument_index,timeline_index]
+			take_profit_distance = tp_distances[instrument_index,timeline_index]
+			stop_loss_distance = sl_distances[instrument_index,timeline_index]
+			
+			ts = TradeSignal.from_full(the_date,instrument,strategy_ref,direction,entry,take_profit_distance,stop_loss_distance)
+			trade_signals.append(ts)
+		
+		return trade_signals
 
 
 
