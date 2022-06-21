@@ -79,12 +79,8 @@ class TrendPattern(ChartPattern):
 			this_view.draw('trends bearish lines',chv_minline)
 		
 		return this_view
-
-#wedges too? 
-class SymmetricTriangle(TrendPattern): #is this ONLY symmetricals? use as base for triangulars?
 	
-	_required_candles = 100
-	
+	@overrides(ChartPattern)
 	def _chart_perform(self,xtreme_windows,breakout_windows,x_start_pos):
 		maxs, mins = self.tops_bottoms(xtreme_windows)
 		maxlines = self._find_boundary_trends(maxs[:,::-1,:],True)
@@ -108,12 +104,33 @@ class SymmetricTriangle(TrendPattern): #is this ONLY symmetricals? use as base f
 		result[:,2] = maxlines[:,4]
 		result[:,3] = minlines[:,4]
 		#print('got trendlines?')
-		return result
 		
+		return self._constraints(result)
 	
-		
-		
+	#function for telling if this is a correct pattern or not. 
+	def _constraints(self,np_results):
+		return np_results	#return everything as there is no constraints on the generic pattern 
+
+
+#wedges too? 
+class SymmetricTriangle(TrendPattern): #is this ONLY symmetricals? use as base for triangulars?
 	
+	_required_candles = 100
+	
+	
+class RisingWedge(TrendPattern):
+	pass
+	
+class FallingWedge(TrendPattern):
+	pass
+
+#rising/falling triangles?
+
+class ApproximateChannel(TrendPattern):
+	pass
+	
+class ParalellChannel(TrendPattern):
+	pass
 	
 
 #class SymmetricTriangle, Wedge, etc 
