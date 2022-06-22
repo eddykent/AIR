@@ -30,6 +30,7 @@ class ChartPattern(Indicator):
 	_xtreme_degree = 1 #number of times to apply extreme finding algorithm. Need to figure out how to do degree > 1 - warning 
 	#- a high degree might chop off relevant max/min and some windows may have 0 hits 
 	
+	_order = 1 #when using argrelmax/argrelmin, number of points either side to consider when finding highs/lows
 	
 	#number of candles to start the detected pattern from 
 	_breakout_candles = 3 #surely this should be for use AFTER the chart pattern? 
@@ -103,8 +104,8 @@ class ChartPattern(Indicator):
 		assert high_windows.shape[1] == low_windows.shape[1], "Windows changed between lowers and highers "
 		number_windows = high_windows.shape[1]
 		
-		maxima = scipy.signal.argrelmax(high_windows,axis=2)
-		minima = scipy.signal.argrelmin(low_windows,axis=2)
+		maxima = scipy.signal.argrelmax(high_windows,axis=2,order=self._order)
+		minima = scipy.signal.argrelmin(low_windows,axis=2,order=self._order)
 		
 		index_map = np.stack([np.arange(self._required_candles)]*number_windows,axis=0)
 		index_map = np.stack([index_map]*high_windows.shape[0],axis=0)
@@ -139,7 +140,7 @@ class ChartPattern(Indicator):
 			these_maximums[maxima[0],maxima[1],max_index] = high_windows[maxima]
 			new_max_index_map[maxima[0],maxima[1],max_index] = index_map[maxima]
 			
-			new_maxima = scipy.signal.argrelmax(these_maximums,axis=2) #map back somehow... 
+			new_maxima = scipy.signal.argrelmax(these_maximums,axis=2,order=self._order) #map back somehow... 
 			new_maxima_end = new_max_index_map[new_maxima].astype(np.int)
 			maxima = (new_maxima[0],new_maxima[1],new_maxima_end)
 			
@@ -171,7 +172,7 @@ class ChartPattern(Indicator):
 			these_minimums[minima[0],minima[1],min_index] = low_windows[minima]
 			new_min_index_map[minima[0],minima[1],min_index] = index_map[minima]
 			
-			new_minima = scipy.signal.argrelmin(these_minimums,axis=2) #map back somehow... 
+			new_minima = scipy.signal.argrelmin(these_minimums,axis=2,order=self._order) #map back somehow... 
 			new_minima_end = new_min_index_map[new_minima].astype(np.int)
 			minima = (new_minima[0],new_minima[1],new_minima_end)
 			
@@ -371,23 +372,15 @@ class ChartPattern(Indicator):
 
 class SupportAndResistance(ChartPattern):  #group together points along the price line, show resistance/support lines where there are significant groups 
 	
-	_required_candles = 200
-	_number_buckets = 10 #increase for resolution/accuracy? 
-	_early_influence = 0.4 #how much should earlier points count towards the bucket count 
+	_required_candles = 100
+	_number_buckets = 20 #increase for resolution/accuracy? 
+	_early_influence = 0.2 #how much should earlier points count towards the bucket count 
 	
-	@overrides(ChartPattern)
-	def _chart_perform(self, xtreme_windows, breakout_windows, x_start_pos):			
-		#for each window find the values & collect/group. 
-		#use the group of values to determine support/resistance areas 
-		#use the support/resistance to see if price bounced. 
-		#return bullish/bearish/none rating and also things like quality etc which might be useful 
+	def _support_resistance_values(self,xtreme_windows):
 		
 		assert self._early_influence >= 0 and self._early_influence <= 1,f"The early influence factor should be a number between 0 and 1, Got {self._early_influence}"
-		
 
-		values = xtreme_windows[:,:,1] #time,value,type 
-		
-		#consider putting in own function?
+		values = xtreme_windows[:,:,1] #remember - (time,value,type )
 		maxs = np.nanmax(values,axis=1)
 		mins = np.nanmin(values,axis=1)
 		ranges = maxs - mins
@@ -411,7 +404,7 @@ class SupportAndResistance(ChartPattern):  #group together points along the pric
 		bucket_values = np.sum(bucket_mask * bucket_multipliers,axis=1)
 		
 		#this tells us on every window where the support/resistance is 
-		window_index, bucket_index  = scipy.signal.argrelmax(bucket_values,axis=1)
+		window_index, bucket_index  = scipy.signal.argrelmax(bucket_values,axis=1) #order required? 
 		_, sr_counts = np.unique(window_index,return_counts=True)
 		
 		max_sr_count = np.max(sr_counts)
@@ -422,8 +415,25 @@ class SupportAndResistance(ChartPattern):  #group together points along the pric
 		sr_index = np.arange(neg_array.shape[0])  - neg_array  #don't care about trailing nans 
 		
 		window_srs[window_index,sr_index] = medians[window_index,bucket_index]
+		return window_srs
+	
+	
+	@overrides(ChartPattern)
+	def _chart_perform(self, xtreme_windows, breakout_windows, x_start_pos):			
+		#for each window find the values & collect/group. 
+		#use the group of values to determine support/resistance areas 
+		#use the support/resistance to see if price bounced. 
+		#return bullish/bearish/none rating and also things like quality etc which might be useful 		
+
+		#consider putting in own function?
+		window_support_resistances = self._support_resistance_values(xtreme_windows)    #add bucket info? eg n hits? 
+		max_lines = window_support_resistances.shape[1]
 		
-		#window_srs = self._premask_to_flatlist(medians,window_index, bucket_index) #experiment that went wrong (:
+		values = xtreme_windows[:,:,1] #remember - (time,value,type )
+		maxs = np.nanmax(values,axis=1)
+		mins = np.nanmin(values,axis=1)
+		ranges = maxs - mins
+		max_dist = ranges / self._number_buckets
 		
 		#now need to figure out how to measure the quality of the breakout/if one has happened.
 		#think of a number of tests that can be done for each window using the breakout candles. 
@@ -431,14 +441,87 @@ class SupportAndResistance(ChartPattern):  #group together points along the pric
 		# fuck-through test 
 		# else?
 		
-		#print('do something with xtreme_windows')
-		pdb.set_trace()
+		#try - if the body of the candles are above/below the line and dont touch any other lines 
+		#sits = np.min(np.min(breakout_windows[:,:,[csf.open,csf.close]],axis=2),axis=1) #np.min(breakout_windows[:,:,csf.low],axis=1)
+		#reaches = np.max(np.max(breakout_windows[:,:,[csf.open,csf.close]],axis=2),axis=1) #np.max(breakout_windows[:,:,csf.high],axis=1)
 		
-		return np.zeros((xtreme_windows.shape[0],4)) #eg 4 results per entry
+		sits = np.min(breakout_windows[:,:,csf.low],axis=1)
+		reaches = np.max(breakout_windows[:,:,csf.high],axis=1)
+		
+		ranges = reaches - sits
+		
+		#get distances to the closest support/resistance lines using sits and reaches 
+		sitss = np.stack([sits]*max_lines,axis=1) 
+		reachess = np.stack([reaches]*max_lines,axis=1)
+		
+		sit_dists = sitss - window_support_resistances  #distance from the bottom level - if negative, it must be abs( ) larger than smallest positive
+		reach_dists = window_support_resistances - reachess
+		
+		#if within range, not intersecting other lines? 
+		#range = ? 
+		sit_dists_positive = sit_dists.copy()
+		reach_dists_positive = reach_dists.copy() 
+		sit_dists_positive[sit_dists_positive < 0] = np.nan
+		reach_dists_positive[reach_dists_positive < 0] = np.nan
+		
+		sit_min_abs = np.nanmin(np.abs(sit_dists),axis=1)
+		reach_min_abs = np.nanmin(np.abs(reach_dists),axis=1)
+		
+		sit_min = np.nanmin(sit_dists_positive,axis=1)
+		reach_min = np.nanmin(reach_dists_positive,axis=1)
+		
+		#for getting the bucket info if needed 
+		#sit_dist_arg_min = np.nanargmin(sit_dists_positive,axis=1) 
+		#reach_dist_arg_min = np.nanargmin(reach_dists_positive,axis=1)
+		
+		actual_sits = np.full((xtreme_windows.shape[0],),np.nan)
+		actual_reaches = np.full((xtreme_windows.shape[0],),np.nan)
+		
+		actual_sits[sit_min == sit_min_abs] = sit_min[sit_min == sit_min_abs]
+		actual_reaches[reach_min == reach_min_abs] = reach_min[reach_min == reach_min_abs]
+		
+		#remove any that have a sit/reach gap that is larger than the bucket width
+		actual_sits[actual_sits > max_dist] = np.nan
+		actual_reaches[actual_reaches > max_dist] = np.nan
+		
+		#now work out if it is bullish or bearish 
+		bias = np.full((xtreme_windows.shape[0],),0)
+		#pdb.set_trace()
+		
+		non_nan_sits = np.where(~np.isnan(actual_sits))
+		bias[non_nan_sits] = bias[non_nan_sits] + 1#actual_sits[non_nan_sits]
+		
+		non_nan_reaches = np.where(~np.isnan(actual_reaches))
+		bias[non_nan_reaches] = bias[non_nan_reaches] - 1 #actual_reaches[non_nan_reaches]
+		
+		#need to add more tests - if a price actually goes through the boundary it could be a breakout. 
+		#check end price too in relation to the actual levels - this might give more accurate results!
+		
+		
+		#return np.zeros((xtreme_windows.shape[0],4)) #eg 4 results per entry
+		return np.stack([bias,actual_sits,actual_reaches],axis=1)
 	
-	#@overrides(Indicator)
-	#def draw_snapshot(self,np_candles,snapshot_index,instrument_index):
-	#	pass
+	@overrides(Indicator)
+	def draw_snapshot(self,np_candles,snapshot_index,instrument_index):
+		mask = self._create_mask(np_candles,instrument_index,snapshot_index)
+		xtreme_windows, _ = self._generate_xtreme_windows(np_candles,mask,xtreme_degree=self._xtreme_degree,precandles=self._precandles)
+		
+		window_srs = self._support_resistance_values(xtreme_windows)
+		x_positions = self._get_x_positions(np_candles,mask)
+		
+		#pdb.set_trace()
+		
+		line_len = self._required_candles
+		
+		this_view = chv.ChartView()
+		for (window,x) in zip(window_srs,x_positions):
+			for y in window: 
+				if not np.isnan(y):
+					sr_line = chv.Line(x - line_len,y,x,y)
+					this_view.draw('boundarie neutral line',sr_line)
+			#print('do something with the window and the x pos')
+		return this_view
+			
 	
 	
 #not sure if this really belongs here 

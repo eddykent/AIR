@@ -6,10 +6,12 @@
 import datetime 
 
 from utils import Database, DataComposer, Configuration, ListFileReader
-from charting.chart_pattern import SupportAndResistance, PivotPoints
+from charting.chart_pattern import SupportAndResistance, PivotPoints, ChartPattern
 from charting.match_pattern import MatchPatternInstance
 from charting.trend_pattern import SymmetricTriangle
 import charting.chart_viewer as chv
+
+import numpy as np
 
 lfr = ListFileReader()
 currencies = lfr.read('fx_pairs/currencies.txt')
@@ -27,13 +29,13 @@ with Database(commit=False, cache=False) as cursor:
 	candles = composer.as_candles(candle_result,fx_pairs)
 
 
-#chart_pattern = SupportAndResistance()
+chart_pattern = SupportAndResistance()
 #chart_pattern = PivotPoints()
 #chart_pattern  = MatchPatternInstance()
-chart_pattern = SymmetricTriangle()
+#chart_pattern = SymmetricTriangle()
 
 
-instrument_index = 2
+instrument_index = 1
 
 candle_streams = [candles[fx] for fx in fx_pairs]
 #chart_pattern.set_haystack(candle_streams)
@@ -41,11 +43,17 @@ candle_streams = [candles[fx] for fx in fx_pairs]
 results = chart_pattern.calculate_multiple(candle_streams)
 
 this_view = chv.ChartView()
-this_view.draw_candles(candle_streams[2])
+this_view.draw_candles(candle_streams[instrument_index])
 np_candles, _ = chart_pattern._construct(candle_streams)
 
-chart_view = chart_pattern.draw_snapshot(np_candles,snapshot_index=[-1],instrument_index=2)
+chart_view = chart_pattern.draw_snapshot(np_candles,snapshot_index=[-1],instrument_index=instrument_index)
 this_view += chart_view
+
+dots = ChartPattern.draw_snapshot(chart_pattern,np_candles,snapshot_index=[-1],instrument_index=instrument_index)
+this_view += dots
+
+result_bias = results[instrument_index,:,0]
+this_view.draw_background_results(result_bias) #effect for showing a bullish/bearish pattern!
 
 pcp = chv.PlotlyChartPainter()
 #pcp.paint(indicator_view)
