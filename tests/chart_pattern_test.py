@@ -9,6 +9,7 @@ from utils import Database, DataComposer, Configuration, ListFileReader
 from charting.chart_pattern import SupportAndResistance, PivotPoints, ChartPattern
 from charting.match_pattern import MatchPatternInstance
 from charting.trend_pattern import SymmetricTriangle
+from charting.harmonic_pattern import *
 import charting.chart_viewer as chv
 
 import numpy as np
@@ -29,38 +30,53 @@ with Database(commit=False, cache=False) as cursor:
 	candles = composer.as_candles(candle_result,fx_pairs)
 
 
-chart_pattern = SupportAndResistance()
+#chart_pattern = Butterfly()  #Gartley, Crab, DeepCrab, Bat, todo: Cypher
+chart_pattern = Bat()
+
+
+
+
+
+#chart_pattern._xtreme_degree = 2
+#chart_pattern._order = 1
+#chart_pattern.required_candles = 200
+
+#chart_pattern = SupportAndResistance()
 #chart_pattern = PivotPoints()
 #chart_pattern  = MatchPatternInstance()
 #chart_pattern = SymmetricTriangle()
 
 
-instrument_index = 1
+
 
 candle_streams = [candles[fx] for fx in fx_pairs]
 #chart_pattern.set_haystack(candle_streams)
 
 results = chart_pattern.calculate_multiple(candle_streams)
 
-this_view = chv.ChartView()
-this_view.draw_candles(candle_streams[instrument_index])
-np_candles, _ = chart_pattern._construct(candle_streams)
+#print a nice summary
+print(np.concatenate([np.arange(results.shape[0]),np.sum(results==1,axis=1),np.sum(results==-1,axis=1)],axis=1))
 
-chart_view = chart_pattern.draw_snapshot(np_candles,snapshot_index=[-1],instrument_index=instrument_index)
-this_view += chart_view
+def show_chart(instrument_index, snap_index=-1):
+	this_view = chv.ChartView()
+	this_view.draw_candles(candle_streams[instrument_index])
+	np_candles, _ = chart_pattern._construct(candle_streams)
 
-dots = ChartPattern.draw_snapshot(chart_pattern,np_candles,snapshot_index=[-1],instrument_index=instrument_index)
-this_view += dots
+	chart_view = chart_pattern.draw_snapshot(np_candles,snapshot_index=[snap_index],instrument_index=instrument_index)
+	this_view += chart_view
 
-result_bias = results[instrument_index,:,0]
-this_view.draw_background_results(result_bias) #effect for showing a bullish/bearish pattern!
+	dots = ChartPattern.draw_snapshot(chart_pattern,np_candles,snapshot_index=[snap_index],instrument_index=instrument_index)
+	this_view += dots
 
-pcp = chv.PlotlyChartPainter()
-#pcp.paint(indicator_view)
-pcp.paint(this_view)
-pcp.show()
+	result_bias = results[instrument_index,:,0]
+	this_view.draw_background_results(result_bias) #effect for showing a bullish/bearish pattern!
 
+	pcp = chv.PlotlyChartPainter()
+	#pcp.paint(indicator_view)
+	pcp.paint(this_view)
+	pcp.show()
 
+show_chart(0)
 
 
 
