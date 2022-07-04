@@ -7,7 +7,7 @@ import datetime
 
 from utils import Database, DataComposer, Configuration, ListFileReader
 from charting.chart_pattern import SupportAndResistance, PivotPoints, ChartPattern
-from charting.match_pattern import MatchPatternInstance
+from charting.match_pattern import MatchPatternInstance, MatchPattern
 from charting.trend_pattern import SymmetricTriangle
 from charting.harmonic_pattern import *
 import charting.chart_viewer as chv
@@ -45,17 +45,19 @@ chart_pattern = Bat()
 #chart_pattern = PivotPoints()
 #chart_pattern  = MatchPatternInstance()
 #chart_pattern = SymmetricTriangle()
+chart_pattern = MatchPattern()
 
 
 
 
 candle_streams = [candles[fx] for fx in fx_pairs]
-#chart_pattern.set_haystack(candle_streams)
+chart_pattern.set_haystack(candle_streams)
 
 results = chart_pattern.calculate_multiple(candle_streams)
 
 #print a nice summary
-print(np.concatenate([np.arange(results.shape[0]),np.sum(results==1,axis=1),np.sum(results==-1,axis=1)],axis=1))
+#pdb.set_trace()
+print(np.stack([np.arange(results.shape[0]),np.sum(results[:,:,0]==1,axis=1),np.sum(results[:,:,0]==-1,axis=1)],axis=1))
 
 def show_chart(instrument_index, snap_index=-1):
 	this_view = chv.ChartView()
