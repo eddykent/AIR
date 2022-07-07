@@ -10,9 +10,6 @@ explain() to return an explanation in terms of trading using the tool and draw_s
 refactor currency strength nn to be of the same form as DataProvider etc 
 	- find out what is still to do!
 
-sql functions for correlations (cross & auto) 
-
-
 SCREENING - candle stick scanner for candle stick patterns and chart patterns. Use to determine entry points
 	- candlestick patterns at high timeframes 
 	- chart breakout patterns at lower timeframes (eg 4h) 
@@ -128,9 +125,9 @@ query refactor - alias broken in tests/data_compose_branch_test
 
 logging - debug level not going into database
 
-chart_pattern mask should be done earlier to save computation 
+chart_pattern mask should be done earlier to save computation - really?
 
-
+match_pattern.MatchPattern has distance = 0 results - implies it has a look-ahead bias 
 
 
 

@@ -81,6 +81,9 @@ https://www.dukascopy.com/swiss/english/marketwatch/historical/   -historic clie
 	- use selenium to get latest data for use with volume indicators & client sentiment information :D 
 	- add dukascopy to config.ini
 
+sql functions for correlations (cross & auto) - still todo correlation function (for reporting)  
+
+
 
 BUGS:
 (FIXED)
