@@ -16,7 +16,7 @@ LogSetup() #think of how to rmeove this line
 
 from tests.chart_pattern_test import *
 #from tests.chart_pattern_support_resistance_test import *
-#from tests.matching_test import *
+#from tests.matching_test import * 
 
 #from tests.harmonic_pattern_test import *
 

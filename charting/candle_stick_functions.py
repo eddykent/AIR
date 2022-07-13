@@ -74,7 +74,7 @@ def bottom_heavy(candle,wick_len=2):
 
 #for the following functions, value should be an np.array of same length as candle
 def resting_above(candle,value,gap):
-	return (body_bottom(candle) > value) & (body_bottom(candle) < (value - gap))
+	return (body_bottom(candle) > value) & (body_bottom(candle) < (value + gap))
 	
 def hanging_below(candle,value,gap):
 	return (body_top(candle) < value) & (body_top(candle) > (value - gap))

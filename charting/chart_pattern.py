@@ -9,6 +9,7 @@ import tqdm
 from charting.candle_stick_pattern import * 
 import charting.candle_stick_functions as csf
 from indicators.indicator import Indicator
+from indicators.volatility import ATR
 
 import charting.chart_viewer as chv
 
@@ -52,7 +53,7 @@ class ChartPattern(Indicator):
 		"""
 	
 	
-	@overrides(Indicator)
+	@overrides(Indicator)    #correct parameters?
 	def _perform(self,np_candles,mask=None,return_flat=False):   #allow for caching / inserting the extreme points or something so other chart patterns can be initalised with 1 dataset
 		
 		xtreme_windows, window_map = self._generate_xtreme_windows(np_candles,mask,self._xtreme_degree,self._precandles)
@@ -143,9 +144,6 @@ class ChartPattern(Indicator):
 			new_maxima = scipy.signal.argrelmax(these_maximums,axis=2,order=self._order) #map back somehow... 
 			new_maxima_end = new_max_index_map[new_maxima].astype(np.int)
 			maxima = (new_maxima[0],new_maxima[1],new_maxima_end)
-			
-			
-			
 			
 			#handle min change
 			min_vals = low_windows[minima]	
@@ -370,6 +368,7 @@ class ChartPattern(Indicator):
 		destination[w_index,np_index] = npw_array[w_index,p_index]
 		return destination
 
+#todo - determine bullish/bearish scenarios properly using price movement 
 class SupportAndResistance(ChartPattern):  #group together points along the price line, show resistance/support lines where there are significant groups 
 	
 	_required_candles = 100
@@ -527,15 +526,19 @@ class SupportAndResistance(ChartPattern):  #group together points along the pric
 #not sure if this really belongs here 
 class PivotPoints(ChartPattern):
 	
-	_breakout_candles = 1 #only need to see where the current candle is to see if we are
+	#_breakout_candles = 1 #only need to see where the current candle is to see if we are     #(not applicable?)
 	#close to a pivot point or not. 
 	
+	_day_turnover_hour = 22 #USA markets close this hour (10pm our time)
+	
+	#todo: fix for any case, not just 10pm no bank holidays
 	def _day_indices(self):
 		
 		t0 = time.time() 
 		timeline = self.timeline[:,0]
 		
-		np_timeline = np.empty((timeline.shape[0],6))
+		np_timeline = np.empty((timeline.shape[0],6)).astype(np.int)
+		stack_num = np.zeros((timeline.shape[0],)).astype(np.int) #store the stack number here (the number the time belongs to) 
 		
 		fyears = lambda dt : dt.year 
 		fmonths = lambda dt : dt.month
@@ -546,35 +549,136 @@ class PivotPoints(ChartPattern):
 		for i,td in enumerate(timeline):	
 			np_timeline[i,0] = fyears(td)
 			np_timeline[i,1] = fmonths(td)
-			np_timeline[i,2] = fdays(td)
+			np_timeline[i,2] = fdays(td) #0 is monday => 6 is sunday
 			np_timeline[i,3] = fhours(td)
 			np_timeline[i,4] = fmins(td)
 			np_timeline[i,5] = td.weekday() #get the day of week on the end for helping merge fri and sun
 		
 		np_timeline = np_timeline.astype(np.int)
-		print(f"timeline iteration generation took {time.time() - t0}s")
+
+		#crude algorithm for assigning datetimes to the correct box, for use when finding pivot points.
+		#requires more thought to overcome bank holidays etc.. probably needs heavy use of the datetime/timedelta functions etc
+		stack_n = 0
+		stack_i = 1 #start from second 
+		on_hour = False
+		for prev_time_v, this_time_v in zip(np_timeline[:-1],np_timeline[1:]):
+			_on_hour = False
+			if this_time_v[3] == self._day_turnover_hour:
+				_on_hour = True
+			
+			if prev_time_v[3] <= self._day_turnover_hour and this_time_v[3] > self._day_turnover_hour:
+				_on_hour = True
+			
+			if not on_hour and _on_hour:
+				on_hour = True 
+				stack_n += 1
+			
+			on_hour = _on_hour 
+			stack_num[stack_i] = stack_n 
+			stack_i += 1
 		
-		pdb.set_trace()
-		print('use np_timeline to find the days. (merge fri/sunday night)?')
-		
+		#pdb.set_trace()
+		return stack_num
 		
 		
 	@overrides(ChartPattern)
 	def _perform(self,np_candles):
 		day_indexs = self._day_indices()
+		P, S1, S2, R1, R2 = self._produce_pivots(np_candles,day_indexs)
+		
+		atr = ATR()
+		gaps = atr._perform(np_candles) / 2.0 #use half of the average true range as the gap for determining if a candle is hanging/sitting on a pivot point
+		
+		#what test?
+		#check if sitting on a support or hanging on a resistance for signals?
+		return_val = np.zeros((np_candles.shape[0],np_candles.shape[1],3)).astype(np.int)
+		
+		_,counts = np.unique(day_indexs,return_counts=True)
+		xpos = np.concatenate([[0],np.cumsum(counts)])
+	
+		S1p = np.repeat(np.concatenate([np.full((np_candles.shape[0],1),np.nan),S1[:,:-1]],axis=1),counts,axis=1)  #needs the prev day, not the current day
+		S2p = np.repeat(np.concatenate([np.full((np_candles.shape[0],1),np.nan),S2[:,:-1]],axis=1),counts,axis=1)
+		R1p = np.repeat(np.concatenate([np.full((np_candles.shape[0],1),np.nan),R1[:,:-1]],axis=1),counts,axis=1)
+		R2p = np.repeat(np.concatenate([np.full((np_candles.shape[0],1),np.nan),R2[:,:-1]],axis=1),counts,axis=1)
+		
+		S1f = np.concatenate(S1p,axis=0)#[:,np.newaxis]
+		S2f = np.concatenate(S2p,axis=0)#[:,np.newaxis]
+		R1f = np.concatenate(R1p,axis=0)#[:,np.newaxis]
+		R2f = np.concatenate(R2p,axis=0)#[:,np.newaxis]
+		
+		flat_candles = np.concatenate(np_candles,axis=0)
+		
+		#test 1 -> if the candle sits/rests on a pp and it is in the correct direction lets mark it as bullish/bearish since the price may have rebounded
+	
+		flat_gaps = np.concatenate(gaps,axis=0)[:,0]
+		
+		#pdb.set_trace()
+		sit_S1 = csf.resting_above(flat_candles,S1f,flat_gaps)
+		sit_S2 = csf.resting_above(flat_candles,S2f,flat_gaps)
+		han_R1 = csf.hanging_below(flat_candles,R1f,flat_gaps)
+		han_R2 = csf.hanging_below(flat_candles,R2f,flat_gaps)
+		
+		sits = sit_S1 | sit_S2 
+		hang = han_R1 | han_R2
+		
+		bullish1 = sits & csf.bullish(flat_candles)
+		bearish1 = hang & csf.bearish(flat_candles)
+		
+		#
+		#any other tests here.. 
+		return_val[:,:,0] = (bullish1.astype(np.int) - bearish1.astype(np.int)).reshape((np_candles.shape[0],np_candles.shape[1]))
 		
 		
+		return return_val
 		
 		
+	def _produce_pivots(self,np_candles,day_indexs):
+		n_days = np.max(day_indexs)+1
+		hlcs = np.zeros((np_candles.shape[0],n_days,3)) #high, low, close values for each day index
+		for di in range(0,n_days):
+			day_block = np_candles[:,day_indexs==di,:]
+			highs = np.max(day_block[:,:,csf.high],axis=1)
+			lows = np.min(day_block[:,:,csf.low],axis=1)
+			closes = day_block[:,-1,csf.close]
+			hlcs[:,di,0] = highs
+			hlcs[:,di,1] = lows
+			hlcs[:,di,2] = closes
+		
+		#pivot point calculations
+		H = hlcs[:,:,0]
+		L = hlcs[:,:,1]
+		
+		#https://corporatefinanceinstitute.com/resources/knowledge/trading-investing/pivot-points/
+		P = np.mean(hlcs,axis=2)
+		
+		S1 = (P * 2) - H
+		S2 = P - (H - L)
+		R1 = (P * 2) - L
+		R2 = P + (H - L)
+		
+		return P, S1, S2, R1, R2
 	
-	
-	
-	
+	@overrides(ChartPattern)
+	def draw_snapshot(self,np_candles,snapshot_index,instrument_index):
+		day_indexs = self._day_indices()
+		P, S1, S2, R1, R2 = self._produce_pivots(np_candles,day_indexs)
+		_,counts = np.unique(day_indexs,return_counts=True)
+		
+		#snapshot index needed?
+		this_view = chv.ChartView()
+		
+		xpos = np.concatenate([[0],np.cumsum(counts)])
+		for di, (x_start,x_end) in enumerate(zip(xpos[:-1],xpos[1:])):
+			if di == 0:
+				continue #don't draw first as not on the scale!
+			dii = di - 1
+			this_view.draw('trends bearish lines',chv.Line(x_start,R2[instrument_index,dii],x_end,R2[instrument_index,dii]))
+			this_view.draw('trends bearish lines',chv.Line(x_start,R1[instrument_index,dii],x_end,R1[instrument_index,dii]))
+			this_view.draw('trends keyinfo lines',chv.Line(x_start,P[instrument_index,dii],x_end,P[instrument_index,dii]))
+			this_view.draw('trends bullish lines',chv.Line(x_start,S1[instrument_index,dii],x_end,S1[instrument_index,dii]))
+			this_view.draw('trends bullish lines',chv.Line(x_start,S2[instrument_index,dii],x_end,S2[instrument_index,dii]))
 
-
-
-
-
+		return this_view
 
 
 

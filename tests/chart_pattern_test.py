@@ -42,16 +42,16 @@ chart_pattern = Bat()
 #chart_pattern.required_candles = 200
 
 #chart_pattern = SupportAndResistance()
-#chart_pattern = PivotPoints()
+chart_pattern = PivotPoints()
 #chart_pattern  = MatchPatternInstance()
 #chart_pattern = SymmetricTriangle()
-chart_pattern = MatchPattern()
+#chart_pattern = MatchPattern()
 
 
 
 
 candle_streams = [candles[fx] for fx in fx_pairs]
-chart_pattern.set_haystack(candle_streams)
+#chart_pattern.set_haystack(candle_streams)
 
 results = chart_pattern.calculate_multiple(candle_streams)
 
