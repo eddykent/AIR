@@ -1,6 +1,6 @@
 
 from collections import namedtuple
-from typing import Optional, List
+from typing import Optional, List, Union
 from enum import Enum
 
 import numpy as np 
@@ -39,7 +39,8 @@ class Indicator:
 	period = 20
 	candle_channel = csf.close
 	candle_sticks = False
-	candle_type = CandleType.CANDLE; 
+	candle_type = CandleType.CANDLE 
+	time_viewing_index = -1 
 	
 	candle_type_dimension_map = {
 		CandleType.CANDLE : 4,
@@ -89,7 +90,7 @@ class Indicator:
 		candle_streams, self.timeline = self._construct(candle_streams,candle_stream_index)
 		return self._perform(candle_streams)
 		
-	def draw_snapshot(self,candle_stream : list ,snapshot_index : int = -1) -> chv.ChartView:
+	def draw_snapshot(self,candle_stream : Union[List[float],np.array] ,snapshot_index : Union[int , np.array , List[int]] = -1, instrument_index : int =-1) -> chv.ChartView:
 		"""
 		Generates a ChartView object from the given set of candles so the indicator can be plotted. 
 		
@@ -189,7 +190,7 @@ class Indicator:
 	
 	#helper functions for all subclasses - these dont need to be doc'ed 
 	#pull out the times from the candle streams but raise an error if any of the timelines don't match
-	def _construct(self,candle_streams,candle_stream_index):
+	def _construct(self,candle_streams,candle_stream_index=-1):
 		assert len(candle_streams) > 0, "There are no candle streams"
 		np_candle_streams = np.array(candle_streams)
 		datetime_values = np_candle_streams[:,:,-1].T
@@ -261,9 +262,30 @@ class Bounded(Indicator):
 		
 	
 #class Standardisation(Indicator): 
+
+class HeikinAshi(Indicator):  #more of a translator than indicator!
 	
-
-
+	channel_keys = None  #this data will override the candle stick data!
+	channel_styles = None 
+	candle_sticks = True #Damn straight! they ARE candlesticks. 
+	
+	period = None #doesnt make sense 
+	
+	def _perform(self,np_candles):
+		closes = np.mean(np_candles[:,:,:],axis=2)
+		#opens = np.concatenate([np.full((np_candles.shape[0],1),np.nan),np.mean(np_candles[:,:-1,[csf.open,csf.close]],axis=2)],axis=1) #WRONG
+		opens = np.full(np_candles.shape[0:2],np.nan)
+		opens[:,0] = np.mean(np_candles[:,0,[csf.high,csf.low]],axis=1) #use first actual as seed open 
+		for i in range(1,np_candles.shape[1]): #(TODO figure how to do this without loop? fast though prob not worth it)
+			opens[:,i] = (closes[:,i-1] + opens[:,i-1]) / 2
+		
+		highs = np.nanmax(np.stack([np_candles[:,:,csf.high],opens,closes],axis=2),axis=2)
+		lows = np.nanmin(np.stack([np_candles[:,:,csf.low],opens,closes],axis=2),axis=2)
+		times = np.array([self.timeline[:,0]] * np_candles.shape[0])
+		return np.stack([opens,highs,lows,closes,times],axis=2)
+		
+	def draw_snapshot(self,candle_stream,snapshot_index,instrument_index):
+		raise NotImplementedError("Use ChartView.draw_candlesticks()") #to prevent 2 sets of candles being drawn on the same chart
 
 
 
