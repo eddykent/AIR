@@ -27,6 +27,8 @@ pluralise all chart patterns. Start with match_pattern as  it already uses numpy
 	- match_pattern.py: backtesting and drawing still todo 
 refactor draw_snapshot functions to take instrument index & time index(s) like chart patterns 
 
+perhaps refactor newsindicator - don't use an indicator with numpy, it is a filter thing
+
 Create & test full RNN with candles_and_indicators.sql, currency_strengths, correlations etc & get_y_values.sql 
 
 data_pull scripts for getting latest data? 
@@ -43,8 +45,6 @@ ASYNC all webcalls in the fundmental analysis! Async for AI too? -- probably pre
 
 jupyter for presenting front end trade setups and ideas
 
-pivot points? - use as a support/resistance & TP SL targets   - part of pluralization re-write - goes in ChartPattern.py 
-
 
 demand forecasting with ai - use bid/ask volumes and perhaps RSI and write an NN to give the next client sentiment
 		- rate, acceleration etc (day of week, hour of day) 
@@ -54,6 +54,8 @@ volume indicators - TVI, VWAP, MVWAP, OBV, Delta, AskVWAP, BidVWAP, others?
 currency buying/selling pressure from bids & asks (contrarian to currency strength?) (rsi?)
 
 lazy loading for news AI backtesting 
+
+news, currrency-strength, client-sentiment & demand forecasting
 
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs

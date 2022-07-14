@@ -52,6 +52,8 @@ vectorize candlestick patterns
 
 fundamental - get fxstreet archive and dailyfx archives 
 
+pivot points? - use as a support/resistance & TP SL targets   - part of pluralization re-write - goes in ChartPattern.py 
+
 extend test_trades.sql or use another sql to test full tradesignal types
 	- select all candles for the trade
  	- perfrom analysis to see if/when the candle gets high enough/low enough 
