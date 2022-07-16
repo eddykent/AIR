@@ -14,7 +14,7 @@ LogSetup() #think of how to rmeove this line
 
 #from tests.candle_stick_tests import *
 
-#from tests.chart_pattern_test import *
+from tests.chart_pattern_test import *
 #from tests.chart_pattern_support_resistance_test import *
 #from tests.matching_test import * 
 
@@ -22,7 +22,7 @@ LogSetup() #think of how to rmeove this line
 
 #bat - 213,419,805
 
-from tests.heikinashi_test import *
+#from tests.heikinashi_test import *
 
 #from tests.text_sentiment_test import *
 #from tests.fundamental_test import *     # <<<<<<run this to get latest articles easily. 

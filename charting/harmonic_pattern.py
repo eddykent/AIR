@@ -24,7 +24,7 @@ hkeys = {
 	'D':4
 }
 
-class HarmonicPattern(ChartPattern):
+class HarmonicPattern(ChartPattern): #uses XABCD 
 	
 	_required_candles = 100
 	_xtreme_degree = 1 #possibly not needed - order seems to work better. 
@@ -184,7 +184,7 @@ class Cypher(HarmonicPattern):
 	]
 
 
-
+#add more as when needed. Think of any other fib style patterns (eg elliot waves) 
 
 
 

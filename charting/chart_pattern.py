@@ -43,7 +43,8 @@ class ChartPattern(Indicator):
 	
 	#precalculated values 
 	_window_index = None 
-	
+	use_cache = False
+	_cache_dict = {} #bundle for getting the 
 	
 	#@overrides(Indicator)
 	def explain(self):
@@ -53,12 +54,54 @@ class ChartPattern(Indicator):
 		"""
 	
 	
-	@overrides(Indicator)    #correct parameters?
-	def _perform(self,np_candles,mask=None,return_flat=False):   #allow for caching / inserting the extreme points or something so other chart patterns can be initalised with 1 dataset
+	#in ChartPattern classes, they all use the same 
+	def get_initial_data(self,np_candles,mask=None,return_flat=False):
 		
 		xtreme_windows, window_map = self._generate_xtreme_windows(np_candles,mask,self._xtreme_degree,self._precandles)
 		breakout_windows = self._get_breakout_windows(np_candles,mask,self._precandles)
 		x_start_positions = self._get_x_positions(np_candles,mask)
+		
+		return {
+			'_required_candles':self._required_candles,
+			'_xtreme_degree':self._xtreme_degree,
+			'_order':self._order,
+			'_breakout_candles':self._breakout_candles,
+			'xtreme_windows':xtreme_windows,
+			'window_map':window_map,
+			'breakout_windows':breakout_windows, 
+			'x_start_positions':x_start_positions,
+			'mask':mask,
+			'return_flat':return_flat
+		}
+		
+	
+	def set_cache_data(self,data_bundle):
+		
+		assert_checks = ['xtreme_windows','window_map','breakout_windows','x_start_positions']
+		for key in assert_checks:
+			assert key in data_bundle, f"cache is missing {key}"
+		
+		self._cache_dict = data_bundle
+	
+	
+	@overrides(Indicator)    #correct parameters?
+	def _perform(self,np_candles,mask=None,return_flat=False):   #allow for caching / inserting the extreme points or something so other chart patterns can be initalised with 1 dataset
+		#xtreme_windows, breakout_windows, x_start_positions = None,None,None
+		if self.use_cache:
+			xtreme_windows = self._cache_dict['xtreme_windows']
+			window_map = self._cache_dict['window_map']
+			breakout_windows = self._cache_dict['breakout_windows']
+			x_start_positions = self._cache_dict['x_start_positions']
+			mask = self._cache_dict.get('mask',mask)
+			return_flat = self._cache_dict.get('return_flat',return_flat)
+			
+		else:
+			initial_data = self.get_initial_data(np_candles,mask,return_flat)
+			xtreme_windows = initial_data['xtreme_windows']
+			window_map = initial_data['window_map']
+			breakout_windows = initial_data['breakout_windows']
+			x_start_positions = initial_data['x_start_positions']
+			
 		
 		chart_result = self._chart_perform(xtreme_windows, breakout_windows, x_start_positions) 
 		
@@ -436,7 +479,7 @@ class SupportAndResistance(ChartPattern):  #group together points along the pric
 		
 		#now need to figure out how to measure the quality of the breakout/if one has happened.
 		#think of a number of tests that can be done for each window using the breakout candles. 
-		# touching test 
+		# touching test - use csf.resting_above etc 
 		# fuck-through test 
 		# else?
 		

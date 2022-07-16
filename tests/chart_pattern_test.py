@@ -42,10 +42,11 @@ chart_pattern = Bat()
 #chart_pattern.required_candles = 200
 
 #chart_pattern = SupportAndResistance()
-chart_pattern = PivotPoints()
+#chart_pattern = PivotPoints()
 #chart_pattern  = MatchPatternInstance()
 #chart_pattern = SymmetricTriangle()
 #chart_pattern = MatchPattern()
+
 
 
 
