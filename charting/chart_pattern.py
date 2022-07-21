@@ -43,7 +43,7 @@ class ChartPattern(Indicator):
 	
 	#precalculated values 
 	_window_index = None 
-	use_cache = False
+	_use_cache = False
 	_cache_dict = {} #bundle for getting the 
 	
 	#@overrides(Indicator)
@@ -56,7 +56,7 @@ class ChartPattern(Indicator):
 	
 	#in ChartPattern classes, they all use the same 
 	def get_initial_data(self,np_candles,mask=None,return_flat=False):
-		
+	
 		xtreme_windows, window_map = self._generate_xtreme_windows(np_candles,mask,self._xtreme_degree,self._precandles)
 		breakout_windows = self._get_breakout_windows(np_candles,mask,self._precandles)
 		x_start_positions = self._get_x_positions(np_candles,mask)
@@ -75,19 +75,27 @@ class ChartPattern(Indicator):
 		}
 		
 	
-	def set_cache_data(self,data_bundle):
+	def set_cache_data(self,data_bundle,set_members=True):
 		
+		assert type(data_bundle) == dict,"Cache bundle must be a dict"
 		assert_checks = ['xtreme_windows','window_map','breakout_windows','x_start_positions']
 		for key in assert_checks:
 			assert key in data_bundle, f"cache is missing {key}"
 		
+		#set members 
 		self._cache_dict = data_bundle
+		if set_members:
+			self._required_candles = data_bundle.get('_required_candles',self._required_candles)
+			self._xtreme_degree = data_bundle.get('_xtreme_degree',self._xtreme_degree)
+			self._order = data_bundle.get('_order',self._order)
+			self._breakout_candles = data_bundle.get('_breakout_candles',self._breakout_candles)
+		
+		self._use_cache = True
 	
-	
-	@overrides(Indicator)    #correct parameters?
+	@overrides(Indicator)    
 	def _perform(self,np_candles,mask=None,return_flat=False):   #allow for caching / inserting the extreme points or something so other chart patterns can be initalised with 1 dataset
 		#xtreme_windows, breakout_windows, x_start_positions = None,None,None
-		if self.use_cache:
+		if self._use_cache:   #perhaps refactor into separate method eg cache_perform() 
 			xtreme_windows = self._cache_dict['xtreme_windows']
 			window_map = self._cache_dict['window_map']
 			breakout_windows = self._cache_dict['breakout_windows']
@@ -122,6 +130,10 @@ class ChartPattern(Indicator):
 		padding = np.zeros((pad_height,pad_len,pad_depth))
 		
 		return np.concatenate([padding,result_space],axis=1)
+	
+	
+	#refactor above so the cache is being ran in this function instead to clean code up a bit
+	#def _cache_perform(self,cache_dict):
 	
 	def _get_x_positions(self,np_candles,mask):
 		
