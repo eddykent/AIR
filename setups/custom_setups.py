@@ -70,8 +70,10 @@ class Harmony(TradeSetup):
 		bull_indexer2 = (bull_indexer1[0],bull_indexer1[1],bull_ois[bull_indexer1]) #append the oi to the indexs 
 		bear_indexer2 = (bear_indexer1[0],bear_indexer1[1],bear_ois[bear_indexer1])
 		
+		pdb.set_trace()
+		
 		bull_his = np.argmax(result_array[bull_indexer2],axis=1) #list of [0,1,0,0,1] etc - need to find first occurance not every occurance 
-		bear_his = np.argmax(result_array[bear_indexer2],axis=1) #argmax does this for us since it will just return the first index of 1
+		bear_his = np.argmin(result_array[bear_indexer2],axis=1) #argmin/argmax does this for us since it will just return the first index of 1/-1
 		
 		#collected  = bias, order, harmonic "on timeline x, at time y, an order of z harmonic h happened" 
 		collected_array = np.full((result_array.shape[0],result_array.shape[1],3),0)
@@ -97,6 +99,11 @@ class Harmony(TradeSetup):
 		for (instrument_index, time_index) in zip(bull_indexer1[0],bull_indexer1[1]):
 			deets = collected_array[instrument_index,time_index] 
 			cdlen = result_cdlen[instrument_index,time_index,deets[1],deets[2]]
+			#if np.isnan(cdlen):
+			#	#print('in bull') #the harmonic index is broken! 
+			#	pdb.set_trace() 
+			#	cdlen = np.nanmax(result_cdlen[instrument_index,time_index,deets[1],:]) #bull
+				
 			tpdistance = cdlen * tp_factor
 			sldistance = cdlen * sl_factor
 			the_date = timeline[time_index]
@@ -110,6 +117,10 @@ class Harmony(TradeSetup):
 		for (instrument_index, time_index) in zip(bear_indexer1[0],bear_indexer1[1]):
 			deets = collected_array[instrument_index,time_index] 
 			cdlen = result_cdlen[instrument_index,time_index,deets[1],deets[2]]
+			#if np.isnan(cdlen):
+			#	pdb.set_trace()
+			#	cdlen = np.nanmax(result_cdlen[instrument_index,time_index,deets[1],:]) #bear
+			
 			tpdistance = cdlen * tp_factor
 			sldistance = cdlen * sl_factor
 			the_date = timeline[time_index]
