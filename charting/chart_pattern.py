@@ -120,7 +120,8 @@ class ChartPattern(Indicator):
 		
 		#then unmasking/expanding here - needs to be shaped properly since we might not have all the windows
 		result_space = np.full((np_candles.shape[0],number_windows,chart_result.shape[-1]),np.nan)
-		result_space[window_map[0],window_map[1]] = chart_result
+		#pdb.set_trace()
+		result_space[window_map[0],window_map[1]] = chart_result  #breaks when order is large
 		
 		
 		#result = chart_result.reshape((np_candles.shape[0],number_windows,chart_result.shape[-1])) #incorrect 
@@ -292,9 +293,14 @@ class ChartPattern(Indicator):
 		#adjust time indexs to be of the same as the np_candles time axis  something like this:? 
 		all_extr_windows_labeled[:,3] = all_extr_windows_labeled[:,2] + all_extr_windows_labeled[:,3] 
 		
+		#duplicate_window_map = np.stack([all_extr_windows_labeled[:,1],all_extr_windows_labeled[:,2]], axis=1).astype(np.int) #this is incorrect... 
+		#window_map = np.unique(duplicate_window_map,axis=0).T #takes some time to get uniques... 
 		
-		duplicate_window_map = np.stack([all_extr_windows_labeled[:,1],all_extr_windows_labeled[:,2]], axis=1).astype(np.int)
-		window_map = np.unique(duplicate_window_map,axis=0).T #takes some time to get uniques...
+		#generate the window map correctly here, then apply mask below  - remember the xtreme windows should be in correct order 
+		window_map_top = np.repeat(np.arange(np_candles.shape[0]),number_windows)
+		window_map_bottom = np.concatenate([np.arange(number_windows)]*np_candles.shape[0])
+		window_map = np.stack([window_map_top,window_map_bottom],axis=0)
+		
 		
 		
 		cum_counts = np.concatenate([np.array([0]), np.cumsum(counts)[:-1]])
