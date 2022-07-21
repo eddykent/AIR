@@ -135,7 +135,9 @@ TURN is_tutorial INTO A RATE BASED, NOT COUNT BASED THING?-- might not be that i
 	lots of queries should be functions - need major sql refactor!
 
 
+(FIXED) chart_pattern - when no minima/maxima a row is erroneously removed and causes shape problems 
 
+(FIXED) harmonic pattern generator (harmony) has loads of invalid signals for some reason
 
 
 

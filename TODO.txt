@@ -133,9 +133,7 @@ chart_pattern mask should be done earlier to save computation - really?
 
 match_pattern.MatchPattern has distance = 0 results - implies it has a look-ahead bias 
 
-chart_pattern - when no minima/maxima a row is erroneously removed and causes shape problems 
-
-harmonic pattern generator (harmony) has loads of invalid signals for some reason
+refactor cache for chart patterns into a new method instead of on class state
 
 
 ONGOING: - stuff that might not ever have an end to it because it can always be made better
