@@ -7,7 +7,7 @@
 from utils import LogSetup
 LogSetup() #think of how to rmeove this line
 
-#from tests.web_crawling_tests import *  #<<<<<< run this to get latest volume indicators from dukascopy bank 
+from tests.web_crawling_tests import *  #<<<<<< run this to get latest volume indicators from dukascopy bank 
 
 #from tests.typedlist_test import *
 
@@ -34,7 +34,7 @@ LogSetup() #think of how to rmeove this line
 
 #
 #from tests.heikinashi_test  import *
-from tests.setup_test import *
+#from tests.setup_test import *
 #from tests.logging_test import *
 #from tests.data_compose_test import *
 #from tests.data_compose_branch_test import *
@@ -46,7 +46,7 @@ from tests.setup_test import *
 
 #from tests.broker_test import *
 #from tests.indicators_test import *
-#from tests.volume_indicators_test import *
+from tests.volume_indicators_test import *
 
 
 

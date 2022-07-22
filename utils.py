@@ -151,6 +151,22 @@ class TimeHandler:
 		#get datestamp
 		assert type(the_date) == datetime.datetime
 		return the_date.strftime('%Y-%m-%d@%Hh%Mm%Ss')
+	
+	@staticmethod
+	def day_grouping(timeline): #timeline = list of datetimes earliest -> latest 
+		#for a timeline of datetimes, return a group number of what day they are on 
+		current_day_index = 0 
+		current_dow = timeline[0].weekday() 
+		day_indexs = [] 
+		for dt in timeline:
+			prev_dow = current_dow 
+			current_dow = dt.weekday()
+			if prev_dow != current_dow and current_dow <= 5: #combines fri,sat,sun for forex data
+				current_day_index += 1
+			day_indexs.append(current_day_index)
+		return day_indexs
+	
+	#day_grouping_offset #use for pivot points 
 		
 #refactor to use typecheck? 
 class TypedList:
@@ -275,7 +291,7 @@ class DBDBLogHandler(logging.Handler):
 				db.execute(self.sql_log_query,params)
 		except:
 			self.setLevel(999999) #turn this handler off 
-			log.error('Error setting up the database logger!',exc_info=True)
+			log.error('Error using the database logger!',exc_info=True)
 			self.db_error = True
 	
 #create one instance of this class to set up the logger - (from entry point)
@@ -525,8 +541,8 @@ class Database:
 					log.debug('Executed with no results to fetch.')
 					pass
 				else:
-					log.warning('Executed with no results to fetch.')
-					raise pe
+					pass #log.warning('Executed with no results to fetch.')
+					#raise pe   #this can happen if there were any updates/deletes etc and no returning statement 
 				
 		try:
 			with open(self.previous_query_filename,'wb') as f:

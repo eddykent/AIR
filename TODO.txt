@@ -135,6 +135,8 @@ match_pattern.MatchPattern has distance = 0 results - implies it has a look-ahea
 
 refactor cache for chart patterns into a new method instead of on class state
 
+pivot points should use timehandler for getting day indexes (offset by whatever hour)
+
 
 ONGOING: - stuff that might not ever have an end to it because it can always be made better
 fundamental stuff needs more testing to get it better - perhaps collecting results should be done by date not significance, and only use degree=1

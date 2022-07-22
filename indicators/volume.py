@@ -1,7 +1,7 @@
 import numpy as np
 
 
-from utils import overrides
+from utils import overrides, TimeHandler
 
 from indicators.indicator import Indicator, Diff, Typical, CandleType, Bounded 
 from indicators.moving_average import SMA, EMA
@@ -11,7 +11,7 @@ from charting import candle_stick_functions as csf
 
 import pdb 
 
-csf.bid_volume = 4 #this allowed?
+csf.bid_volume = 4 #this allowed? 
 csf.ask_volume = 5
 
 bid_volume = 0
@@ -28,7 +28,7 @@ class VWAP(VolumeIndicator):
 	channel_styles = {'VWAP':'keyinfo'}
 	candle_sticks = True
 	
-	@overrides(Indicator)
+	@overrides(VolumeIndicator)
 	def _perform(self,candles):	
 		volumes = candles[:,:,csf.bid_volume] + candles[:,:,csf.ask_volume]
 		closes = candles[:,:,csf.close,np.newaxis]  #typical! 
@@ -41,8 +41,34 @@ class VWAP(VolumeIndicator):
 		return vwap
 
 		
-#class VWAPDaily(Indicator): #similar to VWAP but reset each day
-#	pass   
+class VWAPDaily(VolumeIndicator): #similar to VWAP but reset each day
+	channel_keys = {'VWAP':0}
+	channel_styles = {'VWAP':'keyinfo'}
+	candle_sticks = True
+	
+	@overrides(VolumeIndicator)
+	def _perform(self,candles):	
+		volumes = (candles[:,:,csf.bid_volume] + candles[:,:,csf.ask_volume])[:,:,np.newaxis]
+		closes = candles[:,:,csf.close,np.newaxis]  #typical! 
+		
+		day_indexs = np.array(TimeHandler.day_grouping(self.timeline[:,0])) 
+		mdx = np.max(day_indexs)+1
+		chunks = [] 
+		for di in range(mdx):	
+			#dayvol = np.concatenate([lpad,volumes[:,day_indexs==di]])
+			#dayclo = np.concatenate([lpad,closes[:,day_indexs==di]])
+			volume_windows = self._sliding_windows(volumes[:,day_indexs==di,:])
+			close_windows = self._sliding_windows(closes[:,day_indexs==di,:])
+			vwap = np.nansum(volume_windows * close_windows, axis=3) / np.nansum(volume_windows,axis=3)
+			chunks.append(vwap)
+		
+		vwap_daily = np.concatenate(chunks,axis=1)
+		#vwap = np.sum(volume_windows * close_windows, axis=3) / np.sum(volume_windows,axis=3)
+		pdb.set_trace()
+		return vwap_daily
+	
+	
+		
 
 class BidAskVWAP(VolumeIndicator):
 	channel_keys = {'BID_VWAP':0,'ASK_VWAP':1}
@@ -100,11 +126,11 @@ class ClientSentimentRatio(VolumeIndicator):
 		return np.concatenate([np.zeros(padshape), result],axis=1) 
 		
 
-class VolumeInterest(VolumeIndicator):
-	pass
+#class VolumeInterest(VolumeIndicator): ?
+#	pass
 
 
-#first, get the ratios (bid / previous(id + ask) )
+#first, get the ratios   
 #next, normalise over a long period (eg 100)
 #finally, take the short period (self.period) 
 #ema 
@@ -116,7 +142,7 @@ class ClientSentiment(VolumeIndicator):
 	
 	diff = 0
 	period = 6
-	normalisation_window = 50
+	normalisation_window = 50 #arbitrary
 	
 	@overrides(Indicator)
 	def _perform(self,volumes):
@@ -131,7 +157,6 @@ class ClientSentiment(VolumeIndicator):
 		ema = EMA()
 		ema.period = self.period
 		ema.candle_channel = 0
-		pdb.set_trace()
 		long_bound_ema = ema._perform(long_bound)
 		short_bound_ema = ema._perform(short_bound)
 		return np.concatenate([long_bound_ema,short_bound_ema],axis=2)
