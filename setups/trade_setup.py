@@ -1,17 +1,22 @@
 ## setups are trades that have been produced from signals from various sources. A TradeSetup class finds trades on a given date 
 #that have a high probabily of winning based on their backtest results.  TradeSetup classes need to be backtestable 
-
+#all implementations are in subclasses to this file - it is not possible to import indicator based stuff (circular import?)
 from enum import Enum
 from collections import namedtuple
 import uuid
 from datetime import datetime,timedelta
 from typing import Optional, List
 import numpy as np
+import scipy.signal
+import scipy.optimize
+
+import pdb
 
 from utils import ListFileReader, Database
 from utils import overrides 
 import charting.chart_viewer as chv 
 from charting import candle_stick_functions as csf
+#from charting.chart_pattern import ChartPattern - unable to import any indicator related stuff here 
 
 
 #looks like you're setting up some kind of grammar!
@@ -190,9 +195,10 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		start_date = start_date - timedelta(minutes=self.grace_period * self.timeframe)  #use grace period too to ensure quality signals 
 		return self.get_setups(start_date,end_date)
 	
+	#method similar to indicator, but this should show a bunch of signals instead & run a separate drawing tool for the underlying indicators etc used 
 	def draw_snapshot(self,start_date : datetime, end_date :datetime, trade_signal : TradeSignal = None) -> chv.ChartView: #-add all chart views together. Consider what to do with start_date and end_date  
 		"""
-		Generate a ChartView object that can be plotted and looked at for inspecting the signal generated from this setup.
+		Generate a ChartView object that can be plotted and looked at for inspecting the signals generated from this setup.
 		All of  the indicators etc used should be plotted on this chart in this method. Start and end dates are needed to 
 		gauge the chart size for the trade setup. If the trade signal is not provided, the chart should still be drawn with
 		the underlying indicators and methods used.
@@ -223,11 +229,19 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		return days_back
 	
 	def get_timeline(self,candlesticks):
-		return candlesticks[0,:,-1] #1d? 
+		return candlesticks[0,:,-1] #1d
+		
+		
+	def get_initial_data(self,candlesticks,chartbase,mask=None,return_flat=None,return_np_candles=True):
+		np_candles, timeline = chartbase._construct(candlesticks)
+		init_dict = chartbase.get_initial_data(np_candles,mask,return_flat)
+		if return_np_candles:
+			return init_dict, np_candles
+		return init_dict
+		
 	
 	def get_candlestick_data(self,start_date,end_date,block=False,query_params={}):
 		candles = []
-		
 		
 		days_back = self.get_days_back(start_date,end_date) 
 		
@@ -254,7 +268,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 			candles = candle_block
 		return candles, instruments
 			
-	
+	#refactor into an ATR setup tool 
 	def generate_using_atr(self,candlesticks,available_instruments,start_date,buy_signals,sell_signals,tp_factor=5,sl_factor=3):
 		from indicators.volatility import ATR
 		from indicators.indicator import Typical
@@ -308,6 +322,81 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		
 		return trade_signals
 
+
+#divergence tools 
+class MomentumDivergenceTool:
+	
+	signal1 = None #usually typical price action
+	signal2 = None #usually RSI or Stochastic etc 
+	candlestick_smudge = 2
+	order = 7 #arbitraty order - ensure peaks are far apart enough 
+	hill_tolerance = 2 #if the peaks/troughs are more than this candles apart, do not include it in the divergence calculation 
+	grace_period = 50
+	
+	
+	def set_signals(self,signal1,signal2):
+		assert len(signal1.shape) == 2, f"signal1 must be of shape n by t (2 dimensions). Dimensions = {len(signal1.shape)}"
+		assert len(signal2.shape) == 2, f"signal1 must be of shape n by t (2 dimensions). Dimensions = {len(signal2.shape)}"
+		self.signal1 = signal1
+		self.signal2 = signal2 
+	
+	def detect(self):
+		assert self.signal1 is not None, "signal 1 is none"
+		assert self.signal2 is not None, "signal 2 is none"
+		
+		#bearish reversals
+		#max1s = scipy.signal.argrelmax(self.signal1[:,self.grace_period:],axis=1,order=self.order) #all peaks - when they are increasing check rsi is decreasing. 
+		#max2s = scipy.signal.argrelmax(self.signal2[:,self.grace_period:],axis=1,order=self.order) #use this as the anchor then find peaks between in signal1
+		#max1s = max1s[0],max1s[1]+self.grace_period #add back the grace period 
+		#max2s = [max2s[0],max2s[1]+self.grace_period]
+		
+		#find mapping from max2s to max1s 
+		
+		#if maxs on signal 1 increase, and maxs on signal 2 decrease, bearish
+		#if mins on signal 1 decrease, and mins on signal 2 increase, bullish
+		
+		
+		#naiive way to start with - might not need to be very advanced for this stage? 
+		result_array = np.full(self.signal1.shape,np.nan) 
+		for ii,(price_action,momentum) in enumerate(zip(self.signal1,self.signal2)):
+			
+			regions_of_interest = []
+			
+			max_args = scipy.signal.argrelmax(price_action[self.grace_period:],order=self.order)[0]
+			max_args += self.grace_period
+			momentum_maxs = [np.max(momentum[m-self.hill_tolerance:m+self.hill_tolerance+1]) for m in max_args] #get close maximums in rsi/stoch etc 
+			price_action_maxs = price_action[(max_args,)]
+			tpmx = list(zip(max_args,price_action_maxs,momentum_maxs))
+			for (tpm1,tpm2) in zip(tpmx[:-1],tpmx[1:]):
+				if tpm1[1] < tpm2[1] and tpm1[2] > tpm2[2]:
+					regions_of_interest.append((tpm2[0]+self.hill_tolerance,-1)) #add bearish region of interest
+			
+			
+			min_args = scipy.signal.argrelmin(price_action[self.grace_period:],order=self.order)[0]
+			min_args += self.grace_period
+			momentum_mins = [np.min(momentum[m-self.hill_tolerance:m+self.hill_tolerance+1]) for m in min_args]
+			price_action_mins = price_action[(min_args,)]
+			tpmn = list(zip(min_args,price_action_mins,momentum_mins))
+			for tpm1,tpm2 in zip(tpmn[:-1],tpmn[1:]):
+				if tpm1[1] > tpm2[1] and tpm1[2] < tpm2[2]:
+					regions_of_interest.append((tpm2[0]+self.hill_tolerance,1)) #add bullish region of interest
+			
+			for (ti,d) in sorted(regions_of_interest,key=lambda tid : tid[0]):
+				result_array[ii,ti:ti+self.candlestick_smudge] = d
+			
+		return result_array
+		#pdb.set_trace()
+		
+		#print('check divergences')
+	
+	#def _naive_closest_map(self,nums1, nums2):	
+	#	#scipy.optimize.linear_sum_assignment ? 
+	##	for n in nums1: 
+	#		wheres = (nums2 - self.hill_tolerance >= n) & (nums2 + self.hill_tolerance <= n)
+	#		close2s = nums2[wheres]
+
+
+#refactor - trade stop tools -- eg from ATR, std (something for harmonics) etc 
 
 
 

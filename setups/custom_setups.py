@@ -70,7 +70,7 @@ class Harmony(TradeSetup):
 		bull_indexer2 = (bull_indexer1[0],bull_indexer1[1],bull_ois[bull_indexer1]) #append the oi to the indexs 
 		bear_indexer2 = (bear_indexer1[0],bear_indexer1[1],bear_ois[bear_indexer1])
 		
-		pdb.set_trace()
+		#pdb.set_trace()
 		
 		bull_his = np.argmax(result_array[bull_indexer2],axis=1) #list of [0,1,0,0,1] etc - need to find first occurance not every occurance 
 		bear_his = np.argmin(result_array[bear_indexer2],axis=1) #argmin/argmax does this for us since it will just return the first index of 1/-1
@@ -137,7 +137,7 @@ class Harmony(TradeSetup):
 
 
 #all shapes?
-	
+
 		
 	
 #all trends? 
