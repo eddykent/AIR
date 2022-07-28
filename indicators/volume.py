@@ -57,8 +57,9 @@ class VWAPDaily(VolumeIndicator): #similar to VWAP but reset each day
 		for di in range(mdx):	
 			#dayvol = np.concatenate([lpad,volumes[:,day_indexs==di]])
 			#dayclo = np.concatenate([lpad,closes[:,day_indexs==di]])
-			volume_windows = self._sliding_windows(volumes[:,day_indexs==di,:])
-			close_windows = self._sliding_windows(closes[:,day_indexs==di,:])
+			p = np.sum(day_indexs==di)
+			volume_windows = self._sliding_windows(volumes[:,day_indexs==di,:],p)
+			close_windows = self._sliding_windows(closes[:,day_indexs==di,:],p)
 			vwap = np.nansum(volume_windows * close_windows, axis=3) / np.nansum(volume_windows,axis=3)
 			chunks.append(vwap)
 		
