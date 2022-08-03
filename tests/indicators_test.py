@@ -4,6 +4,7 @@ import datetime
 from utils import Database, DataComposer, Configuration, ListFileReader
 from indicators.indicator import * 
 from indicators.moving_average import *
+from indicators.trend import *
 from charting.candle_stick_pattern import CandleStickPattern
 from charting.chart_viewer import PlotlyChartPainter
 
@@ -26,7 +27,7 @@ with Database(commit=False, cache=False) as cursor:
 
 
 #OurIndicator = SMA
-#OurIndicator = BollingerBands
+OurIndicator = BollingerBands
 #OurIndicator = STDDEV
 #OurIndicator = KeltnerChannel
 #OurIndicator = MultiMovingAverage
@@ -43,7 +44,7 @@ with Database(commit=False, cache=False) as cursor:
 #OurIndicator = DonchianChannel
 #OurIndicator = WilliamsPercentRange
 #OurIndicator = SuperTrend
-OurIndicator = TEMA
+#OurIndicator = TEMA
 
 
 
