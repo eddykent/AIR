@@ -12,7 +12,7 @@ import pdb
 #possibly organise/split this file into oscillators, volatility, trend followers and trend reversals ?
 import charting.chart_viewer as chv #get all chart viewing elements so we can also draw nice charts. The view can  be "added" to a candlestick chart where appropriate
 import charting.candle_stick_functions as csf
-from setups.trade_setup import TradeSignal, TradeDirection, SetupCriteria
+from setups.signal import TradeSignal, TradeDirection, SetupCriteria
 from utils import overrides 
 
 class CandleType(Enum):
@@ -287,18 +287,53 @@ class HeikinAshi(Indicator):  #more of a translator than indicator!
 	def draw_snapshot(self,candle_stream,snapshot_index,instrument_index):
 		raise NotImplementedError("Use ChartView.draw_candlesticks()") #to prevent 2 sets of candles being drawn on the same chart
 
+#blank indicator returning the candlesticks 
+class CandleSticks(Indicator):
+
+	channel_keys = None  #this data will override the candle stick data!
+	channel_styles = None 
+	candle_sticks = True #Damn straight! they ARE candlesticks. 
+	
+	period = None #doesnt make sense 
+	
+	def _perform(self,np_candles):
+		return np_candles 
+
+	def draw_snapshot(self,candle_stream,snapshot_index,instrument_index):
+		raise NotImplementedError("Use ChartView.draw_candlesticks()") #to prevent 2 sets of candles being drawn on the same chart
+
+class RunningHigh(Indicator):
+	
+	channel_keys = {'HIGH':0}	#this data will override the candle stick data!
+	channel_styles = {'HIGH':'bearish'} 
+	candle_sticks = True
+	
+	period = 14
+	
+	@overrides(Indicator)
+	def _perform(self,np_candles):
+		highs = np_candles[:,:,csf.high,np.newaxis]
+		windows = self._sliding_windows(highs)
+		running_highs = np.nanmax(windows,axis=3)
+		return running_highs
+		
 
 
-
-
-
-
-
-
-
-
-
-
+class RunningLow(Indicator):
+	
+	channel_keys = {'LOW':0}	#this data will override the candle stick data!
+	channel_styles = {'LOW':'bullish'} 
+	candle_sticks = True
+	
+	period = 14
+	
+	@overrides(Indicator)
+	def _perform(self,np_candles):
+		lows = np_candles[:,:,csf.low,np.newaxis]
+		windows = self._sliding_windows(lows)
+		running_lows = np.nanmin(windows,axis=3)
+		return running_lows
+		
 
 
 
