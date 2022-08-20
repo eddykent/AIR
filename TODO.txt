@@ -10,6 +10,19 @@ explain() to return an explanation in terms of trading using the tool and draw_s
 refactor currency strength nn to be of the same form as DataProvider etc 
 	- find out what is still to do!
 
+
+refactor setups 
+	- data tools (get candles/instruments etc)  - SEPARATE?  
+	- init step for putting indicators/patterns onto self
+	- core signals func - -1, 0 and 1s 
+	- stop tools (atr/std etc) - take list of signals and hints to produce full signals 
+	- meta tools - divergence 
+	- drawing consists of list of TradeSignal and nothing else? 
+		-base yes, higher drawing functions can draw the underlying indicators if on candlesticks
+		-consider drawing any results from self? 
+	
+
+
 SCREENING - candle stick scanner for candle stick patterns and chart patterns. Use to determine entry points
 	- candlestick patterns at high timeframes 
 	- chart breakout patterns at lower timeframes (eg 4h) 
@@ -21,6 +34,9 @@ PLURALIZATION - filters!
 pluralise filters.py to use all times not just now so they can be used in backtesting 
 	--all filters need refactoring possibly to use indicators
 	--they also need a now() kinda function for handling when we want to actually perform trades 
+	--filters - refactor to be similar to setups?
+	--time based, ai based, meta based (currency strength, client sentiment)
+
 pluralise all chart patterns. Start with match_pattern as  it already uses numpy. other chart patterns may be a re-write 
 	- use masking to reduce number of windows & speed up chart finding processes
 	- scipy maximas/minimas should come in handy. 
@@ -108,6 +124,8 @@ BUGS:
 Perhaps using pandas data frames will be more efficient and better for the whole thing? 
 Practice will also land you a high paying datascience role if you move jobs...
 
+chart resolution in data composer not working 
+
 Getting stuff from multiple websites should be async so we can query em all at the same tim
 
 feed_collector articles should be grouped by instr name and then top 5 latest should be picked - filter? 
@@ -137,6 +155,7 @@ refactor cache for chart patterns into a new method instead of on class state
 
 pivot points should use timehandler for getting day indexes (offset by whatever hour)
 
+divergence tool isnt using non-lookahead stuff 
 
 ONGOING: - stuff that might not ever have an end to it because it can always be made better
 fundamental stuff needs more testing to get it better - perhaps collecting results should be done by date not significance, and only use degree=1
