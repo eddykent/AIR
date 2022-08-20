@@ -7,7 +7,7 @@
 from utils import LogSetup
 LogSetup() #think of how to rmeove this line
 
-from tests.web_crawling_tests import *  #<<<<<< run this to get latest volume indicators from dukascopy bank 
+#from tests.web_crawling_tests import *  #<<<<<< run this to get latest volume indicators from dukascopy bank 
 
 #from tests.typedlist_test import *
 
@@ -44,9 +44,9 @@ from tests.web_crawling_tests import *  #<<<<<< run this to get latest volume in
 #from tests.shape_patterns_test import *
 #from tests.candle_offset_test import *
 
-#from tests.broker_test import *
+#from tests.broker_test import * 
 #from tests.indicators_test import *
-from tests.volume_indicators_test import *
+#from tests.volume_indicators_test import *
 
 
 
@@ -58,6 +58,11 @@ from tests.volume_indicators_test import *
 #from charting.chart_viewer import *
 ###570 works but isnt being drawn!!!
 
+
+#from tests.divergence_test import *
+
+
+from tests.filter_tests import * 
 
 #list of working for TrianglePattern: 
 #509 bearish

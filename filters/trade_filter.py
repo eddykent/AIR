@@ -44,19 +44,25 @@ class TimelineTradeFilter:
 class IndicatorFilter(TimelineTradeFilter):  ##base this on an indicator so any indicator can be used as a filter? 
 	
 	#expire = 1440 #full day - the timeline should have dates in it at a higher resolution 
-	indicators = None
 	timeline = None 
 	instruments = None
 	np_candles = None
+	
+	_instrument_map = {} 
+	
 	#results = None  #specific to what indicators are used 
 	
-	def __init__(self,indicators : List[Indicator], candles : np.array): 
-		self.indicator = indicator
+	def __init__(self,candles,instruments): 
 		cs = CandleSticks()
-		np_candles = cs.perform_multiple(candles)
-		self.instruments = cs.instruments
+		cs.pass_instrument_names(instruments)
+		np_candles = cs.calculate_multiple(candles)
+		self.instruments = instruments
 		self.timeline = cs.timeline 
 		self.np_candles = np_candles 
+		
+		for e,i in enumerate(instruments):	
+			self._instrument_map[i] = e
+		
 		self.setup_indicator_results()
 		
 	def setup_indicator_results(self):
@@ -69,7 +75,7 @@ class IndicatorFilter(TimelineTradeFilter):  ##base this on an indicator so any 
 		timeline = self.timeline[:,0]
 		end_date = the_date 
 		start_date = the_date - datetime.timedelta(minutes=self.expire)
-		mask = (timeline >= the_date) & (timeline =< end_date)
+		mask = (timeline >= start_date) & (timeline <= end_date)
 		inds = np.where(mask)[0]
 		if len(inds):
 			return inds[-1] #get latest most recent index - might be different for news?
@@ -77,11 +83,8 @@ class IndicatorFilter(TimelineTradeFilter):  ##base this on an indicator so any 
 		
 		
 	def _instrument_index(self,instrument):
-		if instrument in self.instruments:
-			return self.instruments.index(instrument)
-		return None
+		return self._instrument_map.get(instrument)
+		#if instrument in self.instruments:
+		#	return self.instruments.index(instrument)
+		#return None
 
-#this does not belong here but put it here for context of what filters will do 
-#class ForexSignalsAnchorBarFilter:
-	
-	
