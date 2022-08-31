@@ -44,10 +44,13 @@ def get_volumes():
 	
 	lfr = ListFileReader()
 	
-	#instruments = lfr.read('fx_pairs/fx_mains.txt') #['EUR/USD','USD/JPY','GBP/AUD']
-	instruments = ['GBP/CHF','GBP/JPY','GBP/NZD','GBP/USD','NZD/CAD','NZD/CHF','NZD/JPY','NZD/USD','USD/CAD','USD/CHF','USD/JPY']
-	date_from = datetime.datetime(2018,5,1,0,0)
-	date_to = datetime.datetime(2020,1,1,0,0)
+	instruments = lfr.read('fx_pairs/fx_mains.txt') #['EUR/USD','USD/JPY','GBP/AUD']
+	#instruments = ['GBP/CHF','GBP/JPY','GBP/NZD','GBP/USD','NZD/CAD','NZD/CHF','NZD/JPY','NZD/USD','USD/CAD','USD/CHF','USD/JPY']
+	date_from = datetime.datetime(2022,8,1,0,0)
+	date_to = datetime.datetime(2022,8,31,0,0)
+	#date_to = datetime.datetime.now() 
+	#date_from = date_to - datetime.timedelta(days=20)
+	
 	cursor = Database(commit=True,cache=False)
 	with SeleniumHandler() as sh:
 		duk = DukascopyVolumes(sh,url,cursor)

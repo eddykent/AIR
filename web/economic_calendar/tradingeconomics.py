@@ -316,9 +316,17 @@ def pull_calendar(n_months_back):
 			new_month = 12
 			year = year - 1
 		return datetime.datetime(year,new_month,1)
-			
+	
+	def _next_month(_month):
+		year = _month.year
+		month = _month.month
+		new_month = month + 1
+		if new_month == 13:
+			new_month = 1
+			year = year + 1
+		return datetime.datetime(year,new_month,1)	
 
-	this_month = datetime.datetime(the_date.year,the_date.month,1) 
+	this_month = _next_month(datetime.datetime(the_date.year,the_date.month,1))
 	all_months = [this_month]
 	current_month = this_month
 	for i in range(n_months_back):
@@ -329,7 +337,7 @@ def pull_calendar(n_months_back):
 		te = TradingEconomics(sh)
 		te.load_months(all_months)
 
-pull_calendar(5)
+pull_calendar(3)
 
 
 

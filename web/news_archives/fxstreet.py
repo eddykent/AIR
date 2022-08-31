@@ -11,10 +11,10 @@ daily_url_str = 'https://www.fxstreet.com/news/all?date={year:0>4}-{month:0>2}-{
 source_ref = 'fxstreet.com'
 source_title = 'fxstreet.com'
 
-days_back = 12
+days_back = 30
 today = datetime.datetime.now()
 today = datetime.datetime(today.year,today.month,today.day)
-start_day = today - datetime.timedelta(days=1) #offset because of time strings like 'x minutes ago'
+start_day = today - datetime.timedelta(days=1) #offset because of time strings like 'x minutes ago' - needs fixing! 
 
 all_days = [start_day-datetime.timedelta(days=i) for i in range(0,days_back)]
 

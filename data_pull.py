@@ -1,9 +1,19 @@
 
 ##file for running any archive scripts or data fetching stuff 
 
-#from web.economic_calendar.tradingeconomics import *
 
+#data to fetch:
+# candlestick data
+# volume data 
+# economic calendar events 
+# news data
 
-from data.tools.csv_upsert import *
+from web.economic_calendar.tradingeconomics import *
 
+#news data 
+#candlesticks 
+#volume 
+
+#from data.tools.csv_upsert import *
+#from data.tools.dukascopy import * 
 

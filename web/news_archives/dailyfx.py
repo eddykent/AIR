@@ -28,9 +28,14 @@ months = [m for m in range(1,13)]
 months_years = [(m,y) for m in months for y in years] + [(m,this_year) for m in months if m <= this_month]
 monthly_urls = [monthly_url_str.format(year=y,month=m) for (m,y) in months_years]
 
+from_month = this_month - 2
+from_month = 0 if from_month < 0 else from_month
+months_years = [(m,y) for (m,y) in months_years if m >= from_month] if not years else months_years
+
 source_title = 'DailyFX - Market News'
 source_ref = 'dailyfx.com'
 
+#pdb.set_trace()
 
 class DailyFXArchive(Scraper):
 	
