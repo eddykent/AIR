@@ -70,6 +70,17 @@ class BackTestStatistics:
 			#'drawdown':max(...)
 		}
 
+#TODO : A tool to take a dataset of candles and add a percentage error to all the candles to produce a fuzzy dataset based on real world data.
+#The idea is to be able to strengthen backtest results and prevent overfitting. A strategy can be considered quite strong if it also passes 
+#a fuzzed dataset 
+ 
+#The strategy produces signals based on the fuzzed data and this data is stored in here so it can be used in the results step too
+# - a database backtest might not be ideal here. also testing against fundamentals might shake it up too much
+#
+class FuzzFactor: 
+
+	fuzz_pc = 5; #float between 0 and 100 prefreably 10% or less (experiments welcomed)
+	
 
 #main interface for what a backtester is and how it will work
 class BackTester:
@@ -83,7 +94,8 @@ class BackTester:
 		Of the form "typical", "optimistic" and "pesimistic" to reflect on the modelling strategy when finding 
 		results of a backtest. For example, a pesimistic mode will report prices furthest from the take profit
 	'''
-	mode = 'typical' #optimistic,pesimistic (use best/worst scenario)
+	mode = 'typical' #TODO - optimistic,pesimistic (use best/worst scenario)
+	fuzz = None  #TODO: add fuzz to the dataset. If not none, the data from the fuzz should be used instead 
 	
 	#def test_trade(trade_signal : TradeSignal) -> TradeResult:
 	#	pass
