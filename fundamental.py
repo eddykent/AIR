@@ -362,8 +362,9 @@ class TextAnalysis:
 
 
 
-#make an indicator style news reading tool - it can call detect() and everything else just like any other indicator?
-#or we pluralise filters. make them work on a particular time frame (eg 1h, 4h or 1d) 
+#make an indicator style news reading tool - it can call detect() and everything else just like any other indicator.
+#this tool could be customised to use an AI with some ballache mini-class initialisations   (test: timeline_test.py)
+#perhaps this is not a very clean way of doing things?
 class NewsIndicator(Indicator):
 	
 	timelines = {}
@@ -373,9 +374,9 @@ class NewsIndicator(Indicator):
 	
 	def __init__(self,article_collector,text_analyser):
 		self.article_collector = article_collector #set up should read all news etc! 
-		self.text_analyser = text_analyser
+		self.text_analyser = text_analyser # set to AINewsAnalyser for using with aI 
 	
-	def draw_snapshot(self,candle_stream : list ,snapshot_index : int = -1) -> chv.ChartView:
+	def draw_snapshot(self,candle_stream : list ,snapshot_index : int = -1) -> chv.ChartView: 
 		this_view = chv.ChartView() 
 		
 		candle_stream_timeline = [c[-1] for c in candle_stream]
@@ -406,7 +407,7 @@ class NewsIndicator(Indicator):
 				this_view.draw('carets neutral lines',line)
 		return this_view
 	
-	def _perform(self,candle_stream : list,candle_stream_index : Optional[int]=-1) -> np.array:
+	def _perform(self,candle_stream : list,candle_stream_index : Optional[int]=-1) -> np.array: #this method signature is wrong
 		#dont actually do anything with the candles as we are going to load in all the news instead & get sentiment 
 		start_date = self.timeline[0][0]
 		end_date = self.timeline[-1][0]
@@ -461,16 +462,48 @@ class NewsIndicator(Indicator):
 		return (dtc.timestamp() - dtl.timestamp()) / (dth.timestamp() - dtl.timestamp()) if dth != dtl else 0
 
 	
+	
+#This is a short-cut class for using the news data, which could replace the NewsIndicator class. 
+#the intention here is to be able to get a list of trade signals and then test them against the stuff in the database 
+#and the stuff that the AI or sentiment says. This is then used by a filter to filter the trades that are bad. Extra 
+#functions for analysis can be included in this class. 
+class NewsPersuasion:
+
+	resolution = 240 #minutes. 60*4 => 4 hours 
+	
+	persuasion_dict = {} #for each instrument, hold a list in timeline order of persuations (bullish,bearish,avoid etc)
+	#this dictionary will be used by the parent filter for filtering trades that may be in the wrong direction of the persuation
+	
+	#base class for tools for getting news articles within dates or in specified dates etc
+	def __init__(self):
+		pass
+	
+	#function for getting a list of dates and then reading all the articles from the database (into article format) that are within a range of these dates
+	#def load_articles(dates) 
+	
+	
+	#function similar to the draw snapshot thing - from the list of times, if the news falls within 1h of the time window then a bar can be drawn in place 
+	#to denote that there was a news story  here, and the resulting value which is either bullish or bearish can be viewed 
+	# - (no need for fancy floating lines just use the midpoint of the bar) 
+	#def draw_on_chart(timeline) 
+	
+	#def assign_articles_to_instruments(articles? keyword_helper? )
+	
+	#def determine_persuasion - override function below to use an AI / Sentiment Analyser
 
 
+class SentimentNewsPersuasion(NewsPersuasion):
+	pass  #TODO - use the text analyser above
+	
+	
+class AINewsPersuasion(NewsPersuasion):
 
-#instead of loading all articles in place, load the publish times then load the article separately and test it
-#against an AI of choice if the news is good or bad. This can then be used for a faster news filter 
-#class LazyNewsIndicator(Indicator):
+	model_loader = None #the ModelLoader class we will use and call 
 
-
-
-
+	def __init__(self,model_loader,**kwargs):
+		super().__init__(self,**kwargs)
+		
+	
 
 
 

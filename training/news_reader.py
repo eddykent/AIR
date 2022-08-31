@@ -45,7 +45,7 @@ class NewsReaderData(DataProvider):
 	
 	parameters = {
 		'start_date':datetime.datetime(2019,1,1),
-		'end_date':datetime.datetime(2022,4,1)
+		'end_date':datetime.datetime(2022,5,30)
 	}
 	
 	@overrides(DataProvider)
@@ -126,7 +126,7 @@ def perform_training():
 	news_data.begin_load()
 	#pdb.set_trace()
 	model_composer = ModelComposer(news_reader_model,news_data)
-	model_composer.train(epochs=10)
+	model_composer.train(epochs=3)
 	model_composer.test(' ') #put some test news snippet in here
 
 
