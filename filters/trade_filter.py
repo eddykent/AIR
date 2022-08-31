@@ -40,13 +40,14 @@ class TimelineTradeFilter:
 		raise NotImplementedError('This method must be overridden')
 		return True  #check to see if doing a buy/sell on this pair is a good idea or not 
 	
-
+#filter based on an indicator, or many
 class IndicatorFilter(TimelineTradeFilter):  ##base this on an indicator so any indicator can be used as a filter? 
 	
 	#expire = 1440 #full day - the timeline should have dates in it at a higher resolution 
 	timeline = None 
 	instruments = None
 	np_candles = None
+	candle_streams = None 
 	
 	_instrument_map = {} 
 	
@@ -55,6 +56,7 @@ class IndicatorFilter(TimelineTradeFilter):  ##base this on an indicator so any 
 	def __init__(self,candles,instruments): 
 		cs = CandleSticks()
 		cs.pass_instrument_names(instruments)
+		self.candle_streams = candles
 		np_candles = cs.calculate_multiple(candles)
 		self.instruments = instruments
 		self.timeline = cs.timeline 
@@ -87,4 +89,106 @@ class IndicatorFilter(TimelineTradeFilter):  ##base this on an indicator so any 
 		#if instrument in self.instruments:
 		#	return self.instruments.index(instrument)
 		#return None
+
+#beautiful filter that sorts out the db stuff for us. 
+class DataBasedFilter(TimelineTradeFilter):
+	
+	timeline = None
+	instruments = None
+	_instrument_map = {}
+	
+	data_block = None #np array?
+	
+	def __init__(self,data):
+		
+		self.data_block, self.instruments, self.timeline = self._process_data_block(data)
+		
+		for e,i in enumerate(self.instruments):	
+			self._instrument_map[i] = e
+
+
+	def _process_data_block(self,data):
+		instruments = list(data[0][2].keys())
+		timeline = [] 
+		instruments = sorted(instruments)
+		
+		#assert that whole list has all instruments? 
+		for timestepdict in data: 
+			for inst in instruments:
+				if not inst in timestepdict[2]:
+					pdb.set_trace()
+				assert inst in timestepdict[2], "data is incomplete"
+		
+		#make correlation block - instrument, timeline, {n_corr, std, up/down change}
+		block = [] 
+		for timestepdict in data:
+			block_items = [] 
+			timeline.append(timestepdict[0])
+			for inst in instruments:
+				block_items.append(self.process_data_piece(timestepdict[2][inst]))
+			block.append(block_items)
+		
+		assert len(block), 'no data'
+		assert len(block[0]), 'no data' 
+		
+		dim3 = len(block[0][0])
+		dim1 = len(instruments)
+		dim2 = len(data)
+		
+		data_block = np.full((dim1,dim2,dim3),np.nan)  #better way anywhere? 
+		for d1 in range(dim1):
+			for d2 in range(dim2):
+				for d3 in range(dim3):
+					try:
+						data_block[d1,d2,d3] = block[d2][d1][d3]
+					except:
+						pdb.set_trace()
+		#pdb.set_trace()
+		return data_block, instruments, np.array(timeline).reshape((len(timeline),1))
+
+
+	#weird stuff - perhaps consider refactoring  
+	def _closest_time_index(self,the_date):
+		return IndicatorFilter._closest_time_index(self,the_date)
+	
+	def _instrument_index(self,instrument):
+		return IndicatorFilter._instrument_index(self,instrument)
+
+	def process_data_piece(self,data_piece):
+		raise NotImplementedError('This method must be overridden')
+
+	def check_instrument(self,instrument,direction,the_time):
+		raise NotImplementedError('This method must be overridden')
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -10,8 +10,7 @@ from setups.custom_setups import Harmony
 from setups.simple_setups import ForexSignalsAnchorBar
 
 from filters.simple_filters import ForexSignalsAnchorBarFilter
-from filters.time_based import EconomicCalendarFilter
-from filters.meta_based import ClientSentimentFilter
+from filters.ai_based import NewsFilter
 
 
 from utils import ListFileReader, Database, DataComposer
@@ -45,16 +44,27 @@ with Database(cache=False,commit=False) as cursor:
 		'currencies':currencies,
 		'this_date':end_date,
 		'days_back':days_back,
-		#'chart_resolution':240,
-		#'candle_offset':120
+		'chart_resolution':240,
+		'candle_offset':120
 	})
+	composer.call('close_price')
+	composer.call('relative_strength_index',{'period':14})
+	
+	#composer.call('currency_strength')
+	#composer.call('simple_moving_average',{'period':3})
+	#composer.call('instrument_ranking')
+	
+	composer.call('rate_of_change')
+	composer.call('auto_regression',{'correlation_length':30,'correlation_thres':0.3})
 	#pdb.set_trace()
 	candle_result = composer.result(as_json=True)
-	filter_candles = DataComposer.as_candles_volumes(candle_result,instruments) if volumes else DataComposer.as_candles(candle_result,instruments)
-	filter_candle_streams = [filter_candles[instr] for instr in instruments if filter_candles.get(instr)]
-	available_instruments = [instr for instr in instruments if filter_candles.get(instr)]
+	#filter_candles = DataComposer.as_candles_volumes(candle_result,instruments) if volumes else DataComposer.as_candles(candle_result,instruments)
+	#filter_candle_streams = [filter_candles[instr] for instr in instruments if filter_candles.get(instr)]
+	#available_instruments = [instr for instr in instruments if filter_candles.get(instr)]
 
-#pdb.set_trace()
+
+
+
 #
 #query = ''
 #with open('queries/candle_stick_selector.sql','r') as f:
@@ -75,17 +85,17 @@ with Database(cache=False,commit=False) as cursor:
 #available_instruments = [fx for fx in instruments if fx in candlestreams]
 
 
-#fsf = ForexSignalsAnchorBarFilter(filter_candle_block,available_instruments)
-#ecf = EconomicCalendarFilter()
-
-pdb.set_trace()
-csf = ClientSentimentFilter(filter_candle_streams,available_instruments)
+csf =  CorrelationFilter(candle_result)
+#csf = CurrencyStrengthFilter(candle_result)
+#csf.rank_gap = -3
 
 filtered_signals  = csf.filter(signals)
+print(str(len(signals)) + ' -> ' + str(len(filtered_signals)))
+
 cursor = Database(cache=False,commit=False)
 #now backtest
 btd = BackTesterDatabase(cursor)
-pdb.set_trace()
+#pdb.set_trace()
 
 def show_result_summary(sigs):
 	result = btd.perform(sigs)
@@ -99,6 +109,9 @@ show_result_summary(signals)
 print('filtered:')
 show_result_summary(filtered_signals)
 #print(result)
+
+corrs = np.array(csf._correlation_reports)
+print(np.mean(corrs,axis=0))
 
 
 
