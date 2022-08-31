@@ -11,6 +11,7 @@ import sys
 import re
 import logging
 import multiprocessing 
+import json
 
 import numpy as np
 
@@ -385,6 +386,10 @@ class ListFileReader:
 			result_dicts.append({k:v for k,v in zip(heads,line.split(','))})
 		return result_dicts
 	
+	def read_json(self,filename):
+		jsontext = self.read_full_text(filename)
+		return json.loads(jsontext)  
+	
 #wrapper around SafeConfigParser to get config - particularly db connection info 
 class Configuration: 
 
@@ -640,8 +645,14 @@ class DataComposer:
 		self._function_register = self.cursor.fetchone()[0] 
 		self.cursor.flush()
 	
-	def __init__(self,cursor):
+	def __init__(self,cursor,reset_branches=False):
 		self.cursor = cursor
+		if reset_branches:
+			DataComposer._branch = 0
+			DataComposer._temp_tables = [] 
+			DataComposer._call_queue = []
+			DataComposer._end_join_tables = []
+			
 		self._this_branch = DataComposer._branch
 		DataComposer._branch += 1
 		
