@@ -27,7 +27,7 @@ BEGIN
 		SELECT p.row_index,
 		p.full_name,
 		p.the_date,
-		(p.value - p.value_prev) / p.value_prev AS rate
+		(p.value - p.value_prev) / (CASE WHEN p.value_prev = 0 THEN 1 ELSE p.value_prev END) AS rate
 		FROM previous p		
 	);
 	EXECUTE FORMAT('ALTER TABLE __values_rate_of_change_tmp RENAME TO %s', _values_tmp);

@@ -84,8 +84,8 @@ BEGIN
 			v.the_date,
 			v.full_name1 AS full_name,
 			--lag_index, --intercept causes issues
-			SUM(CASE WHEN ABS(v.correlation) > _correlation_thres THEN (v.slope*v.value2_leadlag) ELSE 0 END) AS next_result,
-			SUM(CASE WHEN ABS(v.correlation) > _correlation_thres THEN (v.slope*v.value2_leadlag)*(v.slope*v.value2_leadlag) ELSE 0 END) AS next_result_squared,
+			SUM(CASE WHEN ABS(v.correlation) > _correlation_thres THEN (v.slope*v.value2_leadlag + v.intercept)  ELSE 0 END) AS next_result,
+			SUM(CASE WHEN ABS(v.correlation) > _correlation_thres THEN (v.slope*v.value2_leadlag + v.intercept)*(v.slope*v.value2_leadlag + v.intercept) ELSE 0 END) AS next_result_squared,
 			SUM(CASE WHEN ABS(v.correlation) > _correlation_thres THEN 1 ELSE 0 END) AS n_result
 			FROM value2_lead_lag v
 			GROUP BY v.the_date, v.full_name1--, lag_index--, candle2_lead_percent_change
@@ -137,9 +137,7 @@ COMMENT ON FUNCTION trading.values_auto_regression(TEXT, INT, INT, DOUBLE PRECIS
 
 
 
-
-
-
+--SELECT * FROM trading.get_candles_from_currencies(ARRAY['USD','CAD'],'23 Jul 2022',3) ORDER BY the_date ASC 
 
 
 

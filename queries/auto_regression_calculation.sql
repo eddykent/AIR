@@ -19,8 +19,8 @@ WITH selected_candles AS (
 	the_date - INTERVAL '120 mins' AS the_date
 	FROM exchange_value_tick evt 
 	WHERE from_currency  = ANY(SELECT currency FROM tmp_currencies) AND to_currency = ANY(SELECT currency FROM tmp_currencies)
-	AND the_date < (DATE '24 Feb 2022' + INTERVAL '12 hours')
-	AND the_date >= (DATE '24 Feb 2022' - INTERVAL '100 days' + INTERVAL '12 hours') --600 = 400 + 200 (days_back + normalisation_window)
+	AND the_date < (DATE '26 May 2022' + INTERVAL '12 hours')
+	AND the_date >= (DATE '26 May 2022' - INTERVAL '100 days' + INTERVAL '12 hours') --600 = 400 + 200 (days_back + normalisation_window)
 ), 
 candle_indexs AS (
 	SELECT from_currency, to_currency,
@@ -220,8 +220,8 @@ predicted_percent_change,
 n_percent_changes,
 '(''' || from_currency || '/' || to_currency || ''',''' || CASE WHEN predicted_percent_change > 0 THEN 'BUY' ELSE 'SELL' END || ''', NULL),' AS the_tuple
 FROM average_percent_changes
-WHERE the_date = '2022-02-04 12:00:00.000'
-AND n_percent_changes > 3
+--WHERE the_date = '2022-05-26 10:00:00.000'
+--AND n_percent_changes > 3
 --ORDER BY CASE WHEN n_percent_changes > 1 THEN (percent_change_variance / ABS(predicted_percent_change)) ELSE 100 END ASC
 ORDER BY ABS(predicted_percent_change) DESC 
 
