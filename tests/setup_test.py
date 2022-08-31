@@ -6,7 +6,7 @@ from collections import Counter
 
 from setups.setups1 import BB_KC_RSI, ADX_EMA_RSI, HA_VWAP_RSI_DIVERGENCE
 from setups.custom_setups import Harmony
-from setups.simple_setups import ForexSignalsAnchorBar
+from setups.simple_setups import ForexSignalsAnchorBar, MACD_EMA_SR
 from utils import ListFileReader, Database
 from backtest import BackTesterDatabase
 
@@ -27,7 +27,7 @@ instruments = lfr.read('fx_pairs/fx_mains.txt')
 #signals = harmony.get_setups(start_date,end_date)
 
 
-hablah = ForexSignalsAnchorBar(instruments)
+hablah = MACD_EMA_SR(instruments)
 
 
 #signals = signals[9:10]

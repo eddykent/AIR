@@ -219,7 +219,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 			return init_dict, np_candles
 		return init_dict
 		
-	
+	#this is in the wrong place 
 	def get_candlesticks(self,start_date,end_date,block=False,volumes=False,query_params={}):
 		days_back = self.get_days_back(start_date,end_date)
 		candle_result = None

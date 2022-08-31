@@ -4,6 +4,12 @@ from setups.trade_setup import *
 
 from indicators.moving_average import EMA 
 from indicators.indicator import CandleSticks, RunningHigh, RunningLow
+from indicators.momentum import MACD
+
+
+
+from charting.chart_pattern import SupportAndResistance
+
 
 #file for holding very simple setups 
 
@@ -14,6 +20,8 @@ from indicators.indicator import CandleSticks, RunningHigh, RunningLow
 #count back 5 and get highest (body?) => entry
 #risk = min trigger bar 
 #profit = risk * 1
+#the backtest for the inverse of this setup without any filters gives good results! 
+#if close above 21ma, trade is off - need a trade purge/filter
 class ForexSignalsAnchorBar(TradeSetup):
 	
 	grace_period = 50
@@ -135,9 +143,74 @@ class ForexSignalsAnchorBar(TradeSetup):
 		#
 		#return trade_signals
 
+#miror of the above setup, but the signals are reflected - it seems to perform well! (mean reversion, fuck forex signals!) 
+class MeanReversionFFXS(TradeSetup):
+	pass 
+
 #test for pinbars and engulfers above/below the moving average line
 class ForexSignalsCandles(TradeSetup):
 	pass
+
+
+
+class WyseTradeBollingerBands(TradeSetup):  #more wysetrade based?
+	pass
+
+
+
+class MACD_EMA_SR(TradeSetup):
+	
+	grace_period = 50
+	
+	@overrides(TradeSetup)
+	def detect(self,candlesticks, extra= None):
+		
+		ema200 = EMA() 
+		macd_ind = MACD()#default settings 
+		
+		candles_pre = CandleSticks()
+		
+		ema200.period = 200
+		
+		snr = SupportAndResistance()#default settings? raise to 200?
+		
+		candle_closes = candles_pre.calculate_multiple(candlesticks)[:,:,csf.close]
+		ema200_result = ema200.calculate_multiple(candlesticks)[:,:,0]
+		
+		macd_directions = macd_ind.calculate_multiple(candlesticks)[:,:,3] #get directions 
+		prev_macd_directions = np.concatenate([np.full((macd_directions.shape[0],1),np.nan),macd_directions[:,:-1]],axis=1)
+		#determine macd crossover signals
+		bullish_macd = (prev_macd_directions < 0) & (macd_directions > 0)
+		bearish_macd = (prev_macd_directions > 0) & (macd_directions < 0)
+		
+		bullish_ema = candle_closes > ema200_result
+		bearish_ema = candle_closes < ema200_result
+		
+		snr_result = snr.calculate_multiple(candlesticks)[:,:,0] 
+		
+		bullish_signal = bullish_macd & bullish_ema & (snr_result > 0)
+		bearish_signal = bearish_macd & bearish_ema & (snr_result < 0)
+		
+		return bullish_signal, bearish_signal
+		
+	
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -65,7 +65,7 @@ class VWAPDaily(VolumeIndicator): #similar to VWAP but reset each day
 		
 		vwap_daily = np.concatenate(chunks,axis=1)
 		#vwap = np.sum(volume_windows * close_windows, axis=3) / np.sum(volume_windows,axis=3)
-		pdb.set_trace()
+		#pdb.set_trace() #check dims 
 		return vwap_daily
 	
 	

@@ -18,8 +18,8 @@ the_date = datetime.datetime(2022,5,20,12,0)
 #OurIndicator = VWAP
 #OurIndicator = BidAskVWAP
 #OurIndicator = ClientSentimentRatio
-#OurIndicator = ClientSentiment
-OurIndicator = VWAPDaily
+OurIndicator = ClientSentiment
+#OurIndicator = VWAPDaily
 
 
 
