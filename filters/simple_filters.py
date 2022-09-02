@@ -7,9 +7,10 @@ import numpy as np
 from utils import overrides
 from filters.trade_filter import *
 from indicators.moving_average import EMA 
+from indicators.reversal import RSI 
 
 
-
+#for use with the crappy forex signal strat
 class ForexSignalsAnchorBarFilter(IndicatorFilter):
 	
 	ema_fast = EMA()
@@ -43,8 +44,10 @@ class ForexSignalsAnchorBarFilter(IndicatorFilter):
 				return False 
 		return True 
 			
+class RSIFilter(IndicatorFilter):
+	rsi_op = RSI()
 	
-	
+##rsi filter! 
 	
 	
 

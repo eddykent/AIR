@@ -9,9 +9,16 @@ from setups.setups1 import BB_KC_RSI, ADX_EMA_RSI, HA_VWAP_RSI_DIVERGENCE
 from setups.custom_setups import Harmony
 from setups.simple_setups import ForexSignalsAnchorBar
 
+
 from filters.simple_filters import ForexSignalsAnchorBarFilter
 from filters.ai_based import NewsFilter
+#from models.model_base import ModelMaker, ModelLoader
 
+from models.news_reader_model import NewsReaderModel
+from models.model_base import ModelLoader 
+
+nrm = NewsReaderModel(weights_label='main_set')
+ml = ModelLoader(nrm)
 
 from utils import ListFileReader, Database, DataComposer
 from backtest import BackTesterDatabase
@@ -38,29 +45,29 @@ volumes = True
 available_instruments = None 
 
 #chart resolution not working 
-with Database(cache=False,commit=False) as cursor:
-	composer = DataComposer(cursor,True) #.candles(params).call()...
-	composer.call('get_candles'+('_volumes_' if volumes else '_') + 'from_currencies',{
-		'currencies':currencies,
-		'this_date':end_date,
-		'days_back':days_back,
-		'chart_resolution':240,
-		'candle_offset':120
-	})
-	composer.call('close_price')
-	composer.call('relative_strength_index',{'period':14})
-	
-	#composer.call('currency_strength')
-	#composer.call('simple_moving_average',{'period':3})
-	#composer.call('instrument_ranking')
-	
-	composer.call('rate_of_change')
-	composer.call('auto_regression',{'correlation_length':30,'correlation_thres':0.3})
-	#pdb.set_trace()
-	candle_result = composer.result(as_json=True)
-	#filter_candles = DataComposer.as_candles_volumes(candle_result,instruments) if volumes else DataComposer.as_candles(candle_result,instruments)
-	#filter_candle_streams = [filter_candles[instr] for instr in instruments if filter_candles.get(instr)]
-	#available_instruments = [instr for instr in instruments if filter_candles.get(instr)]
+#with Database(cache=False,commit=False) as cursor:
+#	composer = DataComposer(cursor,True) #.candles(params).call()...
+#	composer.call('get_candles'+('_volumes_' if volumes else '_') + 'from_currencies',{
+#		'currencies':currencies,
+#		'this_date':end_date,
+#		'days_back':days_back,
+#		'chart_resolution':240,
+#		'candle_offset':120
+#	})
+#	composer.call('close_price')
+#	composer.call('relative_strength_index',{'period':14})
+#	
+#	#composer.call('currency_strength')
+#	#composer.call('simple_moving_average',{'period':3})
+#	#composer.call('instrument_ranking')
+#	
+#	composer.call('rate_of_change')
+#	composer.call('auto_regression',{'correlation_length':30,'correlation_thres':0.3})
+#	#pdb.set_trace()
+#	candle_result = composer.result(as_json=True)
+#	#filter_candles = DataComposer.as_candles_volumes(candle_result,instruments) if volumes else DataComposer.as_candles(candle_result,instruments)
+#	#filter_candle_streams = [filter_candles[instr] for instr in instruments if filter_candles.get(instr)]
+#	#available_instruments = [instr for instr in instruments if filter_candles.get(instr)]
 
 
 
@@ -85,11 +92,11 @@ with Database(cache=False,commit=False) as cursor:
 #available_instruments = [fx for fx in instruments if fx in candlestreams]
 
 
-csf =  CorrelationFilter(candle_result)
+nf =  NewsFilter(ml)
 #csf = CurrencyStrengthFilter(candle_result)
 #csf.rank_gap = -3
 
-filtered_signals  = csf.filter(signals)
+filtered_signals  = nf.filter(signals)
 print(str(len(signals)) + ' -> ' + str(len(filtered_signals)))
 
 cursor = Database(cache=False,commit=False)
