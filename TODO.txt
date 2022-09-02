@@ -44,8 +44,6 @@ pluralise all chart patterns. Start with match_pattern as  it already uses numpy
 	- match_pattern.py: backtesting and drawing still todo 
 refactor draw_snapshot functions to take instrument index & time index(s) like chart patterns 
 
-perhaps refactor newsindicator - don't use an indicator with numpy, it is a filter thing
-
 Create & test full RNN with candles_and_indicators.sql, currency_strengths, correlations etc & get_y_values.sql 
 
 data_pull scripts for getting latest data? 
@@ -123,8 +121,6 @@ research more about quantconnect - might have some useful things or even might b
 BUGS:
 Perhaps using pandas data frames will be more efficient and better for the whole thing? 
 Practice will also land you a high paying datascience role if you move jobs...
-
-chart resolution in data composer not working 
 
 Getting stuff from multiple websites should be async so we can query em all at the same tim
 

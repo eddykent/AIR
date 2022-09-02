@@ -85,7 +85,7 @@ https://www.dukascopy.com/swiss/english/marketwatch/historical/   -historic clie
 
 sql functions for correlations (cross & auto) - still todo correlation function (for reporting)  
 
-
+perhaps refactor newsindicator - don't use an indicator with numpy, it is a filter thing
 
 BUGS:
 (FIXED)
@@ -139,5 +139,5 @@ TURN is_tutorial INTO A RATE BASED, NOT COUNT BASED THING?-- might not be that i
 
 (FIXED) harmonic pattern generator (harmony) has loads of invalid signals for some reason
 
-
+(FIXED) chart resolution in data composer not working 
 
