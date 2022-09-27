@@ -37,6 +37,7 @@ SetupCriteria = namedtuple('SetupCriteria','direction expr1 ineq expr2 stop_type
 #stop criteria separate?
 
 
+
 ##A tuple representing a trade that will be taken that has some bounds on it (stop_loss & take_profit)
 class TradeSignal:
 	signal_id = None #signal id to refer specifically to this signal 
@@ -45,11 +46,14 @@ class TradeSignal:
 	instrument = None  #the instrument that is being traded
 	direction = TradeDirection.VOID  # a buy or sell (void means to be ignored/deleted)
 	entry = None #the entry price to start the trade at. If null, start immediately
+	entry_cut = None #cut the signal if the price goes in opposite direction and hits this value 
+	entry_expire = 120 # expire the signal if entry price is not hit  (default 2 hours) 
 	take_profit_distance = 0  #the value to exit the trade at when it wins 
 	stop_loss_distance = 0 #the value to exit the trade at when it loses 
 	length = 1440 #1440 minutes in 24 hours
 	
-	sql_row = "(%(signal_id)s,%(the_date)s,%(instrument)s,%(direction)s,%(entry)s,%(take_profit_distance)s,%(stop_loss_distance)s,%(length)s)"
+	#sql_row = "(%(signal_id)s,%(the_date)s,%(instrument)s,%(direction)s,%(entry)s,%(take_profit_distance)s,%(stop_loss_distance)s,%(length)s)"
+	sql_row = "(%(signal_id)s,%(the_date)s,%(instrument)s,%(direction)s,%(entry)s,%(entry_cut)s,%(entry_expire)s,%(take_profit_distance)s,%(stop_loss_distance)s,%(length)s)"
 	
 	def __init__(self):
 		self.signal_id = str(uuid.uuid4())
@@ -63,13 +67,15 @@ class TradeSignal:
 		
 	
 	@staticmethod
-	def from_full(the_date,instrument,strategy_ref,direction,entry,take_profit_distance,stop_loss_distance,length=1440):
+	def from_full(the_date,instrument,strategy_ref,direction,entry,entry_cut,entry_expire,take_profit_distance,stop_loss_distance,length=1440):
 		this_signal = TradeSignal()
 		this_signal.the_date = the_date 
 		this_signal.instrument = instrument
 		this_signal.strategy_ref = strategy_ref
 		this_signal.direction = direction
-		this_signal.entry = entry 
+		this_signal.entry = entry,
+		this_signal.entry_cut = entry_cut, 
+		this_signal.entry_expire = entry_expire,
 		this_signal.take_profit_distance = take_profit_distance
 		this_signal.stop_loss_distance = stop_loss_distance
 		this_signal.length = length
@@ -90,6 +96,8 @@ class TradeSignal:
 			'instrument':self.instrument,
 			'direction':direction_str,
 			'entry':self.entry,
+			'entry_cut':self.entry_cut,
+			'entry_expire':self.entry_expire,
 			'take_profit_distance':self.take_profit_distance,
 			'stop_loss_distance':self.stop_loss_distance,
 			'length':self.length
@@ -106,8 +114,10 @@ class TradeSignalDataExtra:
 	name = None
 	signals = [None, None]
 	entries = [None, None]
+	entry_cuts = [None, None]
 	stop_loss_distances = [None , None]
 	take_profit_distances = [None, None]
+	
 
 
 

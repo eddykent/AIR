@@ -16,13 +16,15 @@ from setups.trade_setup import TradeDirection, TradeSignal
 BackTestStatistic = namedtuple('BackTestStatistic','total stagnated unfinished invalid  wins losses ups downs winstreak losestreak') #growth, drawdown  drawdown')#allows for multiple tests at once
 
 class TradeResultStatus(Enum):
+	#CUT = -5 #the signal is cut if there was an expire_cut price that was hit before the entry price. 
 	INVALID = -4  #the trade parameters were wrong in some way (eg tp > sl in a sell order) 
 	STAGNATED = -3 #the trade never hit its entry price 
 	LOST = -2 #the trade stopped out at the stop loss price 
 	LOSING = -1 #the trade didnt stop out, but is down 
-	VOID = 0 #
+	VOID = 0 # the trade has not gone ahead - use instead of cut? 
 	WINNING = 1 #the trade didnt stop out, but is up
-	WON = 2 # the trade stopped out at the take profit price 
+	PROFIT_LOCK = 2 #we moved the stop loss to lock in profit and this value got hit. 
+	WON = 3 # the trade stopped out at the take profit price 
 
 TradeProfitPath = namedtuple('TradeProfitPath','typical optimistic pessimistic')
 TradeResult = namedtuple('TradeResult','signal_id entry_date entry_price entry_candle exit_date exit_price exit_candle result_movement result_percent result_status profit_path')
@@ -59,6 +61,7 @@ class BackTestStatistics:
 			'total':len(self.signals),
 			'stagnated':len([s for s in self.signals if s.result_status == TradeResultStatus.STAGNATED]),
 			'unfinished':len([s for s in self.signals if s.result_status not in [TradeResultStatus.WON,TradeResultStatus.LOST]]),
+			'void':len([s for s in self.signals if s.result_status == TradeResultStatus.VOID]),
 			'invalid':len([s for s in self.signals if s.result_status == TradeResultStatus.INVALID]),
 			'wins':len([s for s in self.signals if s.result_status == TradeResultStatus.WON]),
 			'loses':len([s for s in self.signals if s.result_status == TradeResultStatus.LOST]),
@@ -121,7 +124,7 @@ class BackTester:
 #Due to using the database, there is no way to be able to expose this to a loss function in tensorflow 
 class BackTesterDatabase(BackTester):
 	
-	sql_query_file = 'queries/backtesting_trade_executions.sql'
+	sql_query_file = 'queries/backtesting_trade_executions_expiry.sql'
 	cursor = None #the database cursor - handled from something else 
 	
 	trade_result = {

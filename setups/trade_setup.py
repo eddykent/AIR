@@ -24,6 +24,12 @@ from setups.signal import *
 bullish = 0 
 bearish = 1
 
+def blank_result(candlesticks):
+	candlesticksfnc = CandleSticks()
+	np_candles = candlesticksfnc.calculate_multiple(candlesticks)
+	result = np.full(np_candles.shape[0:2],None) #leave blank
+	return result, result
+
 class TradeSetup:	#this not just an indicator - does not have calculate() etc. It is its own thing that finds trade signals 	
 	
 	timeframe = 15 #15 min chart by default
@@ -68,10 +74,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		raise NotImplementedError('This method must be overridden') #use get_setups() ! 
 	
 	def get_entries(self,candlesticks,extra):
-		candlesticksfnc = CandleSticks()
-		np_candles = candlesticksfnc.calculate_multiple(candlesticks)
-		result = np.full(np_candles.shape[0:2],None) #leave blank
-		return result, result
+		return blank_result(candlesticks)
 	
 	def get_tpsls(self,candlesticks, tpsl_tool=None, extra=None):
 		if tpsl_tool is not None:
@@ -89,6 +92,8 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		
 	#def get_setups_and_confidence(self,start_date,end_date): # perhaps worth thinking about later
 	
+	def get_entry_cuts(self,candlesticks,extra=None):	
+		return blank_result(candlesticks)
 	
 	def get_name(self):
 		return self.__class__.__name__
@@ -117,6 +122,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		extra.timeline = self.get_timeline(candlesticks)
 		extra.signals = self.detect(candlesticks,extra=extra)
 		extra.entries = self.get_entries(candlesticks,extra=extra)
+		extra.entry_cuts = self.get_entry_cuts(candlesticks,extra=extra)
 		extra.take_profit_distances, extra.stop_loss_distances = self.get_tpsls(candlesticks,extra=extra)
 		
 		#asserts here? 
@@ -133,6 +139,8 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		
 		strategy_ref = signal_data_extra.name if signal_data_extra.name else 'Please set the name to this setup to something more meaningful!' 
 		
+		entry_expire = TradeSignal.entry_expire
+		
 		for (instrument_index,timeline_index) in buy_coords:
 			if signal_data_extra.timeline[timeline_index] < signal_data_extra.start_date:
 				continue
@@ -140,10 +148,10 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 			the_date = signal_data_extra.timeline[timeline_index]
 			direction = TradeDirection.BUY
 			entry = signal_data_extra.entries[bullish][instrument_index,timeline_index]  
+			entry_cut = signal_data_extra.entry_cuts[bullish][instrument_index,timeline_index]  
 			take_profit_distance = signal_data_extra.take_profit_distances[bullish][instrument_index,timeline_index]
 			stop_loss_distance = signal_data_extra.stop_loss_distances[bullish][instrument_index,timeline_index]
-			
-			ts = TradeSignal.from_full(the_date,instrument,strategy_ref,direction,entry,take_profit_distance,stop_loss_distance)
+			ts = TradeSignal.from_full(the_date,instrument,strategy_ref,direction,entry,entry_cut,entry_expire,take_profit_distance,stop_loss_distance)
 			trade_signals.append(ts)
 		
 		for (instrument_index,timeline_index) in sell_coords:
@@ -153,10 +161,10 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 			the_date = signal_data_extra.timeline[timeline_index]
 			direction = TradeDirection.SELL
 			entry = signal_data_extra.entries[bearish][instrument_index,timeline_index]  
+			entry_cut = signal_data_extra.entry_cuts[bearish][instrument_index,timeline_index]  
 			take_profit_distance = signal_data_extra.take_profit_distances[bearish][instrument_index,timeline_index]
 			stop_loss_distance = signal_data_extra.stop_loss_distances[bearish][instrument_index,timeline_index]
-			
-			ts = TradeSignal.from_full(the_date,instrument,strategy_ref,direction,entry,take_profit_distance,stop_loss_distance)
+			ts = TradeSignal.from_full(the_date,instrument,strategy_ref,direction,entry,entry_cut,entry_expire,take_profit_distance,stop_loss_distance)
 			trade_signals.append(ts)
 		
 		return trade_signals
@@ -329,7 +337,6 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		
 		return trade_signals
 
-
 #divergence tools - check this for lookahead bias 
 class MomentumDivergenceTool:
 	
@@ -401,6 +408,18 @@ class MomentumDivergenceTool:
 	##	for n in nums1: 
 	#		wheres = (nums2 - self.hill_tolerance >= n) & (nums2 + self.hill_tolerance <= n)
 	#		close2s = nums2[wheres]
+
+#tool used for when we only want to get signals when a detection has gone from 0 to 1 
+class Zero2OneTool:
+	
+	@staticmethod   #might be able to make this without loops ?
+	def markup(detected):	
+		result = np.full(detected.shape,False) 
+		for i,ins_detected in enumerate(detected):
+			for j, (b, a) in enumerate(zip(ins_detected[:-1],ins_detected[1:])):
+				if b == 0 and a == 1:
+					result[i,j+1] = True 
+		return result 
 
 
 #refactor - trade stop tools -- eg from ATR, std (something for harmonics) etc 
