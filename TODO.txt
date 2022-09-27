@@ -21,7 +21,7 @@ refactor setups
 		-base yes, higher drawing functions can draw the underlying indicators if on candlesticks
 		-consider drawing any results from self? 
 	
-
+backtesting with entry cut off points 
 
 SCREENING - candle stick scanner for candle stick patterns and chart patterns. Use to determine entry points
 	- candlestick patterns at high timeframes 
@@ -101,6 +101,13 @@ shape based and trending are pretty broken and need fixing up
 
 backtesting fuzz - add 5% uniform error to all data for better backtesting?
 
+parameter tuning - try shit loads of calculating using regression
+	- record params each time 
+	- vary each param slightly 
+	- minimise loses 
+	- (subgradient optimisation!) (use GA or some shit if you want) 
+
+
 ADVANCED: 
 Make a NN that takes a sequence of candlesticks and indicators AND a list of 28  
 trades (1 per fx) and attempt to predict a confidence score (0 = lose, 1 = win) per
@@ -153,6 +160,10 @@ pivot points should use timehandler for getting day indexes (offset by whatever 
 
 divergence tool isnt using non-lookahead stuff 
 
+filters based on indicators may suffer from lookahead bias - they need to use the PREV candle
+
+fxstreet archive does not read anymore 
+
 ONGOING: - stuff that might not ever have an end to it because it can always be made better
 fundamental stuff needs more testing to get it better - perhaps collecting results should be done by date not significance, and only use degree=1
 
@@ -170,4 +181,4 @@ add new styles to charts?:
 
 change charts to use datetime on x axis (removing weekends) - use values and dvalue
 
-
+grep/find things that should be config settings
