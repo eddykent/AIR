@@ -1,0 +1,33 @@
+--file for containing every single possible stock/fx/ticker with its associated pip size. 
+--this can be useful when determining TP/SL prices eg "aim for 30 pips".
+--consider refactoring this to be "ticker metadata" and allow for stuff to be updated from online too 
+{
+    "AUD/CAD": 0.0001,
+	"AUD/CHF": 0.0001,
+	"AUD/JPY": 0.01,
+	"AUD/NZD": 0.0001,
+	"AUD/USD": 0.0001,
+	"CAD/CHF": 0.0001,
+	"CAD/JPY": 0.01,
+	"CHF/JPY": 0.01,
+	"EUR/AUD": 0.0001,
+	"EUR/CAD": 0.0001,
+	"EUR/CHF": 0.0001,
+	"EUR/GBP": 0.0001,
+	"EUR/JPY": 0.01,
+	"EUR/NZD": 0.0001,
+	"EUR/USD": 0.0001,
+	"GBP/AUD": 0.0001,
+	"GBP/CAD": 0.0001,
+	"GBP/CHF": 0.0001,
+	"GBP/JPY": 0.01,
+	"GBP/NZD": 0.0001,
+	"GBP/USD": 0.0001,
+	"NZD/CAD": 0.0001,
+	"NZD/CHF": 0.0001,
+	"NZD/JPY": 0.01,
+	"NZD/USD": 0.0001,
+	"USD/CAD": 0.0001,
+	"USD/CHF": 0.0001,
+	"USD/JPY": 0.01
+}

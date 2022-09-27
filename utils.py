@@ -1172,6 +1172,23 @@ class TimeZipper:
 		#Y = Y[self.step_y:] if self.step_y > 0 else Y
 		return Xss, Y
 
+
+class PipHandler:
+	
+	pip_map = {} 
+
+	def __init__(self,pip_file="config/pip_sizes.json"):
+		
+		lfr = ListFileReader()
+		self.pip_map = lfr.read_json(pip_file)
+			
+	def pips_to_movement(self, instrument, pips):
+		if instrument not in self.pip_map:
+			log.error(instrument + ' not recognised!')
+		return self.pip_map[instrument] * pips 
+	
+	pips2move = pips_to_movement
+#PipHandler.pips2move = PipHandler.pips_to_movement	
 		
 		
 #class to handle splitting our data up into training and testing sets
