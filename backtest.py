@@ -124,6 +124,7 @@ class BackTester:
 #Due to using the database, there is no way to be able to expose this to a loss function in tensorflow 
 class BackTesterDatabase(BackTester):
 	
+	#todo: sql_query_file = 'queries/backtesting_trade_executions_expiry_profit_lock.sql'
 	sql_query_file = 'queries/backtesting_trade_executions_expiry.sql'
 	cursor = None #the database cursor - handled from something else 
 	
@@ -134,6 +135,7 @@ class BackTesterDatabase(BackTester):
 		'LOSING':TradeResultStatus.LOSING, 
 		'VOID':TradeResultStatus.VOID,
 		'WINNING':TradeResultStatus.WINNING,
+		'PROFIT_LOCK':TradeResultStatus.PROFIT_LOCK,
 		'WON':TradeResultStatus.WON
 	}
 	

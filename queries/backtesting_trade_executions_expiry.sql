@@ -28,7 +28,9 @@ trade_tracks_differences AS (
 	SELECT ts.signal_id,
 	ts.instrument,
 	ts.direction,
-	ts.entry_price::DOUBLE PRECISION AS entry_price, --incase all are null
+	ts.entry_price::DOUBLE PRECISION AS entry_price, --incase all are NULL
+	ts.entry_cutoff,
+	ts.the_date + (ts.entry_expiry || ' minutes')::INTERVAL AS entry_expiry,
 	ts.take_profit_difference,
 	ts.stop_loss_difference,
 	sc.open_price,
@@ -52,6 +54,8 @@ trade_tracks AS (
 	tt.instrument,
 	tt.direction,
 	tt.entry_price,
+	tt.entry_cutoff,
+	tt.entry_expiry,
 	ts.start_price + tt.take_profit_difference*(CASE WHEN tt.direction = 'SELL' THEN -1 ELSE 1 END) AS take_profit_price,
 	ts.start_price + tt.stop_loss_difference*(CASE WHEN tt.direction = 'SELL' THEN 1 ELSE -1 END) AS stop_loss_price, 
 	tt.open_price,
@@ -65,6 +69,12 @@ trade_tracks AS (
 ),
 status_points AS (
 	SELECT *,
+	CASE WHEN entry_cutoff <=  high_price AND entry_cutoff >= low_price THEN 0 
+		WHEN low_price > entry_cutoff THEN 1 
+		WHEN high_price < entry_cutoff THEN -1 
+		WHEN entry_cutoff IS NULL THEN 2 --use a different value since we are ignoring the entry cutoff here
+		ELSE NULL
+	END AS cutoff_state,
 	CASE WHEN entry_price <=  high_price AND entry_price >= low_price THEN 0 
 		WHEN low_price > entry_price THEN 1 
 		WHEN high_price < entry_price THEN -1 
@@ -94,14 +104,39 @@ outcomes AS (
 	(direction = 'BUY' AND stop_loss_state <= 0) OR (direction = 'SELL' AND stop_loss_state >= 0) AS lost
 	FROM crossed_entry 
 ),
+earliest_cutoffs_values AS (
+	SELECT DISTINCT ON (o.signal_id) o.*,   
+	CASE WHEN o.entry_expiry IS NULL THEN FALSE ELSE o.the_date > o.entry_expiry END AS entry_expired
+	FROM outcomes o WHERE cutoff_state = 0
+	ORDER BY o.signal_id, o.candle_index ASC 
+),
+earliest_cutoffs_nulls AS (
+	SELECT DISTINCT ON (o.signal_id) o.*,   
+	FALSE AS entry_expired   --ADD back the never expired entries 
+	FROM outcomes o WHERE cutoff_state = 2
+	ORDER BY o.signal_id, o.candle_index DESC
+),
+earliest_cutoffs  AS (
+	SELECT * FROM earliest_cutoffs_values 
+	UNION 
+	SELECT * FROM earliest_cutoffs_nulls 
+),
 earliest_entries_calc AS (
 	SELECT DISTINCT ON (sp.signal_id) sp.*,
-	CASE WHEN entry_price IS NULL THEN (high_price + low_price + close_price) / 3 ELSE entry_price END AS typical_starting_price, --parameter 
-	(take_profit_state = stop_loss_state AND entry_price IS NULL)
-	OR (direction = 'BUY' AND take_profit_price < stop_loss_price) 
-	OR (direction = 'SELL' AND take_profit_price > stop_loss_price)	
-	AS unfit  --SOME OF the non-entry_price signals might start outside OF their bounds. if they do then thery're unfit
-	FROM outcomes sp WHERE entry_state = 0 OR last_entry_state <> current_entry_state--what about -1 TO 1 OR vice versa?
+	CASE WHEN sp.entry_price IS NULL THEN (sp.high_price + sp.low_price + sp.close_price) / 3 ELSE sp.entry_price END AS typical_starting_price, --parameter 
+	
+	--erroneous trades 
+	(sp.take_profit_state = sp.stop_loss_state AND sp.entry_price IS NULL)
+	OR (sp.direction = 'BUY' AND sp.take_profit_price < sp.stop_loss_price) 
+	OR (sp.direction = 'SELL' AND sp.take_profit_price > sp.stop_loss_price)	
+	AS unfit,  --SOME OF the non-entry_price signals might start outside OF their bounds. if they do then thery're unfit  
+	
+	--void calcuation here
+	ec.candle_index < sp.candle_index OR (sp.candle_index = ec.candle_index AND ec.entry_expired) AS isvoid
+	
+	FROM outcomes sp 
+	JOIN earliest_cutoffs ec ON sp.signal_id = ec.signal_id 
+	WHERE sp.entry_state = 0 OR sp.last_entry_state <> sp.current_entry_state--what about -1 TO 1 OR vice versa?
 	ORDER BY sp.signal_id, sp.candle_index ASC
 ),
 earliest_exits AS (
@@ -158,6 +193,7 @@ results AS (
 	CASE 
 		WHEN sc.typical_starting_price IS NULL THEN 'STAGNATED' --trade never started 
 		WHEN sc.unfit OR ts.direction = 'VOID' THEN 'INVALID' --trade was not taken since it was invalid in some way
+		WHEN sc.isvoid THEN 'VOID' --expired 
 		WHEN ec.lost THEN 'LOST' 
 		WHEN ec.won THEN 'WON' 
 		WHEN ec.won AND ec.lost THEN 'LOST'
