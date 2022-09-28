@@ -95,7 +95,7 @@ class CurrencyStrengthFilter(DataBasedFilter):
 		from_rank = self.data_block[fci,ti,0]
 		to_rank = self.data_block[tci,ti,0]
 		
-		pdb.set_trace() #bug here somewhere
+		#pdb.set_trace() #bug here somewhere
 		
 		if from_rank < to_rank + self.rank_gap and direction == TradeDirection.SELL:  
 			#to currency is worse than from currency - so we are buying a better and selling a worse (but we are selling so it is reversed) 

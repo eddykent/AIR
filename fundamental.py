@@ -145,7 +145,7 @@ class KeywordMapHelper:
 	input_keyword_map = [] 
 	bloated_keyword_map = []
 	all_words_relevance = []
-	map_file = 'keyword_mappings.json'
+	map_file = 'config/keyword_mappings.json'
 	fsh = None
 	
 	def __init__(self,keyword_map_file=None,fsh=None):
@@ -286,7 +286,7 @@ class TextAnalysis:
 	fsh = None
 	text_type_config = {}
 	
-	def __init__(self, keyword_helper=None, text_type_config_file='text_type_words.json'):
+	def __init__(self, keyword_helper=None, text_type_config_file='config/text_type_words.json'):
 		self.stopwords = set(nltk.corpus.stopwords.words('english'))
 		self.sentiment_analyzer = nltk.sentiment.SentimentIntensityAnalyzer()
 		if keyword_helper is None:

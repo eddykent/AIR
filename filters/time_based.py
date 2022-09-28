@@ -43,7 +43,7 @@ class EconomicCalendarFilter(TimelineTradeFilter):
 	
 	def __init__(self):
 		lfr = ListFileReader()
-		self.mapping_to_currencies = lfr.read_json("./currency_country_map.json")
+		self.mapping_to_currencies = lfr.read_json("config/currency_country_map.json")
 		
 	
 	@overrides(TimelineTradeFilter)

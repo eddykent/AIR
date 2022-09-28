@@ -7,7 +7,7 @@ import numpy as np
 
 from setups.setups1 import BB_KC_RSI, ADX_EMA_RSI, HA_VWAP_RSI_DIVERGENCE
 from setups.custom_setups import Harmony
-from setups.simple_setups import ForexSignalsAnchorBar
+from setups.simple_setups import ForexSignalsAnchorBar, MeanReversionFFXS
 
 from filters.simple_filters import ForexSignalsAnchorBarFilter
 from filters.time_based import EconomicCalendarFilter
@@ -25,7 +25,7 @@ end_date = datetime.datetime(2022,7,21,14,0)
 instruments = lfr.read('fx_pairs/fx_mains.txt')
 currencies = lfr.read('fx_pairs/currencies.txt')
 
-hablah = ForexSignalsAnchorBar(instruments)
+hablah = MeanReversionFFXS(instruments)
 
 signals = hablah.get_setups(start_date,end_date) #do same for filters?
 
@@ -51,12 +51,12 @@ with Database(cache=False,commit=False) as cursor:
 	composer.call('close_price')
 	composer.call('relative_strength_index',{'period':14})
 	
-	#composer.call('currency_strength')
-	#composer.call('simple_moving_average',{'period':3})
-	#composer.call('instrument_ranking')
+	composer.call('currency_strength') #use for currency strength filter
+	composer.call('simple_moving_average',{'period':3})
+	composer.call('instrument_ranking')
 	
-	composer.call('rate_of_change')
-	composer.call('auto_regression',{'correlation_length':30,'correlation_thres':0.3})
+	#composer.call('rate_of_change')  #use for correlation filter
+	#composer.call('auto_regression',{'correlation_length':30,'correlation_thres':0.3})
 	#pdb.set_trace()
 	candle_result = composer.result(as_json=True)
 	#filter_candles = DataComposer.as_candles_volumes(candle_result,instruments) if volumes else DataComposer.as_candles(candle_result,instruments)
@@ -86,9 +86,10 @@ with Database(cache=False,commit=False) as cursor:
 #available_instruments = [fx for fx in instruments if fx in candlestreams]
 
 
-csf =  CorrelationFilter(candle_result)
-#csf = CurrencyStrengthFilter(candle_result)
-#csf.rank_gap = -3
+#csf =  CorrelationFilter(candle_result)
+csf = CurrencyStrengthFilter(candle_result)
+csf.set_chart_resolution(240)
+csf.rank_gap = 2
 
 filtered_signals  = csf.filter(signals)
 print(str(len(signals)) + ' -> ' + str(len(filtered_signals)))
@@ -111,8 +112,8 @@ print('filtered:')
 show_result_summary(filtered_signals)
 #print(result)
 
-corrs = np.array(csf._correlation_reports)
-print(np.mean(corrs,axis=0))
+#corrs = np.array(csf._correlation_reports)
+#print(np.mean(corrs,axis=0))
 
 
 

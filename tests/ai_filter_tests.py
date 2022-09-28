@@ -7,10 +7,10 @@ import numpy as np
 
 from setups.setups1 import BB_KC_RSI, ADX_EMA_RSI, HA_VWAP_RSI_DIVERGENCE
 from setups.custom_setups import Harmony
-from setups.simple_setups import ForexSignalsAnchorBar
+from setups.simple_setups import ForexSignalsAnchorBar, MeanReversionFFXS
 
 
-from filters.simple_filters import ForexSignalsAnchorBarFilter
+from filters.simple_filters import ForexSignalsAnchorBarFilter,LambdaSelectFilter
 from filters.ai_based import NewsFilter
 #from models.model_base import ModelMaker, ModelLoader
 
@@ -31,10 +31,12 @@ end_date = datetime.datetime(2022,7,21,14,0)
 instruments = lfr.read('fx_pairs/fx_mains.txt')
 currencies = lfr.read('fx_pairs/currencies.txt')
 
-hablah = ForexSignalsAnchorBar(instruments)
+hablah = MeanReversionFFXS(instruments)
 
 signals = hablah.get_setups(start_date,end_date) #do same for filters?
 
+#lf = LambdaSelectFilter(lambda t : t.instrument in ['EUR/USD','USD/JPY','GBP/USD','AUD/NZD']) #select just a handful 
+#signals = lf.filter(signals)
 
 tdelta = end_date - start_date
 days_back = tdelta.days + 10 
@@ -117,8 +119,8 @@ print('filtered:')
 show_result_summary(filtered_signals)
 #print(result)
 
-corrs = np.array(csf._correlation_reports)
-print(np.mean(corrs,axis=0))
+#corrs = np.array(csf._correlation_reports)
+#print(np.mean(corrs,axis=0))
 
 
 

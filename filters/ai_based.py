@@ -41,6 +41,8 @@ class NewsFilter(TimelineTradeFilter):
 			article_rels[g] = [i for i in instruments if i in relevant]
 			
 			#pass #get relevance for each article (list of instruments) 
+		#rels = list(set([i for ii in article_rels.values() for i in ii]))
+		#pdb.set_trace() 
 		
 		trade2articles = {} 
 		for tg,ags in tgags.items():	

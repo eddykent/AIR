@@ -9,7 +9,7 @@ from setups.setups1 import BB_KC_RSI, ADX_EMA_RSI, HA_VWAP_RSI_DIVERGENCE
 from setups.custom_setups import Harmony
 from setups.simple_setups import ForexSignalsAnchorBar
 
-from filters.simple_filters import ForexSignalsAnchorBarFilter
+from filters.simple_filters import ForexSignalsAnchorBarFilter, RSIFilter
 from filters.time_based import EconomicCalendarFilter
 from filters.meta_based import ClientSentimentFilter
 
@@ -20,7 +20,7 @@ from backtest import BackTesterDatabase
 lfr = ListFileReader()
 
 
-start_date = datetime.datetime(2022,5,4,14,0)
+start_date = datetime.datetime(2022,7,4,14,0)
 end_date = datetime.datetime(2022,7,21,14,0)
 instruments = lfr.read('fx_pairs/fx_mains.txt')
 currencies = lfr.read('fx_pairs/currencies.txt')
@@ -45,8 +45,8 @@ with Database(cache=False,commit=False) as cursor:
 		'currencies':currencies,
 		'this_date':end_date,
 		'days_back':days_back,
-		#'chart_resolution':240,
-		#'candle_offset':120
+		'chart_resolution':240,
+		'candle_offset':120
 	})
 	#pdb.set_trace()
 	candle_result = composer.result(as_json=True)
@@ -75,13 +75,13 @@ with Database(cache=False,commit=False) as cursor:
 #available_instruments = [fx for fx in instruments if fx in candlestreams]
 
 
-#fsf = ForexSignalsAnchorBarFilter(filter_candle_block,available_instruments)
+#fsf = ForexSignalsAnchorBarFilter(filter_candle_streams,available_instruments,240)
 #ecf = EconomicCalendarFilter()
 
-pdb.set_trace()
-csf = ClientSentimentFilter(filter_candle_streams,available_instruments)
+rsf = RSIFilter(filter_candle_streams,available_instruments,240)
+#csf.set_chart_resolution(240)
 
-filtered_signals  = csf.filter(signals)
+filtered_signals  = rsf.filter(signals)
 cursor = Database(cache=False,commit=False)
 #now backtest
 btd = BackTesterDatabase(cursor)

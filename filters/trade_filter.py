@@ -31,6 +31,10 @@ class InstanceTradeFilter:
 class TimelineTradeFilter:
 	
 	expire = 360 #6 hours -anything after 6 hours can be considered forgotten. Can be changed for different things 
+	candle_length = None 
+	
+	def set_chart_resolution(self,cr):
+		self.candle_length = cr
 	
 	def filter(self,trades):
 		return [t for t in trades if self.check_instrument(t.instrument,t.direction,t.the_date)]
@@ -53,7 +57,8 @@ class IndicatorFilter(TimelineTradeFilter):  ##base this on an indicator so any 
 	
 	#results = None  #specific to what indicators are used 
 	
-	def __init__(self,candles,instruments): 
+	def __init__(self,candles,instruments,chart_resolution): 
+		self.set_chart_resolution(chart_resolution)
 		cs = CandleSticks()
 		cs.pass_instrument_names(instruments)
 		self.candle_streams = candles
@@ -73,8 +78,10 @@ class IndicatorFilter(TimelineTradeFilter):  ##base this on an indicator so any 
 	#def check_instrument(self,instrument,direction,the_date):
 	#	raise NotImplementedError('This method must be overridden')
 		
-	def _closest_time_index(self,the_date):
+	def _closest_time_index(self,the_date,offset=0):
+		#this needs to be modified to get the previous candle result - we dont have the full candle yet in backtesting 
 		timeline = self.timeline[:,0]
+		the_date = the_date - datetime.timedelta(minutes=self.candle_length) #use prev candle for pretty much every indicator
 		end_date = the_date 
 		start_date = the_date - datetime.timedelta(minutes=self.expire)
 		mask = (timeline >= start_date) & (timeline <= end_date)
@@ -107,7 +114,7 @@ class DataBasedFilter(TimelineTradeFilter):
 			self._instrument_map[i] = e
 
 
-	def _process_data_block(self,data):
+	def _process_data_block(self,data,select_function=None):
 		instruments = list(data[0][2].keys())
 		timeline = [] 
 		instruments = sorted(instruments)
@@ -121,12 +128,20 @@ class DataBasedFilter(TimelineTradeFilter):
 		
 		#make correlation block - instrument, timeline, {n_corr, std, up/down change}
 		block = [] 
-		for timestepdict in data:
-			block_items = [] 
-			timeline.append(timestepdict[0])
-			for inst in instruments:
-				block_items.append(self.process_data_piece(timestepdict[2][inst]))
-			block.append(block_items)
+		if select_function and callable(select_function):
+			for timestepdict in data:
+				block_items = [] 
+				timeline.append(timestepdict[0])
+				for inst in instruments:
+					block_items.append(select_function(timestepdict[2][inst]))
+				block.append(block_items)
+		else:
+			for timestepdict in data:
+				block_items = [] 
+				timeline.append(timestepdict[0])
+				for inst in instruments:
+					block_items.append(self.process_data_piece(timestepdict[2][inst]))
+				block.append(block_items)
 		
 		assert len(block), 'no data'
 		assert len(block[0]), 'no data' 

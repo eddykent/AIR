@@ -34,7 +34,7 @@ LogSetup() #think of how to rmeove this line
 
 #
 #from tests.heikinashi_test  import *
-from tests.setup_test import *
+#from tests.setup_test import *
 #from tests.logging_test import *
 #from tests.data_compose_test import *
 #from tests.data_compose_branch_test import *
@@ -63,7 +63,7 @@ from tests.setup_test import *
 
 
 #from tests.filter_tests import * 
-#from tests.ai_filter_tests import *
+from tests.ai_filter_tests import *
 #from tests.advanced_filter_tests import *
 
 
