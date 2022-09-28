@@ -1,6 +1,6 @@
 WITH trade_signals AS (
 	SELECT * FROM (VALUES 
-		('6be540c1-9a87-430b-aff1-180ae0d998eb','2022-07-05T10:00:00'::timestamp,'AUD/NZD','SELL',(1.10153),(NULL),(120),0.0037327500000003235,0.002488500000000216,1440),('693c2d84-7390-4f15-9206-702a66b8ba92','2022-06-16T01:15:00'::timestamp,'NZD/CHF','BUY',(0.63),(0.62594),(120),0.0058432499999999865,0.003895499999999991,1440),('e9997e27-b72b-4e01-903f-1685241d4f38','2022-06-28T03:00:00'::timestamp,'NZD/JPY','SELL',(85.044),(85.21),(120),0.26144999999999496,0.17429999999999665,1440),('59b8d39e-b5fb-4708-a851-dc9a42f4c60d','2022-07-07T23:00:00'::timestamp,'GBP/USD','BUY',(1.20333),(1.2017),(120),0.0022522500000000667,0.0015015000000000445,1440),('0abcca23-0f6f-4903-9e81-3529778d6793','2022-06-24T04:15:00'::timestamp,'GBP/AUD','BUY',(1.77994),(1.77729),(120),0.0041737500000000646,0.002782500000000043,1440),('f690bea3-e6bd-4f94-aaf7-55faa5b9841a','2022-06-29T14:45:00'::timestamp,'NZD/JPY','BUY',(85.22),(85.00040522295251),(120),0.2819250000000032,0.18795000000000214,1440),('44774bf2-1512-47bd-8b8a-248ab30049c5','2022-06-09T11:30:00'::timestamp,'NZD/JPY','SELL',(85.958),(86.151),(120),0.24570000000000933,0.16380000000000622,1440),('051f8c79-d3bf-4639-b0ff-b2d237887be0','2022-07-15T04:00:00'::timestamp,'EUR/JPY','BUY',(139.477),(139.29),(120),0.24727500000001684,0.16485000000001124,1440),('95fe83e3-7a35-4e4e-8431-df30188c4bc8','2022-07-04T14:00:00'::timestamp,'EUR/GBP','SELL',(0.8594),(0.86051),(120),0.0017482499999999122,0.0011654999999999415,1440),('16e399f8-9b1f-4a5f-866a-41ff7e2971e5','2022-06-28T09:00:00'::timestamp,'USD/JPY','BUY',(135.834),(135.61),(120),0.35279999999998357,0.23519999999998903,1440)
+		('6be540c1-9a87-430b-aff1-180ae0d998eb','2022-07-05T10:00:00'::timestamp,'AUD/NZD','SELL',(1.10153),(NULL),(120),0.0037327500000003235,0.002488500000000216,1440),('693c2d84-7390-4f15-9206-702a66b8ba92','2022-06-16T01:15:00'::timestamp,'NZD/CHF','BUY',NULL,(0.62594),(120),0.0058432499999999865,0.003895499999999991,1440),('e9997e27-b72b-4e01-903f-1685241d4f38','2022-06-28T03:00:00'::timestamp,'NZD/JPY','SELL',(85.044),(85.21),(120),0.26144999999999496,0.17429999999999665,1440),('59b8d39e-b5fb-4708-a851-dc9a42f4c60d','2022-07-07T23:00:00'::timestamp,'GBP/USD','BUY',(1.20333),(1.2017),(120),0.0022522500000000667,0.0015015000000000445,1440),('0abcca23-0f6f-4903-9e81-3529778d6793','2022-06-24T04:15:00'::timestamp,'GBP/AUD','BUY',(1.77994),(1.77729),(120),0.0041737500000000646,0.002782500000000043,1440),('f690bea3-e6bd-4f94-aaf7-55faa5b9841a','2022-06-29T14:45:00'::timestamp,'NZD/JPY','BUY',(85.22),(85.00040522295251),(120),0.2819250000000032,0.18795000000000214,1440),('44774bf2-1512-47bd-8b8a-248ab30049c5','2022-06-09T11:30:00'::timestamp,'NZD/JPY','SELL',(85.958),(86.151),(120),0.24570000000000933,0.16380000000000622,1440),('051f8c79-d3bf-4639-b0ff-b2d237887be0','2022-07-15T04:00:00'::timestamp,'EUR/JPY','BUY',(139.477),(139.29),(120),0.24727500000001684,0.16485000000001124,1440),('95fe83e3-7a35-4e4e-8431-df30188c4bc8','2022-07-04T14:00:00'::timestamp,'EUR/GBP','SELL',(0.8594),(0.86051),(120),0.0017482499999999122,0.0011654999999999415,1440),('16e399f8-9b1f-4a5f-866a-41ff7e2971e5','2022-06-28T09:00:00'::timestamp,'USD/JPY','BUY',(135.834),(135.61),(120),0.35279999999998357,0.23519999999998903,1440)
 	) AS ts(signal_id, the_date, instrument, direction, entry_price, entry_cutoff, entry_expiry, take_profit_difference, stop_loss_difference, duration)
 ),
 min_date AS (
@@ -29,8 +29,8 @@ trade_tracks_differences AS (
 	ts.instrument,
 	ts.direction,
 	ts.entry_price::DOUBLE PRECISION AS entry_price, --incase all are NULL
-	ts.entry_cutoff,
-	ts.the_date + (ts.entry_expiry || ' minutes')::INTERVAL AS entry_expiry,
+	ts.entry_cutoff::DOUBLE PRECISION AS entry_cutoff,
+	CASE WHEN ts.entry_expiry IS NULL THEN NULL ELSE ts.the_date + (ts.entry_expiry || ' minutes')::INTERVAL END AS entry_expiry,
 	ts.take_profit_difference,
 	ts.stop_loss_difference,
 	sc.open_price,
@@ -105,14 +105,14 @@ outcomes AS (
 	FROM crossed_entry 
 ),
 earliest_cutoffs_values AS (
-	SELECT DISTINCT ON (o.signal_id) o.*,   
-	CASE WHEN o.entry_expiry IS NULL THEN FALSE ELSE o.the_date > o.entry_expiry END AS entry_expired
+	SELECT DISTINCT ON (o.signal_id) o.*--,   
+	--CASE WHEN o.entry_expiry IS NULL THEN FALSE ELSE o.the_date > o.entry_expiry END AS entry_expired
 	FROM outcomes o WHERE cutoff_state = 0
 	ORDER BY o.signal_id, o.candle_index ASC 
 ),
 earliest_cutoffs_nulls AS (
-	SELECT DISTINCT ON (o.signal_id) o.*,   
-	FALSE AS entry_expired   --ADD back the never expired entries 
+	SELECT DISTINCT ON (o.signal_id) o.*--,   
+	--FALSE AS entry_expired   --ADD back the never expired entries 
 	FROM outcomes o WHERE cutoff_state = 2
 	ORDER BY o.signal_id, o.candle_index DESC
 ),
@@ -131,8 +131,8 @@ earliest_entries_calc AS (
 	OR (sp.direction = 'SELL' AND sp.take_profit_price > sp.stop_loss_price)	
 	AS unfit,  --SOME OF the non-entry_price signals might start outside OF their bounds. if they do then thery're unfit  
 	
-	--void calcuation here
-	ec.candle_index < sp.candle_index OR (sp.candle_index = ec.candle_index AND ec.entry_expired) AS isvoid
+	--void calcuation here  --how to add entry expiry date? 
+	ec.candle_index < sp.candle_index OR sp.the_date > sp.entry_expiry AS isvoid
 	
 	FROM outcomes sp 
 	JOIN earliest_cutoffs ec ON sp.signal_id = ec.signal_id 

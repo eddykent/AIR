@@ -29,8 +29,8 @@ trade_tracks_differences AS (
 	ts.instrument,
 	ts.direction,
 	ts.entry_price::DOUBLE PRECISION AS entry_price, --incase all are NULL
-	ts.entry_cutoff,
-	ts.the_date + (ts.entry_expiry || ' minutes')::INTERVAL AS entry_expiry,
+	ts.entry_cutoff::DOUBLE PRECISION AS entry_cutoff,
+	CASE WHEN ts.entry_expiry IS NULL THEN NULL ELSE ts.the_date + (ts.entry_expiry || ' minutes')::INTERVAL END AS entry_expiry,
 	ts.take_profit_difference,
 	ts.stop_loss_difference,
 	sc.open_price,
@@ -105,14 +105,14 @@ outcomes AS (
 	FROM crossed_entry 
 ),
 earliest_cutoffs_values AS (
-	SELECT DISTINCT ON (o.signal_id) o.*,   
-	CASE WHEN o.entry_expiry IS NULL THEN FALSE ELSE o.the_date > o.entry_expiry END AS entry_expired
+	SELECT DISTINCT ON (o.signal_id) o.*--,   
+	--CASE WHEN o.entry_expiry IS NULL THEN FALSE ELSE o.the_date > o.entry_expiry END AS entry_expired
 	FROM outcomes o WHERE cutoff_state = 0
 	ORDER BY o.signal_id, o.candle_index ASC 
 ),
 earliest_cutoffs_nulls AS (
-	SELECT DISTINCT ON (o.signal_id) o.*,   
-	FALSE AS entry_expired   --ADD back the never expired entries 
+	SELECT DISTINCT ON (o.signal_id) o.*--,   
+	--FALSE AS entry_expired   --ADD back the never expired entries 
 	FROM outcomes o WHERE cutoff_state = 2
 	ORDER BY o.signal_id, o.candle_index DESC
 ),
@@ -131,8 +131,8 @@ earliest_entries_calc AS (
 	OR (sp.direction = 'SELL' AND sp.take_profit_price > sp.stop_loss_price)	
 	AS unfit,  --SOME OF the non-entry_price signals might start outside OF their bounds. if they do then thery're unfit  
 	
-	--void calcuation here
-	ec.candle_index < sp.candle_index OR (sp.candle_index = ec.candle_index AND ec.entry_expired) AS isvoid
+	--void calcuation here  --how to add entry expiry date? 
+	ec.candle_index < sp.candle_index OR sp.the_date > sp.entry_expiry AS isvoid
 	
 	FROM outcomes sp 
 	JOIN earliest_cutoffs ec ON sp.signal_id = ec.signal_id 
