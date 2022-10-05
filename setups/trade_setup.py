@@ -10,7 +10,7 @@ import scipy.optimize
 import pdb
 
 from utils import ListFileReader, Database, DataComposer
-from utils import overrides#, deprecated
+from utils import overrides, deprecated
 import charting.chart_viewer as chv 
 from charting import candle_stick_functions as csf
 #from charting.chart_pattern import ChartPattern - unable to import any indicator related stuff here 
@@ -24,31 +24,46 @@ from setups.signal import *
 bullish = 0 
 bearish = 1
 
-def blank_result(candlesticks):
+def blank_result(trade_signalling_data):
 	candlesticksfnc = CandleSticks()
-	np_candles = candlesticksfnc.calculate_multiple(candlesticks)
+	np_candles = candlesticksfnc.calculate_multiple(trade_signalling_data.candlesticks)
 	result = np.full(np_candles.shape[0:2],None) #leave blank
 	return result, result
 
+#trade stop tools -- eg from ATR, std (something for harmonics) etc 
+class StopTool:	
+	
+	def get_stops(self,tradesignallingdata):
+		raise NotImplementedError('This method must be overridden')
+
+#used as default 
+class ATRStop(StopTool):
+	
+	tpm = 3
+	slm = 2
+	
+	def __init__(self,take_profit_mult=3,stop_loss_mult=2):
+		self.tpm = take_profit_mult 
+		self.slm = stop_loss_mult
+	
+	def get_stops(self,trade_signalling_data):
+		average_true_range = ATR()
+		average_true_range_values = average_true_range.calculate_multiple(trade_signalling_data.candlesticks) [:,:,0]
+		tp_distances = self.tpm * average_true_range_values
+		sl_distances = self.slm * average_true_range_values
+		return (tp_distances, tp_distances), (sl_distances, sl_distances) #a stop can be differnet values in diff directions 
+
+#more available at the bottom of this file 
+
 class TradeSetup:	#this not just an indicator - does not have calculate() etc. It is its own thing that finds trade signals 	
 	
-	timeframe = 15 #15 min chart by default
-	instruments = [] #what trading instruments are we interested in?
-	#criteria = [] #assume blank for now but we might be able to generalise the setup into criteria for use with auto calculating proquant style
-	currencies = []
 	grace_period = 10 #number of candles to go back to get an accurate reading at start_date
-	
-	_timeline = [] 
-	_available_instruments = []
-	
-	def __init__(self,instruments,timeframe=15):
-		self.timeframe = timeframe
-		self.instruments = instruments
-		lfr = ListFileReader()
-		self.currencies = lfr.read('fx_pairs/currencies.txt')
+	stop_calculator = ATRStop() #by default, all trade setups use ATR but for bespoke stops, we can create a new stop tool 
+	#and set this to an instance 
+	setup_name = None
 	
 	#by default, get the setups and turn to -1s and 1s?
-	def detect(self, candlesticks : list, extra : Optional[TradeSignalDataExtra] = None) -> np.array:# - for AI - 0s and 1s or similar delivered from  get_setups()
+	def detect(self, trade_signalling_data : TradeSignallingData) -> np.array:# - for AI - 0s and 1s or similar delivered from  get_setups()
 		"""
 		Generate a list of numbers (per instrument) between -1 and 1 where -1 is very bearish and 1 is very bullish with high confidence 
 		A value close to 0 has low confidence and might be best not to be used. 
@@ -73,69 +88,52 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		#even though a tradesetup generates trades on the timeframe, they can still be used as filters! just use this detect() method 
 		raise NotImplementedError('This method must be overridden') #use get_setups() ! 
 	
-	def get_entries(self,candlesticks,extra):
-		return blank_result(candlesticks)
-	
-	def get_tpsls(self,candlesticks, tpsl_tool=None, extra=None):
-		if tpsl_tool is not None:
-			return tpsl_tool.get_stops(extra)
-		return self.get_tpsls_specific(candlesticks,extra)
-		
-	
-	def get_tpsls_specific(self,candlesticks,extra=None):
-		#if there is no tool, defaul to 3,2 ATR
-		average_true_range = ATR()
-		average_true_range_values = average_true_range.calculate_multiple(candlesticks) [:,:,0]
-		tp_distances = 3 * average_true_range_values
-		sl_distances = 2 * average_true_range_values
-		return (tp_distances, tp_distances), (sl_distances, sl_distances)  # tp/sl can be differnt in different directions
+	def get_entries(self, trade_signalling_data):
+		return blank_result(trade_signalling_data)
 		
 	#def get_setups_and_confidence(self,start_date,end_date): # perhaps worth thinking about later
 	
-	def get_entry_cuts(self,candlesticks,extra=None):	
-		return blank_result(candlesticks)
+	def get_entry_cuts(self, trade_signalling_data, extra=None):	
+		return blank_result(trade_signalling_data)
 	
 	def get_name(self):
-		return self.__class__.__name__
+		return self.__class__.__name__ if self.setup_name is None else self.setup_name 
 	
-	def get_setups(self,start_date : datetime, end_date : datetime) -> List[TradeSignal]:
+	def get_setups(self, trade_signalling_data : TradeSignallingData) -> List[TradeSignal]:
 		"""
 		Generate a set of trade signals from this setup generator
 		
 		Parameters
 		---------
-		start_date : datetime 
-			The date in which to start looking for setups 
-		end_date : datetime 
-			The date in which to end looking for setups 
+		trade_signalling_data : TradeSignallingData 
+			A bundle of data that is used + grown to create the signals 
 		
 		Returns:
 		-------
 		list(TradeSignal) 
 			A bunch of trade signals that were found in the date range 
 		"""
-		extra = TradeSignalDataExtra()
-		extra.start_date = start_date
-		extra.end_date = end_date 
-		extra.name = self.get_name()
-		candlesticks, extra.instruments = self.get_candlesticks(start_date,end_date,block=True)
-		extra.timeline = self.get_timeline(candlesticks)
-		extra.signals = self.detect(candlesticks,extra=extra)
-		extra.entries = self.get_entries(candlesticks,extra=extra)
-		extra.entry_cuts = self.get_entry_cuts(candlesticks,extra=extra)
-		extra.take_profit_distances, extra.stop_loss_distances = self.get_tpsls(candlesticks,extra=extra)
+		trade_signalling_data.name = self.get_name()
+		trade_signalling_data.bullish.signals, trade_signalling_data.bearish.signals = self.detect(trade_signalling_data)
+		trade_signalling_data.bullish.entries, trade_signalling_data.bearish.entries = self.get_entries(trade_signalling_data)
+		trade_signalling_data.bullish.entry_cuts,trade_signalling_data.bearish.entry_cuts = self.get_entry_cuts(trade_signalling_data)
+		(bullish_tp, bearish_tp), (bullish_sl, bearish_sl) = self.stop_calculator.get_stops(trade_signalling_data)
+		trade_signalling_data.bullish.take_profit_distances = bullish_tp
+		trade_signalling_data.bearish.take_profit_distances = bearish_tp  
+		trade_signalling_data.bullish.stop_loss_distances = bullish_sl
+		trade_signalling_data.bearish.stop_loss_distances = bearish_sl
 		
 		#asserts here? 
 		
-		return self.make_trade_signals(extra)
+		return self.make_trade_signals(trade_signalling_data)
 		
 	
 	def make_trade_signals(self,signal_data_extra):	
 		trade_signals = []
 		
 		#export these? would be much faster for any further computation such as filtering...
-		buy_coords = np.stack(np.where(signal_data_extra.signals[bullish]),axis=1)
-		sell_coords = np.stack(np.where(signal_data_extra.signals[bearish]),axis=1)
+		buy_coords = np.stack(np.where(signal_data_extra.bullish.signals),axis=1)
+		sell_coords = np.stack(np.where(signal_data_extra.bearish.signals),axis=1)
 		
 		strategy_ref = signal_data_extra.name if signal_data_extra.name else 'Please set the name to this setup to something more meaningful!' 
 		
@@ -147,10 +145,10 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 			instrument = signal_data_extra.instruments[instrument_index]
 			the_date = signal_data_extra.timeline[timeline_index]
 			direction = TradeDirection.BUY
-			entry = signal_data_extra.entries[bullish][instrument_index,timeline_index]  
-			entry_cut = signal_data_extra.entry_cuts[bullish][instrument_index,timeline_index]  
-			take_profit_distance = signal_data_extra.take_profit_distances[bullish][instrument_index,timeline_index]
-			stop_loss_distance = signal_data_extra.stop_loss_distances[bullish][instrument_index,timeline_index]
+			entry = signal_data_extra.bullish.entries[instrument_index,timeline_index]  
+			entry_cut = signal_data_extra.bullish.entry_cuts[instrument_index,timeline_index]  
+			take_profit_distance = signal_data_extra.bullish.take_profit_distances[instrument_index,timeline_index]
+			stop_loss_distance = signal_data_extra.bullish.stop_loss_distances[instrument_index,timeline_index]
 			ts = TradeSignal.from_full(the_date,instrument,strategy_ref,direction,entry,entry_cut,entry_expire,take_profit_distance,stop_loss_distance)
 			trade_signals.append(ts)
 		
@@ -160,15 +158,16 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 			instrument = signal_data_extra.instruments[instrument_index]
 			the_date = signal_data_extra.timeline[timeline_index]
 			direction = TradeDirection.SELL
-			entry = signal_data_extra.entries[bearish][instrument_index,timeline_index]  
-			entry_cut = signal_data_extra.entry_cuts[bearish][instrument_index,timeline_index]  
-			take_profit_distance = signal_data_extra.take_profit_distances[bearish][instrument_index,timeline_index]
-			stop_loss_distance = signal_data_extra.stop_loss_distances[bearish][instrument_index,timeline_index]
+			entry = signal_data_extra.bearish.entries[instrument_index,timeline_index]  
+			entry_cut = signal_data_extra.bearish.entry_cuts[instrument_index,timeline_index]  
+			take_profit_distance = signal_data_extra.bearish.take_profit_distances[instrument_index,timeline_index]
+			stop_loss_distance = signal_data_extra.bearish.stop_loss_distances[instrument_index,timeline_index]
 			ts = TradeSignal.from_full(the_date,instrument,strategy_ref,direction,entry,entry_cut,entry_expire,take_profit_distance,stop_loss_distance)
 			trade_signals.append(ts)
 		
 		return trade_signals
-		
+	
+	@deprecated
 	def get_latest(self,age_limit : int = 240) -> List[TradeSignal]: #- for signals right now (short cut to not call for a backtest) 
 		"""
 		Generate a set of trade signals from this setup generator, returning only the latest trades per instrument
@@ -184,7 +183,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		return self.get_setups(start_date,end_date)
 	
 	#method similar to indicator, but this should show a bunch of signals instead & run a separate drawing tool for the underlying indicators etc used 
-	def draw_snapshot(self,start_date : datetime, end_date :datetime, trade_signal : TradeSignal = None) -> chv.ChartView: #-add all chart views together. Consider what to do with start_date and end_date  
+	def draw_snapshot(self,trade_signalling_data : TradeSignallingData) -> chv.ChartView: #-add all chart views together. Consider what to do with start_date and end_date  
 		"""
 		Generate a ChartView object that can be plotted and looked at for inspecting the signals generated from this setup.
 		All of  the indicators etc used should be plotted on this chart in this method. Start and end dates are needed to 
@@ -206,21 +205,10 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 			A chart view object of the drawing of this indicator 		"""
 		raise NotImplementedError('This method must be overridden')  #--incorrect? this needs to return a chart view with the trading rectangle 
 	
-	def get_days_back(self, start_date,end_date):
-		mins_in_day = 1440 
-		mins_before_start = self.timeframe * self.grace_period 
-		delta = end_date - start_date
-		days_back = delta.days + 1
-		days_back += int(mins_before_start / mins_in_day) + 1
-		days_back += int(delta.days/7) * 2   #buffer period 
-		days_back += 2
-		return days_back
-	
-	def get_timeline(self,candlesticks):
-		return candlesticks[0,:,-1] #1d
 		
-		
-	def get_initial_data(self,candlesticks,chartbase,mask=None,return_flat=None,return_np_candles=True):
+	#caching tool - not needed here
+	@deprecated
+	def get_initial_data(self,chartbase,mask=None,return_flat=None,return_np_candles=True):
 		np_candles, timeline = chartbase._construct(candlesticks)
 		init_dict = chartbase.get_initial_data(np_candles,mask,return_flat)
 		if return_np_candles:
@@ -228,6 +216,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		return init_dict
 		
 	#this is in the wrong place 
+	@deprecated
 	def get_candlesticks(self,start_date,end_date,block=False,volumes=False,query_params={}):
 		days_back = self.get_days_back(start_date,end_date)
 		candle_result = None
@@ -252,7 +241,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 
 	
 	
-	#@deprecated
+	@deprecated
 	def get_candlestick_data(self,start_date,end_date,block=False,query_params={}):
 		candles = []
 		
@@ -280,64 +269,8 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 			candles = candle_block
 		return candles, instruments
 	
-	
-	#def get_data() #take in instruments, start and end date, volumes or not, extra query params? ) -> fucking data like above -> return candlesticks and available_instruments
-			
-	#refactor into an ATR setup tool - deprecate
-	def generate_using_atr(self,candlesticks,available_instruments,start_date,buy_signals,sell_signals,tp_factor=5,sl_factor=3):
-		from indicators.volatility import ATR
-		from indicators.indicator import Typical
-		timeline = self.get_timeline(candlesticks)
-		
-		#need to set up the TP and SL values! 
-		average_true_range = ATR() #use for setting TP and SL - perhaps pull this into its own function 
-		average_true_range_values = average_true_range.calculate_multiple(candlesticks)
-		
-		tp_distances = tp_factor * average_true_range_values[:,:,0]
-		sl_distances = sl_factor * average_true_range_values[:,:,0]
 
-		typical = Typical()
-		typical_values = typical.calculate_multiple(candlesticks) #could be used for entry?
-		entry_prices = typical_values[:,:,0]
-		
-		trade_signals = []
-		
-		#export these? would be much faster for any further computation such as filtering...
-		buy_coords = np.stack(np.where(buy_signals),axis=1)
-		sell_coords = np.stack(np.where(sell_signals),axis=1)
-		
-		#now build the signals!  --could go in its own function?
-		for (instrument_index,timeline_index) in buy_coords:
-			if timeline[timeline_index] < start_date:
-				continue
-			the_date = timeline[timeline_index]
-			instrument = available_instruments[instrument_index]
-			strategy_ref = self.__class__.__name__
-			direction = TradeDirection.BUY
-			entry = None #consider entry_prices[instrument_index,timeline_index]
-			take_profit_distance = tp_distances[instrument_index,timeline_index]
-			stop_loss_distance = sl_distances[instrument_index,timeline_index]
-			
-			ts = TradeSignal.from_full(the_date,instrument,strategy_ref,direction,entry,take_profit_distance,stop_loss_distance)
-			trade_signals.append(ts)
-		
-		for (instrument_index,timeline_index) in sell_coords:
-			if timeline[timeline_index] < start_date:
-				continue
-			the_date = timeline[timeline_index]
-			instrument = available_instruments[instrument_index]
-			strategy_ref = self.__class__.__name__
-			direction = TradeDirection.SELL
-			entry = None #consider entry_prices[instrument_index,timeline_index]
-			take_profit_distance = tp_distances[instrument_index,timeline_index]
-			stop_loss_distance = sl_distances[instrument_index,timeline_index]
-			
-			ts = TradeSignal.from_full(the_date,instrument,strategy_ref,direction,entry,take_profit_distance,stop_loss_distance)
-			trade_signals.append(ts)
-		
-		return trade_signals
-
-#divergence tools - check this for lookahead bias 
+#divergence tool - check this for lookahead bias 
 class MomentumDivergenceTool:
 	
 	signal1 = None #usually typical price action
@@ -409,6 +342,7 @@ class MomentumDivergenceTool:
 	#		wheres = (nums2 - self.hill_tolerance >= n) & (nums2 + self.hill_tolerance <= n)
 	#		close2s = nums2[wheres]
 
+#strategy tools? 
 #tool used for when we only want to get signals when a detection has gone from 0 to 1 
 class Zero2OneTool:
 	
@@ -421,18 +355,80 @@ class Zero2OneTool:
 					result[i,j+1] = True 
 		return result 
 
+class CandleDataTool: 
+	
+	volumes = False 
+	instruments = [] 
+	chart_resolution = 15
+	candle_offset = 0 
+	end_date = datetime.now()
+	grace_period = 50 
+	start_date =  datetime.now()#startdate is 
+	
+	_candlesticks = None  #data to be read 
+	_instruments = None 
+	_np_candles = None 
+	_timeline = None 
+	
+	def __get_days_back(self, grace_period): #n candlesticks to be useful and have RSI setup or whatever 
+		mins_in_day = 1440 
+		mins_before_start = self.chart_resolution * grace_period 
+		delta = self.end_date - self.start_date
+		days_back = delta.days + 1
+		days_back += int(mins_before_start / mins_in_day) + 1
+		days_back += int(delta.days/7) * 2   #buffer period 
+		days_back += 2
+		return days_back
+	
+	def read_data_from_currencies(self,currencies,grace_period = 50):  #add soon for from instruments 
+		
+		days_back = self.__get_days_back(grace_period)
+	
+		with Database(cache=False,commit=False) as cursor:
+			composer = DataComposer(cursor,True) #.candles(params).call()...
+			composer.call('get_candles'+('_volumes_' if self.volumes else '_') + 'from_currencies',{
+				'currencies':currencies,
+				'this_date':self.end_date,
+				'days_back':days_back,
+				'chart_resolution':self.chart_resolution,
+				'candle_offset':self.candle_offset
+			})
+			#pdb.set_trace()
+			candle_result = composer.result(as_json=True)
+			candlesticks = DataComposer.as_candles_volumes(candle_result,self.instruments) if self.volumes else DataComposer.as_candles(candle_result,self.instruments)
+			self._candlesticks = np.array([candlesticks[instr] for instr in self.instruments if candlesticks.get(instr)]) #always used a block 
+			self._instruments = [instr for instr in self.instruments if candlesticks.get(instr)]
+			candlesticks_pre = CandleSticks()
+			self._np_candles = candlesticks_pre.calculate_multiple(self._candlesticks)
+			self._timeline = candlesticks_pre.timeline[:,0] #this is a 2d array make it 1d
+			
+	
+	#use this to get a fresh TradeSignallingData that can be put into any setup
+	def get_trade_signalling_data(self):
+		
+		assert self._candlesticks is not None #these fail if the data has not been read 
+		assert self._np_candles is not None
+		assert self._timeline is not None
+		
+		tradesignallingdata = TradeSignallingData()
+		tradesignallingdata.start_date = self.start_date
+		tradesignallingdata.end_date = self.end_date
+		tradesignallingdata.instruments = self._instruments
+		tradesignallingdata.candlesticks = self._candlesticks 
+		tradesignallingdata.np_candles = self._np_candles
+		tradesignallingdata.timeline = self._timeline 
+		return tradesignallingdata
 
-#refactor - trade stop tools -- eg from ATR, std (something for harmonics) etc 
 
 
+#class SmudgeTool
+#class DelayTool
 
-##from instruments, timeline, bull/bear signals, bull/bear entries, sl and tp distances create a list of trade setups 
-#class EntryStopTool:
-#
-#	def GenerateTradeSetups(self,trade_signal_data):
-#		assert trade_signal_data.stop_loss_distances is not None , "Stop loss required here" 
+
+#class PipStop(StopTool): #needs to return an np array.. 
 #	
-
+#	def __init__(self,take_profit_pips=30,stop_loss_pips=20): 
+	
 
 
 

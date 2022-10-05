@@ -60,6 +60,10 @@ extend test_trades.sql or use another sql to test full tradesignal types
 	- report win/lose/finish percentage 
 	- return profit paths? -1 = stoploss 1 = takeprofit report path between 
 
+improve backtester - add expiry and cutoff prices
+- refactor setups to take an object of candlesticks (separate data from function)
+	-use signalling data as a class for taking in info & building signals
+
 pluralise fundamental.py to work with historic news articles and recent news articles so it can be used in backtesting 
 
 t212 handler - functions "query trades", "place trade", "get trade", "clear charts", "pull the plug" etc. keep journal of trades?
@@ -86,6 +90,11 @@ https://www.dukascopy.com/swiss/english/marketwatch/historical/   -historic clie
 sql functions for correlations (cross & auto) - still todo correlation function (for reporting)  
 
 perhaps refactor newsindicator - don't use an indicator with numpy, it is a filter thing
+
+
+
+
+
 
 BUGS:
 (FIXED)

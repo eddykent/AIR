@@ -108,15 +108,23 @@ class TradeSignal:
 #	we can buy and leave open x candles or until another trade hold signal has fired instead of having a TP or SL. 
 #	This is risky though and it is probably better to always use the TP and SL levels. 
 
-class TradeSignalDataExtra:
+#model classes for holding all info when generating a set of signals 
+class TradeSignallingPartial:
+	signals = [] 
+	entries = [] 
+	entry_cuts = []
+	take_profit_distances = [] 
+	stop_loss_distances = []
+	
+class TradeSignallingData:  #need to force this to break if attemping to set something that doesnt exist
 	instruments = None
 	timeline = None 
 	name = None
-	signals = [None, None]
-	entries = [None, None]
-	entry_cuts = [None, None]
-	stop_loss_distances = [None , None]
-	take_profit_distances = [None, None]
+	timeframe = 15 #default 
+	candlesticks = []
+	np_candles = None #np array of the candlesticks created when calculate_multiple is called. Useful for speeding stuff up later 
+	bullish = TradeSignallingPartial()
+	bearish = TradeSignallingPartial() 
 	
 
 

@@ -11,17 +11,14 @@ refactor currency strength nn to be of the same form as DataProvider etc
 	- find out what is still to do!
 
 
-refactor setups 
-	- data tools (get candles/instruments etc)  - SEPARATE?  
+refactor setups  
 	- init step for putting indicators/patterns onto self
 	- core signals func - -1, 0 and 1s 
 	- stop tools (atr/std etc) - take list of signals and hints to produce full signals 
 	- meta tools - divergence 
 	- drawing consists of list of TradeSignal and nothing else? 
 		-base yes, higher drawing functions can draw the underlying indicators if on candlesticks
-		-consider drawing any results from self? 
-	
-backtesting with entry cut off points 
+		-consider drawing any results from self?  
 
 SCREENING - candle stick scanner for candle stick patterns and chart patterns. Use to determine entry points
 	- candlestick patterns at high timeframes 
@@ -164,6 +161,8 @@ filters based on indicators may suffer from lookahead bias - they need to use th
 
 fxstreet archive does not read anymore 
 
+volumes not working correctly in CandleDataTool (attempt to run setup_test.py) 
+
 ONGOING: - stuff that might not ever have an end to it because it can always be made better
 fundamental stuff needs more testing to get it better - perhaps collecting results should be done by date not significance, and only use degree=1
 
@@ -182,3 +181,4 @@ add new styles to charts?:
 change charts to use datetime on x axis (removing weekends) - use values and dvalue
 
 grep/find things that should be config settings
+

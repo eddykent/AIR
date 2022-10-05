@@ -117,7 +117,8 @@ class BB_KC_RSI(TradeSetup):
 	
 	
 	@overrides(TradeSetup)
-	def detect(self, candlesticks, extra=None):
+	def detect(self, trade_signalling_data):
+		
 		self.relative_strength_index = RSI()
 		self.bollinger_bands = BollingerBands()
 		self.keltner_channel = KeltnerChannel()
@@ -125,6 +126,8 @@ class BB_KC_RSI(TradeSetup):
 		#parameter setups for each indicator
 		self.relative_strength_index.oversold = 0.3
 		self.relative_strength_index.overbought = 0.7
+		
+		candlesticks = trade_signalling_data.candlesticks
 		
 		rsi_values = self.relative_strength_index.calculate_multiple(candlesticks)  #missing 1! :/
 		bollinger_bands_values = self.bollinger_bands.calculate_multiple(candlesticks)
@@ -152,9 +155,6 @@ class BB_KC_RSI(TradeSetup):
 		buy_signals = bbukc & bblkc & rsi_buy     #refactor 
 		sell_signals = bbukc & bblkc & rsi_sell	
 		
-		if extra:
-			extra.name = self.__class__.__name__
-		
 		return buy_signals, sell_signals 
 
 #https://www.youtube.com/watch?v=vBM0imYSzxI
@@ -168,7 +168,7 @@ class ADX_EMA_RSI(TradeSetup):
 	#	super().__init__(*args,**kwargs)
 	
 	@overrides(TradeSetup)
-	def detect(self,candlesticks, extra=None):
+	def detect(self,trade_signalling_data):
 		adx = ADX()
 		rsi = RSI() 
 		ema = EMA() 
@@ -182,6 +182,8 @@ class ADX_EMA_RSI(TradeSetup):
 		
 		ema.period = 50
 		#ema.candle_channel = csf.close
+		
+		candlesticks = trade_signalling_data.candlesticks 
 		
 		adx_result = adx.calculate_multiple(candlesticks)
 		rsi_result = rsi.calculate_multiple(candlesticks)
@@ -200,8 +202,6 @@ class ADX_EMA_RSI(TradeSetup):
 		buy_signals = ema_buy & adx_filter & rsi_buy  #rafactgor
 		sell_signals = ema_sell & adx_filter & rsi_sell
 	
-		if extra:
-			extra.name = self.__class__.__name__
 		
 		return buy_signals, sell_signals
 		#return self.generate_using_atr(candlesticks,available_instruments,start_date,buy_signals,sell_signals,tp_factor=4,sl_factor=4)
@@ -213,17 +213,19 @@ class HA_VWAP_RSI_DIVERGENCE(TradeSetup):
 	grace_period = 50
 	
 	@overrides(TradeSetup)
-	def detect(self,candlesticks, extra = None):
+	def detect(self,trade_signalling_data):
 		
 		vwap = VWAPDaily()
 		heikinashi = HeikinAshi()
 		rsi = RSI()
 		typical = Typical()
 		
-		vw_result = vwap.calculate_multiple(candlesticks)
-		ha_result = heikinashi.calculate_multiple(candlesticks)
-		rsi_result = rsi.calculate_multiple(candlesticks)
-		typical_result = typical.calculate_multiple(candlesticks)
+		candlestickvolumes = trade_signalling_data.candlesticks
+		
+		vw_result = vwap.calculate_multiple(candlestickvolumes)
+		ha_result = heikinashi.calculate_multiple(candlestickvolumes)
+		rsi_result = rsi.calculate_multiple(candlestickvolumes)
+		typical_result = typical.calculate_multiple(candlestickvolumes)
 		
 		div_tool = MomentumDivergenceTool()
 		#config here
@@ -248,12 +250,7 @@ class HA_VWAP_RSI_DIVERGENCE(TradeSetup):
 		buy_signals = bullish_ha &  low_ha & div_b & vwap_b #  & div_b
 		sell_signals = bearish_ha & high_ha & div_s & vwap_s # & div_s
 		
-		if extra:
-			extra.name = self.__class__.__name__
-			
-		return buy_signals, sell_signals 
-		#return self.generate_using_atr(candlesticks,available_instruments,start_date,buy_signals,sell_signals,tp_factor=3,sl_factor=2)
-		
+		return buy_signals, sell_signals 		
 		
 		
 		
