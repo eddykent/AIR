@@ -73,7 +73,7 @@ for filename in tqdm(csv_files):
 	
 	sql_rows = [] 
 	csv_batches = [csv_data[i:i+batch_size] for i in range(0,len(csv_data),batch_size)]
-	for csv_batch in tqdm(csv_batches):
+	for csv_batch in tqdm(csv_batches,leave=False):
 		with Database(cache=False,commit=True) as cursor:
 			for csv_row in csv_batch:
 				volume_str = csv_row['Volume']
