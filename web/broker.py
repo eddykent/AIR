@@ -10,7 +10,7 @@ import time
 import pdb
 
 
-from setups import TradeSignal, TradeDirection
+from setups.signal import TradeSignal, TradeDirection
 from web.crawler import Keys, By, SeleniumHandler, ElementClickInterceptedException, XPathNavigator
 from utils import overrides, Configuration, Database, TimeHandler
 
