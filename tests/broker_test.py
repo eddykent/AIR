@@ -8,7 +8,7 @@ from web.broker import Trading212
 from web.crawler import SeleniumHandler
 
 
-from setups import TradeSignal, TradeDirection
+from setups.trade_setup import TradeSignal, TradeDirection
 
 instrument_eurusd = []
 instrument_eurgbp = []
@@ -24,11 +24,11 @@ trade_info = []
 signal = TradeSignal()
 signal.the_date = datetime.datetime.now()
 signal.strategy = 'testing bot' 
-signal.instrument = 'EUR/USD'  
+signal.instrument = 'GBP/USD'  
 signal.direction = TradeDirection.BUY 
-signal.entry = None#1.11 #the entry price to start 
-signal.take_profit_distance = 0.03
-signal.stop_loss_distance = 0.015
+signal.entry = None #the entry price to start 
+signal.take_profit_distance = 0.003 
+signal.stop_loss_distance = 0.002
 signal.length = 1440 #1440 minutes in 24 hours
 
 
@@ -50,13 +50,13 @@ with SeleniumHandler(hidden=False) as sh:
 	#trade_info = t212.get_historic_trades([trade_id1,missing_id,trade_id2])
 	
 	#print('opening trade')
-	#succ, trade_position_id = t212.place_trade(signal,1000)
+	succ, trade_position_id = t212.place_trade(signal,1000)
 	#pending_trades = t212.get_pending_trades()
 	#closing 
 	#
 	#print('close trade')
 	#t212.close_trade('POS897104712')
-	t212.update_trade('POS897104785',new_tp,new_sl)
+	#t212.update_trade('POS897104785',new_tp,new_sl)
 	pdb.set_trace()
 	
 	print("reached here without breaking!")
