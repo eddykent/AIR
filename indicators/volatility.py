@@ -23,6 +23,10 @@ class BollingerBands(Indicator):
 	channel_keys = {'MIDDLE':0,'UPPER':1,'LOWER':2} #etc
 	channel_styles = {'MIDDLE':'bullish','UPPER':'bearish','LOWER':'bearish'}
 	candle_sticks = True
+	
+	candle_channel = csf.close
+	
+	period = 20
 	k = 2
 	
 	@overrides(Indicator)
@@ -32,6 +36,8 @@ class BollingerBands(Indicator):
 		std = STDDEV() 
 		sma.period = self.period
 		std.period = self.period
+		sma.candle_channel = self.candle_channel
+		std.candle_channel = self.candle_channel
 		
 		smas = sma._perform(candles)
 		stds = std._perform(candles)
