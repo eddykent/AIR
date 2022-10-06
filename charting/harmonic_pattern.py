@@ -39,7 +39,7 @@ class HarmonicPattern(ChartPattern): #uses XABCD
 	
 	harmonic_rules = [] #fill in subclasses! 
 	
-	def _test_shape(self,xabcds):  #sign might not matter. should be abstract but use bat for now 
+	def _test_shapes(self,xabcds):  
 				
 		rule_pieces = [np.full((xabcds.shape[0],),True)]
 		for rule in self.harmonic_rules:
@@ -60,7 +60,7 @@ class HarmonicPattern(ChartPattern): #uses XABCD
 	def _chart_perform(self, xtreme_windows, breakout_windows, x_start_pos):
 		xabcds_xvt = self._get_xabcds(xtreme_windows,breakout_windows,x_start_pos)
 		xabcds = xabcds_xvt[:,:,1]
-		shape_pass = self._test_shape(xabcds)
+		shape_pass = self._test_shapes(xabcds)
 		bullish = xabcds[:,0] < xabcds[:,1] #simply, if X is below A, then it must be a bullish pattern
 		bearish = xabcds[:,0] > xabcds[:,1]
 		bias = np.full((xtreme_windows.shape[0],),0).astype(np.float)
@@ -85,7 +85,7 @@ class HarmonicPattern(ChartPattern): #uses XABCD
 		
 		#determine direction with first x in xabcd, determine if it is indeed the pattern 
 		xabcds_xvt = self._get_xabcds(xtreme_windows,breakout_windows,x_positions)
-		shape_pass = self._test_shape(xabcds_xvt[:,:,1])
+		shape_pass = self._test_shapes(xabcds_xvt[:,:,1])
 		
 		this_view = chv.ChartView()
 		for xabcd_xvt in xabcds_xvt[np.where(shape_pass)]:
