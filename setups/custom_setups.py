@@ -23,8 +23,8 @@ class Harmony(TradeSetup):
 		super().__init__(*args,**kwargs)
 	
 	@overrides(TradeSetup) 
-	def get_setups(self,start_date,end_date):
-		candleblock, self.instruments = self.get_candlestick_data(start_date,end_date,block=True)
+	def get_setups(self,start_date,end_date):  
+		candleblock, self.instruments = self.get_candlestick_data(start_date,end_date,block=True) #USE trade_signalling_data
 		timeline = self.get_timeline(candleblock)
 		result_shape = (candleblock.shape[0],candleblock.shape[1],len(self.orders), len(self.harmonics)) #1 for the 0th summary value (-1,0 or 1) 
 		result_array = np.full(result_shape,0)
