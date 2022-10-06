@@ -30,6 +30,8 @@ def overrides(interface_class):
         return method
     return overrider
 
+from deprecation import deprecated
+
 
 #turn type saftey on and off - useful for ensuring we get the correct type everywhere
 class TypeSafe:
@@ -1187,9 +1189,14 @@ class PipHandler:
 			log.error(instrument + ' not recognised!')
 		return self.pip_map[instrument] * pips 
 	
+	def movement_to_pips(self, instrument, movement):
+		if instrument not in self.pip_map:
+			log.error(instrument + ' not recognised!')
+		return movement / self.pip_map[instrument]
+	
 	pips2move = pips_to_movement
-#PipHandler.pips2move = PipHandler.pips_to_movement	
-		
+	move2pips = movement_to_pips
+
 		
 #class to handle splitting our data up into training and testing sets
 #also select the actual data we want to use in the neural net (instruments and keys)

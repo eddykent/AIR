@@ -148,7 +148,7 @@ filters based on indicators may suffer from lookahead bias - they need to use th
 
 fxstreet archive does not read anymore 
 
-volumes not working correctly in CandleDataTool (attempt to run setup_test.py) 
+dukascopy web scraper hangs on some stuff when inputting instrument
 
 ONGOING: - stuff that might not ever have an end to it because it can always be made better
 fundamental stuff needs more testing to get it better 

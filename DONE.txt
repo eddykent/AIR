@@ -91,7 +91,7 @@ sql functions for correlations (cross & auto) - still todo correlation function 
 
 perhaps refactor newsindicator - don't use an indicator with numpy, it is a filter thing
 
-
+pip to price conversion tool 
 
 
 

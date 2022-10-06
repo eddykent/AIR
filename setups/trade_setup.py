@@ -9,7 +9,7 @@ import scipy.optimize
 
 import pdb
 
-from utils import ListFileReader, Database, DataComposer
+from utils import ListFileReader, Database, DataComposer, PipHandler
 from utils import overrides, deprecated
 import charting.chart_viewer as chv 
 from charting import candle_stick_functions as csf
@@ -425,10 +425,27 @@ class CandleDataTool:
 #class DelayTool
 
 
-#class PipStop(StopTool): #needs to return an np array.. 
-#	
-#	def __init__(self,take_profit_pips=30,stop_loss_pips=20): 
+class PipStop(StopTool): #needs to return an np array.. 
 	
+	tpp = 30
+	slp = 20 
+	pip_handler = None 
+	
+	def __init__(self,take_profit_pips=30,stop_loss_pips=20,pips_file=None): 
+		self.tpp = take_profit_pips
+		self.slp = stop_loss_pips
+		self.pip_handler = PipHandler(pips_file) if pips_file is not None else PipHandler() 
+	
+	def get_stops(self,trade_signalling_data):
+		#pip_distances = [self.pip_handler.pip_map[inst] for inst in instrument else np.nan]  #ideally?
+		unitpiplen = [self.pip_handler.pips2move(inst,1) for inst in trade_signalling_data.instruments]
+		
+		assert trade_signalling_data.np_candles.shape[0] == len(unitpiplen)
+		
+		candle_stream_length = trade_signalling_data.np_candles.shape[1]
+		pip_distances = np.transpose(np.array([unitpiplen]*candle_stream_length))
+		
+		return (pip_distances * self.tpp, pip_distances * self.tpp), (pip_distances * self.slp, pip_distances * self.slp)  
 
 
 
