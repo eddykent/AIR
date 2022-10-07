@@ -57,7 +57,10 @@ class HarmonicPattern(ChartPattern): #uses XABCD
 		return np.all(rule_outputs,axis=1) #check
 	
 	@overrides(ChartPattern)
-	def _chart_perform(self, xtreme_windows, breakout_windows, x_start_pos):
+	def _chart_perform(self, xtreme_bundle):
+		xtreme_windows = xtreme_bundle.xtreme_windows
+		breakout_windows = xtreme_bundle.breakout_windows
+		x_start_pos = xtreme_bundle.x_start_positions
 		xabcds_xvt = self._get_xabcds(xtreme_windows,breakout_windows,x_start_pos)
 		xabcds = xabcds_xvt[:,:,1]
 		shape_pass = self._test_shapes(xabcds)

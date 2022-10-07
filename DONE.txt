@@ -35,6 +35,9 @@ Extend trades to be able to have entry, stop loss and take profit price values -
 have a TradeSignal class which is much nicer! 
 
 
+refactor chart_pattern to use a XtremeWindowBundle that is passed to chart_perform 
+	- remove cache hell by also having a _bundle_perform function that takes an XtremeWindowBundle and returns same as _perform
+
 match pattern - create a "needle" from current chart and then search all 
 charts for same shape (normalise and use mse) to get what other charts did. then compile
 results into a nice snapshot to seee many lines from that point 

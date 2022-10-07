@@ -14,7 +14,11 @@ from utils import overrides
 
 from charting.chart_pattern import ChartPattern
 
+#detection: breakouts (when going over a trendline) and retests (when going near a trendline). 
+#breakouts may need confirmation
+#retests should be on trendlines that are far apart and not sloped too much in same direction (eg sell on downward wedge..) 
 
+#pluralise over many trend patterns? or use cache?
 class TrendPattern(ChartPattern):
 	#put any global stuff in here to do with the trending stuff 
 	
@@ -75,19 +79,23 @@ class TrendPattern(ChartPattern):
 			x1,y1,x2,y2,_ = minline
 			chv_minline = chv.Line(x1,y1,x2,y2)
 			
-			this_view.draw('trends bearish lines',chv_maxline)
+			this_view.draw('trends bullish lines',chv_maxline)
 			this_view.draw('trends bearish lines',chv_minline)
 		
 		return this_view
 	
 	@overrides(ChartPattern)
-	def _chart_perform(self,xtreme_windows,breakout_windows,x_start_pos):
+	def _chart_perform(self,xtreme_bundle):
+		xtreme_windows = xtreme_bundle.xtreme_windows
+		breakout_windows = xtreme_bundle.breakout_windows
+		x_start_pos = xtreme_bundle.x_start_positions
+		
 		maxs, mins = self.tops_bottoms(xtreme_windows)
 		maxlines = self._find_boundary_trends(maxs[:,::-1,:],True)
 		minlines = self._find_boundary_trends(mins[:,::-1,:],False)
 		
 		#check last breakout candle if it is above/below the trendlines 
-		pdb.set_trace()
+		#pdb.set_trace()
 		after_max_lines = tlf.projection(maxlines,x_start_pos + self._breakout_candles -1)
 		after_min_lines = tlf.projection(minlines,x_start_pos + self._breakout_candles -1)
 		
@@ -98,10 +106,11 @@ class TrendPattern(ChartPattern):
 		#simple for now, more later 
 		last_close = breakout_windows[:,-1,csf.close]
 		
-		result = np.zeros((xtreme_windows.shape[0], 4))
-		result[last_close > after_maxs,0] = (last_close - after_maxs)[last_close > after_maxs]
-		result[last_close < after_mins,1] = (after_mins - last_close)[last_close < after_mins]
-		result[:,2] = maxlines[:,4]
+		result = np.zeros((xtreme_windows.shape[0], 5))
+		
+		result[last_close > after_maxs,1] = (last_close - after_maxs)[last_close > after_maxs]
+		result[last_close < after_mins,2] = (after_mins - last_close)[last_close < after_mins]
+		result[:,2] = maxlines[:,3]
 		result[:,3] = minlines[:,4]
 		#print('got trendlines?')
 		
@@ -110,7 +119,8 @@ class TrendPattern(ChartPattern):
 	#function for telling if this is a correct pattern or not. 
 	def _constraints(self,np_results):
 		return np_results	#return everything as there is no constraints on the generic pattern 
-
+	
+	#def bottom_line(self,maxlines,minlines,)?
 
 #wedges too? 
 class SymmetricTriangle(TrendPattern): #is this ONLY symmetricals? use as base for triangulars?

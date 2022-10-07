@@ -18,7 +18,23 @@ log = logging.getLogger(__name__)
 
 
 
-from utils import overrides
+from utils import overrides, deprecated
+
+
+class XtremeWindowBundle:	
+	required_candles = 0
+	xtreme_degree = 1
+	order = 1
+	breakout_candles  = 0
+	xtreme_windows = []
+	window_map = []
+	np_candles = []
+	breakout_windows = []
+	x_start_positions = []
+	mask = []
+	
+#class XtremeWindowBundleConstructor: #if we use a chart pattern, we can override some of the settings so it is easier
+	
 
 #similar to the candle stick pattern - but we want to take note of all the extreme points first before sliding
 # and perhaps other things like curve fits or something else that is done globally across the whole dataset, not
@@ -38,13 +54,13 @@ class ChartPattern(Indicator):
 	
 	#_breakout_offset = 2 #how many steps forward/back to go to place the breakout candles 
 	
-	
+	#function
 	_precandles = None #use if you want to use an indicator to create the initial candles (eg typical or high/low prices or even ema) 
 	
 	#precalculated values 
 	_window_index = None 
-	_use_cache = False
-	_cache_dict = {} #bundle for getting the 
+	#_use_cache = False
+	#_cache_dict = {} #bundle for getting the 
 	
 	#@overrides(Indicator)
 	def explain(self):
@@ -54,64 +70,24 @@ class ChartPattern(Indicator):
 		"""
 	
 	
-	#in ChartPattern classes, they all use the same 
-	def get_initial_data(self,np_candles,mask=None,return_flat=False):
-	
-		xtreme_windows, window_map = self._generate_xtreme_windows(np_candles,mask,self._xtreme_degree,self._precandles)
-		breakout_windows = self._get_breakout_windows(np_candles,mask,self._precandles)
-		x_start_positions = self._get_x_positions(np_candles,mask)
-		
-		return {
-			'_required_candles':self._required_candles,
-			'_xtreme_degree':self._xtreme_degree,
-			'_order':self._order,
-			'_breakout_candles':self._breakout_candles,
-			'xtreme_windows':xtreme_windows,
-			'window_map':window_map,
-			'breakout_windows':breakout_windows, 
-			'x_start_positions':x_start_positions,
-			'mask':mask,
-			'return_flat':return_flat
-		}
-		
-	
-	def set_cache_data(self,data_bundle,set_members=True):
-		
-		assert type(data_bundle) == dict,"Cache bundle must be a dict"
-		assert_checks = ['xtreme_windows','window_map','breakout_windows','x_start_positions']
-		for key in assert_checks:
-			assert key in data_bundle, f"cache is missing {key}"
-		
-		#set members 
-		self._cache_dict = data_bundle
-		if set_members:
-			self._required_candles = data_bundle.get('_required_candles',self._required_candles)
-			self._xtreme_degree = data_bundle.get('_xtreme_degree',self._xtreme_degree)
-			self._order = data_bundle.get('_order',self._order)
-			self._breakout_candles = data_bundle.get('_breakout_candles',self._breakout_candles)
-		
-		self._use_cache = True
-	
 	@overrides(Indicator)    
 	def _perform(self,np_candles,mask=None,return_flat=False):   #allow for caching / inserting the extreme points or something so other chart patterns can be initalised with 1 dataset
-		#xtreme_windows, breakout_windows, x_start_positions = None,None,None
-		if self._use_cache:   #perhaps refactor into separate method eg cache_perform() 
-			xtreme_windows = self._cache_dict['xtreme_windows']
-			window_map = self._cache_dict['window_map']
-			breakout_windows = self._cache_dict['breakout_windows']
-			x_start_positions = self._cache_dict['x_start_positions']
-			mask = self._cache_dict.get('mask',mask)
-			return_flat = self._cache_dict.get('return_flat',return_flat)
-			
-		else:
-			initial_data = self.get_initial_data(np_candles,mask,return_flat)
-			xtreme_windows = initial_data['xtreme_windows']
-			window_map = initial_data['window_map']
-			breakout_windows = initial_data['breakout_windows']
-			x_start_positions = initial_data['x_start_positions']
-			
+		xtreme_bundle = self.get_xtreme_window_bundle(np_candles,mask)
+		return self._bundle_perform(xtreme_bundle,return_flat)
+	
+	
+	def _bundle_perform(self,xtreme_bundle,return_flat):
 		
-		chart_result = self._chart_perform(xtreme_windows, breakout_windows, x_start_positions) 
+		#check settings? check what ones are needed to not change structure/break etc 
+		assert self._order == xtreme_bundle.order
+		assert self._breakout_candles == xtreme_bundle.breakout_candles
+		assert self._xtreme_degree == xtreme_bundle.xtreme_degree
+		assert self._required_candles == xtreme_bundle.required_candles
+	
+		chart_result = self._chart_perform(xtreme_bundle) 
+		
+		window_map = xtreme_bundle.window_map 
+		np_candles = xtreme_bundle.np_candles
 		
 		if return_flat:
 			return np.concatenate([window_map,chart_result],axis=1) #return the flat list of the results we have 
@@ -131,11 +107,26 @@ class ChartPattern(Indicator):
 		padding = np.zeros((pad_height,pad_len,pad_depth))
 		
 		return np.concatenate([padding,result_space],axis=1)
-	
-	
-	#refactor above so the cache is being ran in this function instead to clean code up a bit
-	#def _cache_perform(self,cache_dict):
-	
+		
+	def get_xtreme_window_bundle(self,np_candles,mask=None):
+		xwb = XtremeWindowBundle() 
+		
+		#chart pattern settings - (check/fix these/refactor) 
+		xwb.required_candles = self._required_candles
+		xwb.xtreme_degree = self._xtreme_degree
+		xwb.order = self._order
+		xwb.breakout_candles  = self._breakout_candles
+		
+		#_perform parameters 
+		xwb.np_candles = np_candles 
+		xwb.mask = mask 
+		
+		#_chart_perform parameters - what about _precandles?
+		xwb.xtreme_windows, xwb.window_map = self._generate_xtreme_windows(np_candles,mask,self._xtreme_degree,self._precandles)
+		xwb.breakout_windows = self._get_breakout_windows(np_candles,mask,self._precandles)
+		xwb.x_start_positions = self._get_x_positions(np_candles,mask)
+		return xwb
+
 	def _get_x_positions(self,np_candles,mask):
 		
 		number_windows = np_candles.shape[1] - self._required_candles + 1 - self._breakout_candles
@@ -237,8 +228,7 @@ class ChartPattern(Indicator):
 	
 	def _generate_xtreme_windows(self,np_candles,mask=None,xtreme_degree=1,precandles=None): #use for getting the extreme points for each window 
 
-		
-			
+
 		number_windows = np_candles.shape[1] - self._required_candles + 1 - self._breakout_candles
 		
 		np_highs = np_candles[:,:,csf.high] 
@@ -330,7 +320,6 @@ class ChartPattern(Indicator):
 		return xtreme_windows, window_map 
 		
 		
-	
 	def _get_breakout_windows(self,np_candles,mask=None,precandles=None):
 		
 		if callable(precandles):
@@ -365,7 +354,7 @@ class ChartPattern(Indicator):
 	
 	#This function should operate on an np list of windows, independently of the time frame and the instrument. 
 	#the mapping is taken care of in perform 
-	def _chart_perform(self,xtreme_windows, breakout_windows, x_start_pos): 
+	def _chart_perform(self,xtreme_bundle): 
 		raise NotImplementedError('This method must be overridden')
 	
 	
@@ -428,6 +417,48 @@ class ChartPattern(Indicator):
 		np_index = np.arange(w_index.shape[0]) - neg_array
 		destination[w_index,np_index] = npw_array[w_index,p_index]
 		return destination
+	
+	
+	#in ChartPattern classes, they all use the same 
+	#TODO: deprecate & use get_xtreme_window_bundle instead to avoid cache & argument hell 
+	@deprecated
+	def get_initial_data(self,np_candles,mask=None,return_flat=False): 
+	
+		xtreme_windows, window_map = self._generate_xtreme_windows(np_candles,mask,self._xtreme_degree,self._precandles)
+		breakout_windows = self._get_breakout_windows(np_candles,mask,self._precandles)
+		x_start_positions = self._get_x_positions(np_candles,mask)
+		
+		return {
+			'_required_candles':self._required_candles,
+			'_xtreme_degree':self._xtreme_degree,
+			'_order':self._order,
+			'_breakout_candles':self._breakout_candles,
+			'xtreme_windows':xtreme_windows,
+			'window_map':window_map,
+			'breakout_windows':breakout_windows, 
+			'x_start_positions':x_start_positions,
+			'mask':mask,
+			'return_flat':return_flat
+		}
+		
+	@deprecated
+	def set_cache_data(self,data_bundle,set_members=True):
+		
+		assert type(data_bundle) == dict,"Cache bundle must be a dict"
+		assert_checks = ['xtreme_windows','window_map','breakout_windows','x_start_positions']
+		for key in assert_checks:
+			assert key in data_bundle, f"cache is missing {key}"
+		
+		#set members 
+		self._cache_dict = data_bundle
+		if set_members:
+			self._required_candles = data_bundle.get('_required_candles',self._required_candles)
+			self._xtreme_degree = data_bundle.get('_xtreme_degree',self._xtreme_degree)
+			self._order = data_bundle.get('_order',self._order)
+			self._breakout_candles = data_bundle.get('_breakout_candles',self._breakout_candles)
+		
+		self._use_cache = True#what about if we need np_candles
+	
 
 #todo - determine bullish/bearish scenarios properly using price movement 
 class SupportAndResistance(ChartPattern):  #group together points along the price line, show resistance/support lines where there are significant groups 
@@ -479,12 +510,17 @@ class SupportAndResistance(ChartPattern):  #group together points along the pric
 	
 	
 	@overrides(ChartPattern)
-	def _chart_perform(self, xtreme_windows, breakout_windows, x_start_pos):			
+	def _chart_perform(self, xtreme_bundle):			
 		#for each window find the values & collect/group. 
 		#use the group of values to determine support/resistance areas 
 		#use the support/resistance to see if price bounced. 
 		#return bullish/bearish/none rating and also things like quality etc which might be useful 		
-
+		
+		xtreme_windows = xtreme_bundle.xtreme_windows
+		breakout_windows = xtreme_bundle.breakout_windows
+		
+		#x_start_pos
+		
 		#consider putting in own function?
 		window_support_resistances = self._support_resistance_values(xtreme_windows)    #add bucket info? eg n hits? 
 		max_lines = window_support_resistances.shape[1]
@@ -584,7 +620,7 @@ class SupportAndResistance(ChartPattern):  #group together points along the pric
 			
 	
 	
-#not sure if this really belongs here 
+#not sure if this really belongs here or indeed inhertiing from chart pattern ? override indicator instead?
 class PivotPoints(ChartPattern):
 	
 	#_breakout_candles = 1 #only need to see where the current candle is to see if we are     #(not applicable?)
@@ -592,7 +628,7 @@ class PivotPoints(ChartPattern):
 	
 	_day_turnover_hour = 22 #USA markets close this hour (10pm our time)
 	
-	#todo: fix for any case, not just 10pm no bank holidays
+	#todo: fix for any case, not just 10pm no bank holidays - move to utils - TimeHandler or something?
 	def _day_indices(self):
 		
 		t0 = time.time() 

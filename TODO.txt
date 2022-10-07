@@ -13,7 +13,6 @@ refactor setups
 		-base yes, higher drawing functions can draw the underlying indicators if on candlesticks
 		-consider drawing any results from self?  
 
-
 PLURALIZATION - filters! 
 pluralise filters.py to use all times not just now so they can be used in backtesting 
 	--all filters need refactoring possibly to use indicators
@@ -55,6 +54,8 @@ currency buying/selling pressure from bids & asks (contrarian to currency streng
 lazy loading for news AI backtesting 
 
 news, currrency-strength, client-sentiment & demand forecasting
+
+exiting trades on different type of exit signal?
 
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs

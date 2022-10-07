@@ -10,6 +10,7 @@ from charting.chart_pattern import SupportAndResistance, PivotPoints, ChartPatte
 from charting.match_pattern import MatchPatternInstance, MatchPattern
 from charting.trend_pattern import SymmetricTriangle
 from charting.harmonic_pattern import *
+from charting.shape_pattern import HeadAndShoulders
 import charting.chart_viewer as chv
 
 import numpy as np
@@ -24,27 +25,30 @@ candles = []
 with Database(commit=False, cache=False) as cursor: 
 	composer = DataComposer(cursor) #.candles(params).call()...
 	#composer.call('get_candles_volumes_from_currencies',{'currencies':currencies,'this_date':the_date,'days_back':100,'chart_resolution':15})
-	composer.call('get_candles_from_currencies',{'currencies':currencies,'this_date':the_date,'days_back':50,'chart_resolution':15})
-
+	composer.call('get_candles_from_currencies',{'currencies':currencies,'this_date':the_date,'days_back':200,'chart_resolution':60})
+	#composer.call('',{})
 	candle_result = composer.result(as_json=True)
 	candles = composer.as_candles(candle_result,fx_pairs)
 
 
 #chart_pattern = Butterfly()  #Gartley, Crab, DeepCrab, Bat, todo: Cypher
-chart_pattern = Bat()
+#chart_pattern = Bat()
 
 
 
 
 
 #chart_pattern._xtreme_degree = 2
-#chart_pattern._order = 1
+#chart_pattern._order = 11
 #chart_pattern.required_candles = 200
 
 #chart_pattern = SupportAndResistance()
 #chart_pattern = PivotPoints()
+#chart_pattern = Butterfly()
+#chart_pattern = HeadAndShoulders()
+#chart_pattern = PivotPoints()
 #chart_pattern  = MatchPatternInstance()
-#chart_pattern = SymmetricTriangle()
+chart_pattern = SymmetricTriangle()
 #chart_pattern = MatchPattern()
 
 

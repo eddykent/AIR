@@ -1174,7 +1174,7 @@ class TimeZipper:
 		#Y = Y[self.step_y:] if self.step_y > 0 else Y
 		return Xss, Y
 
-
+#consider making dynamic - based on date ranges if pips ever changes
 class PipHandler:
 	
 	pip_map = {} 

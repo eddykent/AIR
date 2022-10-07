@@ -13,11 +13,9 @@ LogSetup() #think of how to rmeove this line
 
 #from tests.candle_stick_tests import *
 
-#from tests.chart_pattern_test import *
+from tests.chart_pattern_test import *
 #from tests.chart_pattern_support_resistance_test import *
 #from tests.matching_test import * 
-
-#from tests.harmonic_pattern_test import *
 
 #bat - 213,419,805
 
@@ -34,7 +32,7 @@ LogSetup() #think of how to rmeove this line
 
 #
 #from tests.heikinashi_test  import *
-from tests.setup_test import *
+#from tests.setup_test import *
 #from tests.logging_test import *
 #from tests.data_compose_test import *
 #from tests.data_compose_branch_test import *
