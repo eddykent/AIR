@@ -108,6 +108,7 @@ OWN FEAR & GREED INDEX - research & calculate how it works etc
 
 research more about quantconnect - might have some useful things or even might be able to sell strategies there 
 
+ICT based trading? 
 
 BUGS:
 Perhaps using pandas data frames will be more efficient and better for the whole thing? 
@@ -149,6 +150,8 @@ filters based on indicators may suffer from lookahead bias - they need to use th
 fxstreet archive does not read anymore 
 
 dukascopy web scraper hangs on some stuff when inputting instrument
+
+hole in data: 4th april 2022 - 8th april 2022
 
 ONGOING: - stuff that might not ever have an end to it because it can always be made better
 fundamental stuff needs more testing to get it better 
