@@ -153,3 +153,4 @@ TURN is_tutorial INTO A RATE BASED, NOT COUNT BASED THING?-- might not be that i
 
 (FIXED) chart resolution in data composer not working 
 
+(FIXED)HIGH PRI: on higher tf, candles are totally messed up! 

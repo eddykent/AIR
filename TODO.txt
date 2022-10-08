@@ -4,7 +4,7 @@ DEFENSIVE CODING: documentation, type hints and overrides for all non-testing py
 refactor currency strength nn to be of the same form as DataProvider etc 
 	- find out what is still to do!
 
-refactor setups  
+refactor setups 
 	- init step for putting indicators/patterns onto self
 	- core signals func - -1, 0 and 1s 
 	- stop tools (atr/std etc) - take list of signals and hints to produce full signals 
@@ -25,6 +25,7 @@ pluralise all chart patterns. Start with match_pattern as  it already uses numpy
 	- scipy maximas/minimas should come in handy. 
 	- before doing this, ensure candle_stick_pattern is correct so we got a base to go from 
 	- match_pattern.py: backtesting and drawing still todo 
+
 refactor draw_snapshot functions to take instrument index & time index(s) like chart patterns 
 
 Create & test full RNN with candles_and_indicators.sql, currency_strengths, correlations etc & get_y_values.sql 
@@ -111,7 +112,12 @@ research more about quantconnect - might have some useful things or even might b
 
 ICT based trading? 
 
-BUGS:
+BUGS: - data must be fixed first before continuing with real backtesting 
+DATA: some other areas are rounded. Consider overwriting data with histdata from 2012 to now
+DATA: on 15 min chart, candles all look very "top-heavy" . Perhaps caused by something in the candle selector query
+DATA: january 2022 has rounded prices - overrwrite with stuff from histdata 
+DATA: hole in data: 4th april 2022 - 8th april 2022
+
 Perhaps using pandas data frames will be more efficient and better for the whole thing? 
 Practice will also land you a high paying datascience role if you move jobs...
 
@@ -125,8 +131,6 @@ currency_strength_diff_auto_regression_rsi.sql is not producing enough rows to r
 selenium chrome driver - webdriver-manager cant auto detect chrome version - possibly permissions error
 
 draw snapshot should have default candle index parameter to -1 - will be fixed in chart_pattern refactor
-
-on 15 min chart, candles all look very "top-heavy" . Perhaps caused by something in the candle selector query
 
 parabolic sar, atx and other various indicators are not working correctly
 
@@ -151,8 +155,6 @@ filters based on indicators may suffer from lookahead bias - they need to use th
 fxstreet archive does not read anymore 
 
 dukascopy web scraper hangs on some stuff when inputting instrument
-
-hole in data: 4th april 2022 - 8th april 2022
 
 ONGOING: - stuff that might not ever have an end to it because it can always be made better
 fundamental stuff needs more testing to get it better 
