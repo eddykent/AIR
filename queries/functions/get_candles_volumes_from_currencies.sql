@@ -89,10 +89,10 @@ BEGIN
 			ci.to_currency, 
 			ci.candle_index,
 			COUNT(1) AS n,
-			ARRAY_AGG(ci.open_price) AS open_prices, 
+			ARRAY_AGG(ci.open_price ORDER BY ci.the_date) AS open_prices, 
 			MAX(ci.high_price) AS high_price,
 			MIN(ci.low_price) AS low_price,
-			ARRAY_AGG(ci.close_price) AS close_prices,
+			ARRAY_AGG(ci.close_price ORDER BY ci.the_date) AS close_prices,
 			SUM(vi.bid_volume) AS bid_volume,
 			SUM(vi.ask_volume) AS ask_volume,
 			LEAST(MIN(ci.the_date),MIN(vi.the_date)) AS the_date
