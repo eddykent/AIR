@@ -32,7 +32,7 @@ class ShapePattern(ChartPattern):
 		xtreme_windows = xtreme_bundle.xtreme_windows
 		breakout_windows = xtreme_bundle.breakout_windows
 		x_start_pos = xtreme_bundle.x_start_positions
-		relative_gap = xtreme_bundle.relative_gaps
+		relative_gap = xtreme_bundle.average_true_ranges
 		 
 		#time_start = time.time()
 		
@@ -62,6 +62,8 @@ class ShapePattern(ChartPattern):
 		
 	
 	def _test_shape(self,xtreme_windows,shape_description,relative_gap,direction): #
+		
+		assert len(relative_gap)
 		
 		shape_levels = self._get_levels(shape_description,direction) #we can assume levels is well behaved here
 		shape_length = shape_levels.shape[0]
@@ -111,11 +113,11 @@ class ShapePattern(ChartPattern):
 	def draw_snapshot(self,np_candles,snapshot_index,instrument_index):
 		mask = self._create_mask(np_candles,instrument_index,snapshot_index)
 		xtreme_windows, _ = self._generate_xtreme_windows(np_candles,mask)
-		rel_gap = self._get_relative_gaps(xtreme_windows)
+		atr = self._get_average_true_ranges(np_candles,mask)
 		
 		this_view = chv.ChartView()
 		
-		shape_result = self._test_all_shapes(xtreme_windows,rel_gap) #list of (bias, shapes_index) (if -1 then dont draw it) 
+		shape_result = self._test_all_shapes(xtreme_windows,atr) #list of (bias, shapes_index) (if -1 then dont draw it) 
 		#pdb.set_trace()
 		for xwi,(bias,shape_index) in enumerate(shape_result):	
 			if shape_index < 0: #if you want to draw any shape, get the first index 
@@ -144,23 +146,26 @@ class ShapePattern(ChartPattern):
 		
 class DoubleExtreme(ShapePattern):
 	
-	_order = 15
+	_order = 10
 	
 	_shapes = [
-		ShapeDescription([1,0,1],TradeDirection.SELL,0.1,1,"tight large middle"),
+		ShapeDescription([1,0,1],TradeDirection.SELL,0.5,5,"tight large middle"),
 		#ShapeDescription([1,0,1],TradeDirection.SELL,0.2,1,"tighter double top with large middle")
 	] 
 	
 class TripleExtreme(ShapePattern):
 	
-	_order = 12
+	_order = 10
 	
 	_shapes = [
-		ShapeDescription([2,1,2,0,2],TradeDirection.SELL,0.1,1,"unbalanced lows"),
-		ShapeDescription([1,0,1,0,1],TradeDirection.SELL,0.1,1,"balanced lows"),
+		ShapeDescription([2,1,2,0,2],TradeDirection.SELL,0.5,5,"unbalanced lows"),
+		ShapeDescription([1,0,1,0,1],TradeDirection.SELL,0.5,5,"balanced lows"),
 	]
 
 class HeadAndShoulders(ShapePattern):
+	
+	_order = 7
+	
 	_shapes = [
 		ShapeDescription([1,0,2,0,1],TradeDirection.SELL,0.5,1,"balanced neckline"), #balanced neckline
 		#ShapeDescription([2,1,3,0,1],TradeDirection.SELL,0.5,1,"unbalanced neckline")  #declining neckline 

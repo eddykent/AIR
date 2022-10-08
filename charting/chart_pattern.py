@@ -8,7 +8,7 @@ import tqdm
 
 from charting.candle_stick_pattern import * 
 import charting.candle_stick_functions as csf
-from indicators.indicator import Indicator
+from indicators.indicator import Indicator, RunningHigh,RunningLow
 from indicators.volatility import ATR
 
 import charting.chart_viewer as chv
@@ -30,8 +30,9 @@ class XtremeWindowBundle:
 	window_map = []
 	np_candles = []
 	breakout_windows = []
+	window_heights = []
 	x_start_positions = []
-	relative_gaps = [] # used for when wanting to test if something is "close". can be done using ATR, pips, average percentage etc 
+	average_true_ranges = []
 	mask = []
 	
 #class XtremeWindowBundleConstructor: #if we use a chart pattern, we can override some of the settings so it is easier
@@ -126,7 +127,8 @@ class ChartPattern(Indicator):
 		xwb.xtreme_windows, xwb.window_map = self._generate_xtreme_windows(np_candles,mask)
 		xwb.breakout_windows = self._get_breakout_windows(np_candles,mask)
 		xwb.x_start_positions = self._get_x_positions(np_candles,mask)
-		xwb.relative_gaps = self._get_relative_gaps(xwb.xtreme_windows) #refactor to use np_candles?
+		xwb.window_heights = self._get_window_heights(np_candles,mask) #refactor to use np_candles?
+		xwb.average_true_ranges = self._get_average_true_ranges(np_candles,mask)
 		return xwb
 
 	def _get_x_positions(self,np_candles,mask):
@@ -146,12 +148,51 @@ class ChartPattern(Indicator):
 		
 		return x_positions
 	
-	def _get_relative_gaps(self,xtreme_windows):
-		#replace with ATR? 
-		xw_range = np.nanmax(xtreme_windows[:,:,1],axis=1) - np.nanmin(xtreme_windows[:,:,1],axis=1)
-		relative_gap = xw_range / 10 
-		pdb.set_trace()
-		return relative_gap 
+	def _get_window_heights(self,np_candles,mask):
+	
+		number_windows = np_candles.shape[1] - self._required_candles + 1 - self._breakout_candles
+		
+		#range based
+		running_high = RunningHigh()
+		running_low = RunningLow()
+		running_high.period = self._required_candles
+		running_low.period = self._required_candles
+		
+		breakout_chop = 1 - self._breakout_candles if self._breakout_candles != 1 else None
+		
+		highs = running_high._perform(np_candles)[:,self._required_candles:breakout_chop,0]
+		lows = running_low._perform(np_candles)[:,self._required_candles:breakout_chop,0]
+
+		heights = np.concatenate(highs - lows,axis=0) #turn into flat list? 
+		
+		if mask is not None:
+			this_mask = mask[:,-number_windows:] #1 mask per window - chop off useless first ones
+			instrument_indexs, window_indexs = np.where(this_mask) 
+			select_indexs = (number_windows * instrument_indexs) + window_indexs
+			
+			heights = heights[select_indexs]
+		
+		return heights
+	
+	def _get_average_true_ranges(self,np_candles,mask):
+		
+		number_windows = np_candles.shape[1] - self._required_candles + 1 - self._breakout_candles
+		
+		average_true_range = ATR() 
+		
+		breakout_chop = 1 - self._breakout_candles if self._breakout_candles != 1 else None
+		
+		atr_values = average_true_range._perform(np_candles)[:,self._required_candles:breakout_chop,0]
+		atr_values = np.concatenate(atr_values,axis=0)
+				
+		if mask is not None:
+			this_mask = mask[:,-number_windows:] #1 mask per window - chop off useless first ones
+			instrument_indexs, window_indexs = np.where(this_mask) 
+			select_indexs = (number_windows * instrument_indexs) + window_indexs
+			
+			atr_values = atr_values[select_indexs]
+		
+		return atr_values
 	
 	#get the max and min points and repeat if desired to get "less local" points 
 	def _get_maxs_mins(self,high_windows,low_windows):
