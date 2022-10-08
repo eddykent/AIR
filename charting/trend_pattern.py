@@ -63,7 +63,7 @@ class TrendPattern(ChartPattern):
 	@overrides(ChartPattern)
 	def draw_snapshot(self,np_candles,snapshot_index,instrument_index):
 		mask = self._create_mask(np_candles,instrument_index,snapshot_index)
-		xtreme_windows, _ = self._generate_xtreme_windows(np_candles,mask,xtreme_degree=self._xtreme_degree,precandles=self._precandles)
+		xtreme_windows, _ = self._generate_xtreme_windows(np_candles,mask)
 		
 		maxs, mins = self.tops_bottoms(xtreme_windows)
 		maxlines = self._find_boundary_trends(maxs[:,::-1,:],True)

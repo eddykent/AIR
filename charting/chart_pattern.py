@@ -31,6 +31,7 @@ class XtremeWindowBundle:
 	np_candles = []
 	breakout_windows = []
 	x_start_positions = []
+	relative_gaps = [] # used for when wanting to test if something is "close". can be done using ATR, pips, average percentage etc 
 	mask = []
 	
 #class XtremeWindowBundleConstructor: #if we use a chart pattern, we can override some of the settings so it is easier
@@ -122,9 +123,10 @@ class ChartPattern(Indicator):
 		xwb.mask = mask 
 		
 		#_chart_perform parameters - what about _precandles?
-		xwb.xtreme_windows, xwb.window_map = self._generate_xtreme_windows(np_candles,mask,self._xtreme_degree,self._precandles)
-		xwb.breakout_windows = self._get_breakout_windows(np_candles,mask,self._precandles)
+		xwb.xtreme_windows, xwb.window_map = self._generate_xtreme_windows(np_candles,mask)
+		xwb.breakout_windows = self._get_breakout_windows(np_candles,mask)
 		xwb.x_start_positions = self._get_x_positions(np_candles,mask)
+		xwb.relative_gaps = self._get_relative_gaps(xwb.xtreme_windows) #refactor to use np_candles?
 		return xwb
 
 	def _get_x_positions(self,np_candles,mask):
@@ -132,7 +134,7 @@ class ChartPattern(Indicator):
 		number_windows = np_candles.shape[1] - self._required_candles + 1 - self._breakout_candles
 		
 		x_positions_singular = np.arange(self._required_candles,number_windows + self._required_candles)
-		x_positions = np.concatenate([x_positions_singular]*np_candles.shape[0])
+		x_positions = np.tile(x_positions_singular,np_candles.shape[0])
 		
 		
 		if mask is not None:
@@ -144,8 +146,15 @@ class ChartPattern(Indicator):
 		
 		return x_positions
 	
+	def _get_relative_gaps(self,xtreme_windows):
+		#replace with ATR? 
+		xw_range = np.nanmax(xtreme_windows[:,:,1],axis=1) - np.nanmin(xtreme_windows[:,:,1],axis=1)
+		relative_gap = xw_range / 10 
+		pdb.set_trace()
+		return relative_gap 
+	
 	#get the max and min points and repeat if desired to get "less local" points 
-	def _get_maxs_mins(self,high_windows,low_windows,xtreme_degree):
+	def _get_maxs_mins(self,high_windows,low_windows):
 		#if xtreme_degree > 1:
 		#	log.warning("_xtreme_degree of more than 1 has not yet been implemented. Change some stuff around below and add a for loop to get it working. ")
 		
@@ -160,7 +169,7 @@ class ChartPattern(Indicator):
 		
 		#index_map = np.copy(index_map)
 		#mimimum_index_map = np.copy(index_map)
-		
+		xtreme_degree = self._xtreme_degree
 		for _ in range(1,xtreme_degree):
 				
 			#handle max change 
@@ -226,7 +235,7 @@ class ChartPattern(Indicator):
 		return maxima, minima 
 	
 	
-	def _generate_xtreme_windows(self,np_candles,mask=None,xtreme_degree=1,precandles=None): #use for getting the extreme points for each window 
+	def _generate_xtreme_windows(self,np_candles,mask=None,precandles=None): #use for getting the extreme points for each window 
 
 
 		number_windows = np_candles.shape[1] - self._required_candles + 1 - self._breakout_candles
@@ -246,7 +255,7 @@ class ChartPattern(Indicator):
 		assert low_windows.shape[1] == number_windows, "number of windows is not accurate"
 		
 		
-		maxima,minima = self._get_maxs_mins(high_windows, low_windows, xtreme_degree)
+		maxima,minima = self._get_maxs_mins(high_windows, low_windows)
 		
 		max_vals = high_windows[maxima]
 		min_vals = low_windows[minima]
@@ -352,6 +361,8 @@ class ChartPattern(Indicator):
 		return breakout_windows 
 	
 	
+	#def _get_relative_gaps(self,xtreme_bundle)
+	
 	#This function should operate on an np list of windows, independently of the time frame and the instrument. 
 	#the mapping is taken care of in perform 
 	def _chart_perform(self,xtreme_bundle): 
@@ -366,7 +377,7 @@ class ChartPattern(Indicator):
 	@overrides(Indicator)
 	def draw_snapshot(self,np_candles,snapshot_index,instrument_index):
 		mask = self._create_mask(np_candles,instrument_index,snapshot_index)
-		xtreme_windows, _ = self._generate_xtreme_windows(np_candles,mask,xtreme_degree=self._xtreme_degree,precandles=self._precandles)
+		xtreme_windows, _ = self._generate_xtreme_windows(np_candles,mask)
 		
 		#draw each window extreme points onto the chart 
 		this_view = chv.ChartView()
@@ -600,7 +611,7 @@ class SupportAndResistance(ChartPattern):  #group together points along the pric
 	@overrides(Indicator)
 	def draw_snapshot(self,np_candles,snapshot_index,instrument_index):
 		mask = self._create_mask(np_candles,instrument_index,snapshot_index)
-		xtreme_windows, _ = self._generate_xtreme_windows(np_candles,mask,xtreme_degree=self._xtreme_degree,precandles=self._precandles)
+		xtreme_windows, _ = self._generate_xtreme_windows(np_candles,mask)
 		
 		window_srs = self._support_resistance_values(xtreme_windows)
 		x_positions = self._get_x_positions(np_candles,mask)

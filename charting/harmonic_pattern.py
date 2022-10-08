@@ -82,7 +82,7 @@ class HarmonicPattern(ChartPattern): #uses XABCD
 	def draw_snapshot(self,np_candles,snapshot_index,instrument_index):
 		#do usual mask to get relevant xtremes 
 		mask = self._create_mask(np_candles,instrument_index,snapshot_index)
-		xtreme_windows, _ = self._generate_xtreme_windows(np_candles,mask,xtreme_degree=self._xtreme_degree,precandles=self._precandles)
+		xtreme_windows, _ = self._generate_xtreme_windows(np_candles,mask)
 		breakout_windows = self._get_breakout_windows(np_candles,mask)
 		x_positions = self._get_x_positions(np_candles,mask)
 		
