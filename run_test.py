@@ -6,7 +6,6 @@
 
 from utils import LogSetup
 LogSetup() #think of how to rmeove this line
-
 #from tests.web_crawling_tests import *  #<<<<<< run this to get latest volume indicators from dukascopy bank 
 
 #from tests.typedlist_test import *

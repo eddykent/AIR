@@ -96,6 +96,12 @@ perhaps refactor newsindicator - don't use an indicator with numpy, it is a filt
 
 pip to price conversion tool 
 
+pluralise all chart patterns. Start with match_pattern as  it already uses numpy. other chart patterns may be a re-write 
+	- use masking to reduce number of windows & speed up chart finding processes
+	- scipy maximas/minimas should come in handy. 
+	- before doing this, ensure candle_stick_pattern is correct so we got a base to go from 
+	- match_pattern.py: backtesting and drawing still todo 
+
 
 
 

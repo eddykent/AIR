@@ -8,9 +8,9 @@ import datetime
 from utils import Database, DataComposer, Configuration, ListFileReader
 from charting.chart_pattern import SupportAndResistance, PivotPoints, ChartPattern
 from charting.match_pattern import MatchPatternInstance, MatchPattern
-from charting.trend_pattern import SymmetricTriangle
+from charting.trend_pattern import *
 from charting.harmonic_pattern import *
-from charting.shape_pattern import HeadAndShoulders
+from charting.shape_pattern import HeadAndShoulders, DoubleExtreme
 import charting.chart_viewer as chv
 
 import numpy as np
@@ -46,9 +46,18 @@ with Database(commit=False, cache=False) as cursor:
 #chart_pattern = PivotPoints()
 #chart_pattern = Butterfly()
 #chart_pattern = HeadAndShoulders()
+#chart_pattern = DoubleExtreme()
 #chart_pattern = PivotPoints()
 #chart_pattern  = MatchPatternInstance()
-chart_pattern = SymmetricTriangle()
+#chart_pattern = Triangle()
+#chart_pattern = SymmetricalTriangle()
+#chart_pattern = RisingWedge() 
+#chart_pattern = FallingWedge()
+
+chart_pattern = RisingTriangle() 
+#chart_pattern = FallingTriangle()
+#chart_pattern = ApproximateChannel()
+
 #chart_pattern = MatchPattern()
 
 
