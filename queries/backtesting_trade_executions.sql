@@ -1,7 +1,7 @@
 WITH trade_signals AS (
 	SELECT * FROM (VALUES 
 		%(trade_signals)s
-	) AS ts(signal_id, the_date, instrument, direction, entry_price, take_profit_difference, stop_loss_difference, duration)
+	) AS ts(signal_id, strategy_ref, the_date, instrument, direction, entry_price, take_profit_difference, stop_loss_difference, duration)
 ),
 min_date AS (
 	SELECT MIN(the_date) AS start_date FROM trade_signals 

@@ -103,7 +103,10 @@ pluralise all chart patterns. Start with match_pattern as  it already uses numpy
 	- match_pattern.py: backtesting and drawing still todo 
 
 
-
+backtester facility to have profit locks (separate query - use temp tables for simplicity) based on distance to tp
+	- add this facility to backtester query (and strategy later)
+	- exit signals? (instrument, direction, date, strategy_ref) add function exit_at that is similar to detect
+	- test gist index & tsrange for speed
 
 BUGS:
 (FIXED)

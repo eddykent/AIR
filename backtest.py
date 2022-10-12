@@ -8,7 +8,7 @@ from psycopg2.extensions import AsIs as Inject
 from enum import Enum
 
 from utils import CurrencyPair, ListFileReader, overrides
-from setups.trade_setup import TradeDirection, TradeSignal
+from setups.signal import TradeDirection, TradeSignal, TradeExitSignal
 
 ##classes that take a set of trade signals and then test if they won/lost. Also report statistics (win streaks, percent loss, drawdowns??) 
 
@@ -17,14 +17,17 @@ BackTestStatistic = namedtuple('BackTestStatistic','total stagnated unfinished i
 
 class TradeResultStatus(Enum):
 	#CUT = -5 #the signal is cut if there was an expire_cut price that was hit before the entry price. 
-	INVALID = -4  #the trade parameters were wrong in some way (eg tp > sl in a sell order) 
-	STAGNATED = -3 #the trade never hit its entry price 
-	LOST = -2 #the trade stopped out at the stop loss price 
+	INVALID = -5  #the trade parameters were wrong in some way (eg tp > sl in a sell order) 
+	STAGNATED = -4 #the trade never hit its entry price 
+	LOST_SL = -3 #the trade stopped out at the stop loss price 
+	LOST_EXIT = -2 #the trade hit an exit criteria and lost
 	LOSING = -1 #the trade didnt stop out, but is down 
-	VOID = 0 # the trade has not gone ahead - use instead of cut? 
+	VOID = 0 # the trade has not gone ahead (eg hit a cancel price)
 	WINNING = 1 #the trade didnt stop out, but is up
-	PROFIT_LOCK = 2 #we moved the stop loss to lock in profit and this value got hit. 
-	WON = 3 # the trade stopped out at the take profit price 
+	WON_PL = 2 #we moved the stop loss to lock in profit and this value got hit. 
+	WON_EXIT = 3 #the trade hit an exit criteria and won
+	WON_TP = 4 # the trade stopped out at the take profit price 
+	WON_EXTRA = 5 #the trade hit the profit lock activation and continued to the extra profit target 
 
 TradeProfitPath = namedtuple('TradeProfitPath','typical optimistic pessimistic')
 TradeResult = namedtuple('TradeResult','signal_id entry_date entry_price entry_candle exit_date exit_price exit_candle result_movement result_percent result_status profit_path')
@@ -73,6 +76,7 @@ class BackTestStatistics:
 			#'drawdown':max(...)
 		}
 
+
 #TODO : A tool to take a dataset of candles and add a percentage error to all the candles to produce a fuzzy dataset based on real world data.
 #The idea is to be able to strengthen backtest results and prevent overfitting. A strategy can be considered quite strong if it also passes 
 #a fuzzed dataset 
@@ -119,24 +123,30 @@ class BackTester:
 		'''
 		raise NotImplementedError("This method must be overridden")
 		
+#activation = price to reach in order to move the stops 
+#adjustment = ratio of the take profit distance to place the stop loss at
+#extra_ = ratio of the take profit distance of extra profit to strive for 
+ProfitLockData = namedtuple('ProfitLockData','activation adjustment extra')
 
 #perform a backtest by passing the trade signals directly into the database and using a sql query to get the results. 
 #Due to using the database, there is no way to be able to expose this to a loss function in tensorflow 
 class BackTesterDatabase(BackTester):
 	
-	#todo: sql_query_file = 'queries/backtesting_trade_executions_expiry_profit_lock.sql'
-	sql_query_file = 'queries/backtesting_trade_executions_expiry.sql'
+	sql_query_file = 'queries/new_backtester_execution.sql'
 	cursor = None #the database cursor - handled from something else 
 	
 	trade_result = {
 		'INVALID':TradeResultStatus.INVALID,
 		'STAGNATED':TradeResultStatus.STAGNATED, 
-		'LOST':TradeResultStatus.LOST,
+		'LOST':TradeResultStatus.LOST_SL,
+		'EXIT_DOWN':TradeResultStatus.LOST_EXIT,
 		'LOSING':TradeResultStatus.LOSING, 
 		'VOID':TradeResultStatus.VOID,
 		'WINNING':TradeResultStatus.WINNING,
-		'PROFIT_LOCK':TradeResultStatus.PROFIT_LOCK,
-		'WON':TradeResultStatus.WON
+		'PROFIT_LOCK':TradeResultStatus.WON_PL,
+		'EXIT_UP':TradeResultStatus.WON_EXIT,
+		'WON':TradeResultStatus.WON_TP,
+		'WON_EXTRA':TradeResultStatus.WON_EXTRA
 	}
 	
 	
@@ -145,27 +155,50 @@ class BackTesterDatabase(BackTester):
 	
 	
 	@overrides(BackTester)
-	def perform(self,trade_signals):
-		sql_row = TradeSignal.sql_row
-		sql_rows = [self.cursor.mogrify(sql_row,ts.to_dict_row()).decode() for ts in trade_signals]
+	def perform(self,trade_signals,exit_signals=[],profit_lock=None):		
+		
+		if type(profit_lock ) != ProfitLockData:
+			profit_lock = ProfitLockData._make(profit_lock)
+		
+		exit_signals += [TradeExitSignal.mock()]
+		
+		
+		entry_sql_rows = [self.cursor.mogrify(TradeSignal.sql_row,ts.to_dict_row()).decode() for ts in trade_signals]
+		exit_sql_rows = [self.cursor.mogrify(TradeExitSignal.sql_row,te.to_dict_row()).decode() for te in exit_signals]
+		
 		sql_query = None
 		with open(self.sql_query_file,'r') as f:
 			sql_query = f.read()
-		self.cursor.execute(sql_query,{'trade_signals':Inject(','.join(sql_rows))})
+		
+		query_params = {
+			'trade_signals':Inject(','.join(entry_sql_rows)),
+			'exit_signals':Inject(','.join(exit_sql_rows)),
+			'profit_lock_activation':None if profit_lock is None else profit_lock.activation,
+			'profit_lock_adjustment':None if profit_lock is None else profit_lock.adjustment,
+			'profit_lock_extra':None if profit_lock is None else profit_lock.extra
+		}
+		
+		
+		self.cursor.execute(sql_query,query_params)
 		query_result = self.cursor.fetchall()
+		
+		
 		trade_results = []
 		for result in query_result:
-			result_row, path = result #unpack 
-			trade_result_paths = TradeProfitPath(**path)
-			result_status = self.trade_result.get(result_row['result_status'].upper(),TradeResultStatus.VOID)
+			result_row, path = result #unpack 			
+			result_status = self.trade_result.get(result_row['result_status'].upper(),TradeResultStatus.INVALID)
 			result_row['result_status'] = result_status
-			result_row['profit_path'] = trade_result_paths
+			if path:
+				trade_result_paths = TradeProfitPath(**path)
+				result_row['profit_path'] = trade_result_paths
+			else:
+				result_row['profit_path'] = None
 			trade_result = TradeResult(**result_row)
 			trade_results.append(trade_result)
 		return trade_results
 	
 
-		
+
 #pass streams candles (labelled with their instrument name) to this class and then perfrom backtesting using this data
 #this class might be exposable to an AI loss function. 
 #class BackTesterCandles:

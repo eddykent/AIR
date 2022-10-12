@@ -88,6 +88,10 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		#even though a tradesetup generates trades on the timeframe, they can still be used as filters! just use this detect() method 
 		raise NotImplementedError('This method must be overridden') #use get_setups() ! 
 	
+	#TODO : allow for exit signals in backtester and in strategy
+	def get_exits(self, trade_signalling_data):
+		return blank_result(trade_signalling_data)
+	
 	def get_entries(self, trade_signalling_data):
 		return blank_result(trade_signalling_data)
 		
@@ -361,9 +365,9 @@ class CandleDataTool:
 	instruments = [] 
 	chart_resolution = 15
 	candle_offset = 0 
-	end_date = datetime.now()
+	end_date = datetime.datetime.now()
 	grace_period = 50 
-	start_date =  datetime.now()#startdate is 
+	start_date =  datetime.datetime.now()#startdate is 
 	
 	_candlesticks = None  #data to be read 
 	_instruments = None 

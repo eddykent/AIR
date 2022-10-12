@@ -20,18 +20,15 @@ pluralise filters.py to use all times not just now so they can be used in backte
 	--filters - refactor to be similar to setups?
 	--time based, ai based, meta based (currency strength, client sentiment)
 
-additional constraints for chart patterns & speed
-	- shape_pattern might benefit from having "window max/min" constraints eg so a double top is actually at the top 
-	- harmonics - eg why are there so few? fix the cache method in Harmony (custom_setups)
-	- trend pattern - what additional constraints can be added to get better results? 
-
 partial candles - in filters on higher time frames, a partial candle can be used at the cutting-edge to get a more up-to-date result 
 	- partial candles can be read from the DB individually or using a modified candlestick selector
 	- they can also be stiched to the current result using a data too 
 
-backtester - use tsrange indexs in postgres for speed backtests
 
-refactor draw_snapshot functions to take instrument index & time index(s) like chart patterns 
+additional constraints for chart patterns & speed
+	- harmonics - eg why are there so few? fix the cache method in Harmony (custom_setups)
+	- trend pattern - what additional constraints can be added to get better results? 
+
 
 Create & test full RNN with candles_and_indicators.sql, currency_strengths, correlations etc & get_y_values.sql 
 
@@ -119,7 +116,7 @@ ICT based trading?
 
 BUGS: - data must be fixed first before continuing with real backtesting 
 DATA: some other areas are rounded. Consider overwriting data with histdata from 2012 to now
-DATA: on 15 min chart, candles all look very "top-heavy" . Perhaps caused by something in the candle selector query
+DATA: on 15 min chart, candles all look very "top-heavy" . Perhaps caused by something in the candle selector query 
 DATA: january 2022 has rounded prices - overrwrite with stuff from histdata 
 DATA: hole in data: 4th april 2022 - 8th april 2022
 
@@ -160,6 +157,7 @@ filters based on indicators may suffer from lookahead bias - they need to use th
 fxstreet archive does not read anymore 
 
 dukascopy web scraper hangs on some stuff when inputting instrument
+
 
 ONGOING: - stuff that might not ever have an end to it because it can always be made better
 fundamental stuff needs more testing to get it better 
