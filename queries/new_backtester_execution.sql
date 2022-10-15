@@ -504,6 +504,7 @@ NULL AS profit_path
 INTO TEMPORARY TABLE trade_results
 FROM results_pre;
 
+DROP TABLE IF EXISTS profit_paths; 
 WITH profit_path_prices AS (
 	SELECT tr.signal_id,
 	tr.candle_number,
