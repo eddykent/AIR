@@ -2,8 +2,8 @@
 --quarts are 15m, halfs are 30m and quads are 4h candles 
 
 --from currencies 
-DROP FUNCTION IF EXISTS trading.get_volume_from_currencies(TEXT[], timestamp, int, int, int);
-CREATE OR REPLACE FUNCTION trading.get_volume_from_currencies(_currencies TEXT[], _this_date TIMESTAMP, _days_back INTEGER, _chart_resolution INTEGER DEFAULT 15, _candle_offset INTEGER DEFAULT 0)
+DROP FUNCTION IF EXISTS trading.get_volumes_from_currencies(TEXT[], timestamp, int, int, int);
+CREATE OR REPLACE FUNCTION trading.get_volumes_from_currencies(_currencies TEXT[], _this_date TIMESTAMP, _days_back INTEGER, _chart_resolution INTEGER DEFAULT 15, _candle_offset INTEGER DEFAULT 0)
 RETURNS TABLE (
 	row_index INTEGER,	
 	from_currency TEXT,
@@ -28,10 +28,10 @@ BEGIN
 		SELECT UNNEST(_currencies) AS currency
 	);
 	
-	DROP TABLE IF EXISTS _get_volume_from_currencies;
+	DROP TABLE IF EXISTS _get_volumes_from_currencies;
 
 	--build volumes of our chosen chart size 
-	CREATE TEMPORARY TABLE _get_volume_from_currencies
+	CREATE TEMPORARY TABLE _get_volumes_from_currencies
 	ON COMMIT DROP  
 	AS (
 		WITH selected_volume AS (
@@ -83,16 +83,16 @@ BEGIN
 		SELECT * FROM time_indexed_volumes
 	);
 	
-	CREATE INDEX _get_volume_from_currencies_row_index_idx ON _get_volume_from_currencies USING btree(row_index);
-	CREATE INDEX _get_volume_from_currencies_full_name_idx ON _get_volume_from_currencies USING btree(full_name);
-	CREATE INDEX _get_volume_from_currencies_the_date_idx ON _get_volume_from_currencies USING btree(the_date); --check
+	CREATE INDEX _get_volumes_from_currencies_row_index_idx ON _get_volumes_from_currencies USING btree(row_index);
+	CREATE INDEX _get_volumes_from_currencies_full_name_idx ON _get_volumes_from_currencies USING btree(full_name);
+	CREATE INDEX _get_volumes_from_currencies_the_date_idx ON _get_volumes_from_currencies USING btree(the_date); --check
 
-	RETURN QUERY SELECT * FROM _get_volume_from_currencies; 
+	RETURN QUERY SELECT * FROM _get_volumes_from_currencies; 
 
 END
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION trading.get_volume_from_currencies(TEXT[], timestamp, int, int, int) IS 'From a set of currencies, and a timestamp, get the associated forex volumes.';
+COMMENT ON FUNCTION trading.get_volumes_from_currencies(TEXT[], timestamp, int, int, int) IS 'From a set of currencies, and a timestamp, get the associated forex volumes.';
 
 --TEST
 --SELECT * FROM trading.get_volume_from_currencies(ARRAY['EUR','USD','GBP','JPY'], '07 Mar 2022 12:30:00'::timestamp, 100) 
