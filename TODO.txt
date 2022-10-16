@@ -23,16 +23,18 @@ additional constraints for chart patterns & speed
 Create & test full RNN with candles_and_indicators.sql, currency_strengths, correlations etc & get_y_values.sql 
 
 data_pull scripts for getting latest data? 
+	ASYNC all webcalls in the fundmental analysis! Async for AI too? -- probably pretty important for faster trade decisions :)
+	use proxies for scraping tasks to hide ip and not get blocked from anything else
 
 Write testing framework (to run a bunch of tests sequentially) and store the results. Then leave it running to find best param settings 
-report % wins, streaks etc   --go for similar behaviour to ProQuant 
-after making an autonomous trading bot - keep all trades in a table called trade_journal - make trade_journal.py
+report % wins, streaks etc   --go for similar behaviour to ProQuant?
+
+keep all trades (demo & live) in a table called trade_journal - make trade_journal.py
 
 Partial RNN - use correlation matrix for grouping pairs together before running through an RNN
 
 RNN to determine next RSI values? (same thing as full rnn? above?) 
 
-ASYNC all webcalls in the fundmental analysis! Async for AI too? -- probably pretty important for faster trade decisions :)
 
 jupyter for presenting front end trade setups and ideas
 
@@ -60,10 +62,6 @@ Then run it on all 28 by running 7 networks at once (7*4 = 28)
 create a correlation tool for this & also lag correlations projection in sql function...
 Cross correlation matrix - get which pairs are high correlated to work 
 out which ones to train together with. 
-
-Setup Object - the base object for setups, where a setup is a 
-signal generating tactic using anything we have already and can be used 
-with multiple timeframes. This will help with screening all the pairs
 
 Fundamental analysis/signals - use RSS feeds and a feed reader to get 
 sentiment for currencies and for currency pairs  - Twitter and Reddit, https://www.fx.co/en
@@ -119,12 +117,7 @@ Getting stuff from multiple websites should be async so we can query em all at t
 
 feed_collector articles should be grouped by instr name and then top 5 latest should be picked - filter? 
 
-currency_strength_diff_auto_regression_rsi.sql is not producing enough rows to run in database_tests.py
-	--this didnt work well anyway!
-
 selenium chrome driver - webdriver-manager cant auto detect chrome version - possibly permissions error
-
-draw snapshot should have default candle index parameter to -1 - will be fixed in chart_pattern refactor
 
 parabolic sar, atx and other various indicators are not working correctly
 
@@ -134,19 +127,15 @@ query refactor - alias broken in tests/data_compose_branch_test
 
 logging - debug level not going into database
 
-chart_pattern mask should be done earlier to save computation - really?
-
 match_pattern.MatchPattern has distance = 0 results - implies it has a look-ahead bias 
-
-refactor cache for chart patterns into a new method instead of on class state
 
 pivot points should use timehandler for getting day indexes (offset by whatever hour)
 
 divergence tool isnt using non-lookahead stuff 
 
-filters based on indicators may suffer from lookahead bias - they need to use the PREV candle
+fxstreet archive does not read anymore - use search indexer
 
-fxstreet archive does not read anymore 
+dailyfx blocked - ask them nicely to unblock ip (use proxies in future!)
 
 dukascopy web scraper hangs on some stuff when inputting instrument
 

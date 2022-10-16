@@ -120,6 +120,11 @@ partial candles - in filters on higher time frames, a partial candle can be used
 	- they can also be stiched to the current result using a data tool
 	- do naiive way first then think about speeding it up
 
+Setup Object - the base object for setups, where a setup is a 
+signal generating tactic using anything we have already and can be used 
+with multiple timeframes. This will help with screening all the pairs
+
+
 BUGS:
 (FIXED)
 Currency strength from sentiment indicator! see:
@@ -175,3 +180,11 @@ TURN is_tutorial INTO A RATE BASED, NOT COUNT BASED THING?-- might not be that i
 (FIXED) chart resolution in data composer not working 
 
 (FIXED)HIGH PRI: on higher tf, candles are totally messed up! 
+
+(FIXED)filters based on indicators may suffer from lookahead bias - they need to use the PREV candle
+
+(FIXED)refactor cache for chart patterns into a new method instead of on class state
+
+(FIXED) currency_strength_diff_auto_regression_rsi.sql is not producing enough rows to run in database_tests.py
+	--this didnt work well anyway!
+
