@@ -108,6 +108,18 @@ backtester facility to have profit locks (separate query - use temp tables for s
 	- exit signals? (instrument, direction, date, strategy_ref) add function exit_at that is similar to detect
 	- test gist index & tsrange for speed
 
+PLURALIZATION - filters! 
+pluralise filters.py to use all times not just now so they can be used in backtesting 
+	--all filters need refactoring possibly to use indicators
+	--they also need a now() kinda function for handling when we want to actually perform trades 
+	--filters - refactor to be similar to setups?
+	--time based, ai based, meta based (currency strength, client sentiment)
+
+partial candles - in filters on higher time frames, a partial candle can be used at the cutting-edge to get a more up-to-date result 
+	- partial candles can be read from the DB individually or using a modified candlestick selector
+	- they can also be stiched to the current result using a data tool
+	- do naiive way first then think about speeding it up
+
 BUGS:
 (FIXED)
 Currency strength from sentiment indicator! see:

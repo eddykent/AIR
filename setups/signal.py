@@ -179,7 +179,7 @@ class TradeSignallingData:  #need to force this to break if attemping to set som
 	instruments = None
 	timeline = None 
 	name = None
-	timeframe = 15 #default 
+	chart_resolution = 15 #default 
 	candlesticks = []
 	np_candles = None #np array of the candlesticks created when calculate_multiple is called. Useful for speeding stuff up later 
 	bullish = TradeSignallingPartial()

@@ -3,15 +3,19 @@ import datetime
 import pdb
 from collections import Counter
 import numpy as np
+import time
 # test the setup object and also test its trade signals 
 
+from setups.trade_setup import CandleDataTool
 from setups.setups1 import BB_KC_RSI, ADX_EMA_RSI, HA_VWAP_RSI_DIVERGENCE
 from setups.custom_setups import Harmony
 from setups.simple_setups import ForexSignalsAnchorBar
 
-from filters.simple_filters import ForexSignalsAnchorBarFilter, RSIFilter
+#from filters.simple_filters import ForexSignalsAnchorBarFilter, RSIFilter
+from filters.indicator_based import RSIFilterSlow, RSIFilter, ADXFilter
+from filters.trade_filter import PartialCandleDataTool
 from filters.time_based import EconomicCalendarFilter
-from filters.meta_based import ClientSentimentFilter
+#from filters.meta_based import ClientSentimentFilter
 
 
 from utils import ListFileReader, Database, DataComposer
@@ -20,72 +24,62 @@ from backtest import BackTesterDatabase
 lfr = ListFileReader()
 
 
+
 start_date = datetime.datetime(2022,7,4,14,0)
 end_date = datetime.datetime(2022,7,21,14,0)
 instruments = lfr.read('fx_pairs/fx_mains.txt')
 currencies = lfr.read('fx_pairs/currencies.txt')
 
-hablah = ForexSignalsAnchorBar(instruments)
-
-signals = hablah.get_setups(start_date,end_date) #do same for filters?
-
-
-tdelta = end_date - start_date
-days_back = tdelta.days + 10 
-
-###add filter here!
-filter_candles = None 
-volumes = True
-available_instruments = None 
-
-#chart resolution not working 
-with Database(cache=False,commit=False) as cursor:
-	composer = DataComposer(cursor,True) #.candles(params).call()...
-	composer.call('get_candles'+('_volumes_' if volumes else '_') + 'from_currencies',{
-		'currencies':currencies,
-		'this_date':end_date,
-		'days_back':days_back,
-		'chart_resolution':240,
-		'candle_offset':120
-	})
-	#pdb.set_trace()
-	candle_result = composer.result(as_json=True)
-	filter_candles = DataComposer.as_candles_volumes(candle_result,instruments) if volumes else DataComposer.as_candles(candle_result,instruments)
-	filter_candle_streams = [filter_candles[instr] for instr in instruments if filter_candles.get(instr)]
-	available_instruments = [instr for instr in instruments if filter_candles.get(instr)]
-
-#pdb.set_trace()
-#
-#query = ''
-#with open('queries/candle_stick_selector.sql','r') as f:
-#	query = f.read()
-#
-#params = {
-#	'chart_resolution':60,
-#	'the_date':end_date,
-#	'candle_offset':0,
-#	'hour':end_date.hour,
-#	'days_back':days_back,
-#	'currencies':currencies
-#}
-#cursor.execute(query,params)
-
-#candlestreams = cursor.fetchcandles(instruments)
-#filter_candle_block = [candlestreams[fx] for fx in instruments if fx in candlestreams]
-#available_instruments = [fx for fx in instruments if fx in candlestreams]
+datatool = CandleDataTool()
+datatool.start_date = start_date
+datatool.end_date = end_date
+datatool.instruments = instruments
+#datatool.timeframe = 15
+#datatool.volumes = True
+datatool.read_data_from_currencies(currencies)
+tsd = datatool.get_trade_signalling_data()
 
 
-#fsf = ForexSignalsAnchorBarFilter(filter_candle_streams,available_instruments,240)
+hablah = ADX_EMA_RSI()
+signals = hablah.get_setups(tsd) #do same for filters?
+
+import random
+random.shuffle(signals)
+#signals = signals[:12]
+
+
+#fsf = ForexSignalsAnchorBarFilter(filter_candle_streams,available_instruments,filter_resolution)
 #ecf = EconomicCalendarFilter()
+filter_data_tool = CandleDataTool()
+filter_data_tool.start_date = start_date
+filter_data_tool.end_date = end_date
+filter_data_tool.instruments = instruments
+filter_data_tool.chart_resolution  = 240 #filter_resolution = 60
+filter_data_tool.candle_offset = 120
+filter_data_tool.read_data_from_currencies(currencies)
+fsd = filter_data_tool.get_trade_signalling_data()
 
-rsf = RSIFilter(filter_candle_streams,available_instruments,240)
-#csf.set_chart_resolution(240)
+
+tt = time.time()
+pcdt = PartialCandleDataTool()
+pcdt.instruments = instruments
+pcdt.chart_resolution  = 60 #filter_resolution = 60
+pcdt.candle_offset = 0
+pcs = pcdt.read_data_from_currencies(currencies,[ts.the_date for ts in signals])
+
+print("total partial query time for " + str(len(signals)) + " signals = " + str(time.time() - tt))
+
+pdb.set_trace()
+
+#rsf = RSIFilterSlow(filter_data_tool)
+rsf = ADXFilter(fsd,pcs)
+
 
 filtered_signals  = rsf.filter(signals)
 cursor = Database(cache=False,commit=False)
 #now backtest
 btd = BackTesterDatabase(cursor)
-pdb.set_trace()
+#pdb.set_trace()
 
 def show_result_summary(sigs):
 	result = btd.perform(sigs)

@@ -13,17 +13,7 @@ refactor setups
 		-base yes, higher drawing functions can draw the underlying indicators if on candlesticks
 		-consider drawing any results from self?  
 
-PLURALIZATION - filters! 
-pluralise filters.py to use all times not just now so they can be used in backtesting 
-	--all filters need refactoring possibly to use indicators
-	--they also need a now() kinda function for handling when we want to actually perform trades 
-	--filters - refactor to be similar to setups?
-	--time based, ai based, meta based (currency strength, client sentiment)
-
-partial candles - in filters on higher time frames, a partial candle can be used at the cutting-edge to get a more up-to-date result 
-	- partial candles can be read from the DB individually or using a modified candlestick selector
-	- they can also be stiched to the current result using a data too 
-
+correlation filter needs to use partial candles (inherit from PartialIndicatorFilter)
 
 additional constraints for chart patterns & speed
 	- harmonics - eg why are there so few? fix the cache method in Harmony (custom_setups)
@@ -95,6 +85,8 @@ parameter tuning - try shit loads of calculating using regression
 	- minimise loses 
 	- (subgradient optimisation!) (use GA or some shit if you want) 
 
+strategy search - keep 3 lists of different indicators/setups and do some kinda iteration/search through them to find 
+best combination. 
 
 ADVANCED: 
 Make a NN that takes a sequence of candlesticks and indicators AND a list of 28  

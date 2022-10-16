@@ -122,7 +122,6 @@ class NewsFilter(TimelineTradeFilter):
 
 
 
-
 #class NextCurrencyStrengthFilter(DataBasedFilter):
 
 

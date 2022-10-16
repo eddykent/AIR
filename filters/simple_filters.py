@@ -2,7 +2,8 @@
 import pdb
 import numpy as np 
 
-##indicator based filters
+##indicator based filters (flat, meaning the database is called once and the info is used over and over)
+###if the resolution is 4h, a trade at 15:45  will still use the 12:00 candle from 8 to 12 which is not ideal
 
 from utils import overrides
 from filters.trade_filter import *
@@ -12,17 +13,16 @@ from indicators.indicator import CandleSticks
 import charting.candle_stick_functions as csf
 
 #for use with the crappy forex signal strat
-class ForexSignalsAnchorBarFilter(IndicatorFilter):
+#deprecate & use a lateral one
+class ForexSignalsAnchorBarFilter(FlatIndicatorFilter):
 	
 	ema_fast = EMA()
 	ema_slow = EMA()
-	candlesticks = CandleSticks() 
 	
 	fast_results = None
 	slow_results = None
-	candlestick_data = None 
 	
-	@overrides(IndicatorFilter)
+	@overrides(FlatIndicatorFilter)
 	def setup_indicator_results(self):
 		
 		self.ema_fast.period = 8 #check
@@ -30,11 +30,10 @@ class ForexSignalsAnchorBarFilter(IndicatorFilter):
 		
 		self.fast_results = self.ema_fast._perform(self.np_candles)[:,:,0]
 		self.slow_results = self.ema_slow._perform(self.np_candles)[:,:,0]
-		self.candlestick_data = self.candlesticks._perform(self.np_candles) 
 		
 			
 	
-	@overrides(IndicatorFilter)
+	@overrides(FlatIndicatorFilter)
 	def check_instrument(self, instrument, direction, the_time):	
 		
 		
@@ -45,22 +44,23 @@ class ForexSignalsAnchorBarFilter(IndicatorFilter):
 			return False
 		
 		if direction == TradeDirection.BUY:
-			if (self.fast_results[ii,ti] > self.slow_results[ii,ti]) and (self.candlestick_data[ii,ti,csf.low] > self.fast_results[ii,ti]):
+			if (self.fast_results[ii,ti] > self.slow_results[ii,ti]) and (self.np_candles[ii,ti,csf.low] > self.fast_results[ii,ti]):
 				return True  
 		if direction == TradeDirection.SELL:
-			if (self.fast_results[ii,ti] < self.slow_results[ii,ti]) and (self.candlestick_data[ii,ti,csf.high] < self.fast_results[ii,ti]):
+			if (self.fast_results[ii,ti] < self.slow_results[ii,ti]) and (self.np_candles[ii,ti,csf.high] < self.fast_results[ii,ti]):
 				return True 
 
 		
 		return False 
-			
-class RSIFilter(IndicatorFilter):
+
+#deprecate this? 			
+class RSIFilter(FlatIndicatorFilter):
 	
 	rsi_op = RSI()
 	rsi_thres = 0.2
 	rsi_results = None
 	
-	@overrides(IndicatorFilter)
+	@overrides(FlatIndicatorFilter)
 	def setup_indicator_results(self):
 		
 		self.rsi_op.period = 14 #check
@@ -68,7 +68,7 @@ class RSIFilter(IndicatorFilter):
 		self.rsi_results = self.rsi_op._perform(self.np_candles)[:,:,0]
 			
 	
-	@overrides(IndicatorFilter)
+	@overrides(FlatIndicatorFilter)
 	def check_instrument(self, instrument, direction, the_time):	
 		
 		ti = self._closest_time_index(the_time)
@@ -81,19 +81,6 @@ class RSIFilter(IndicatorFilter):
 				return False 
 		return True 	
 	
-
-class LambdaSelectFilter(TimelineTradeFilter):	
-	
-	lambda_function = None
-	
-	def __init__(self, lambda_function):
-		self.lambda_function = lambda_function
-		assert callable(lambda_function) , 'LambdaSelectFilter requires a function that maps a trade signal to bool'
-	
-	#def check_instrument() #dont use
-	@overrides(TimelineTradeFilter)
-	def filter(self,trades):
-		return [t for t in trades if self.lambda_function(t)]
 
 
 

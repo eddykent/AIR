@@ -8,11 +8,15 @@ import numpy as np
 from setups.setups1 import BB_KC_RSI, ADX_EMA_RSI, HA_VWAP_RSI_DIVERGENCE
 from setups.custom_setups import Harmony
 from setups.simple_setups import ForexSignalsAnchorBar, MeanReversionFFXS
+from setups.trade_setup import CandleDataTool
+from filters.trade_filter import PartialCandleDataTool
 
 from filters.simple_filters import ForexSignalsAnchorBarFilter
 from filters.time_based import EconomicCalendarFilter
-from filters.meta_based import ClientSentimentFilter, CorrelationFilter, CurrencyStrengthFilter
+from filters.meta_based import ClientSentimentFilter, FlatCorrelationFilter, CurrencyStrengthFilter, CurrencyStrengthOperator
 
+from indicators.moving_average import EMA 
+from indicators.reversal import RSI
 
 from utils import ListFileReader, Database, DataComposer
 from backtest import BackTesterDatabase
@@ -25,71 +29,47 @@ end_date = datetime.datetime(2022,7,21,14,0)
 instruments = lfr.read('fx_pairs/fx_mains.txt')
 currencies = lfr.read('fx_pairs/currencies.txt')
 
-hablah = MeanReversionFFXS(instruments)
 
-signals = hablah.get_setups(start_date,end_date) #do same for filters?
-
-
-tdelta = end_date - start_date
-days_back = tdelta.days + 10 
-
-###add filter here!
-filter_candles = None 
-volumes = True
-available_instruments = None 
-
-#chart resolution not working 
-with Database(cache=False,commit=False) as cursor:
-	composer = DataComposer(cursor,True) #.candles(params).call()...
-	composer.call('get_candles'+('_volumes_' if volumes else '_') + 'from_currencies',{
-		'currencies':currencies,
-		'this_date':end_date,
-		'days_back':days_back,
-		'chart_resolution':240,
-		'candle_offset':120
-	})
-	composer.call('close_price')
-	composer.call('relative_strength_index',{'period':14})
-	
-	composer.call('currency_strength') #use for currency strength filter
-	composer.call('simple_moving_average',{'period':3})
-	composer.call('instrument_ranking')
-	
-	#composer.call('rate_of_change')  #use for correlation filter
-	#composer.call('auto_regression',{'correlation_length':30,'correlation_thres':0.3})
-	#pdb.set_trace()
-	candle_result = composer.result(as_json=True)
-	#filter_candles = DataComposer.as_candles_volumes(candle_result,instruments) if volumes else DataComposer.as_candles(candle_result,instruments)
-	#filter_candle_streams = [filter_candles[instr] for instr in instruments if filter_candles.get(instr)]
-	#available_instruments = [instr for instr in instruments if filter_candles.get(instr)]
+cdt = CandleDataTool()
+cdt.start_date = start_date
+cdt.end_date = end_date
+cdt.instruments = instruments
+cdt.chart_resolution = 60
+cdt.grace_period = 100 
+cdt.read_data_from_currencies(currencies)
+candle_data = cdt.get_trade_signalling_data()
 
 
+hablah = ADX_EMA_RSI()
+signals = hablah.get_setups(candle_data) #do same for filters?
 
 
-#
-#query = ''
-#with open('queries/candle_stick_selector.sql','r') as f:
-#	query = f.read()
-#
-#params = {
-#	'chart_resolution':60,
-#	'the_date':end_date,
-#	'candle_offset':0,
-#	'hour':end_date.hour,
-#	'days_back':days_back,
-#	'currencies':currencies
-#}
-#cursor.execute(query,params)
+cdt2 = CandleDataTool()
+cdt2.start_date = start_date
+cdt2.end_date = end_date
+cdt2.instruments = instruments
+cdt2.chart_resolution = 240
+cdt2.candle_offset = 120
+cdt2.grace_period = 100 
+cdt2.volumes = True
+cdt2.read_data_from_currencies(currencies)
+filter_data = cdt2.get_trade_signalling_data()
 
-#candlestreams = cursor.fetchcandles(instruments)
-#filter_candle_block = [candlestreams[fx] for fx in instruments if fx in candlestreams]
-#available_instruments = [fx for fx in instruments if fx in candlestreams]
+pcdt = PartialCandleDataTool()
+pcdt.instruments = instruments
+pcdt.chart_resolution = 240
+pcdt.candle_offset = 120
+pcdt.volumes = True
+partial_candles = pcdt.read_data_from_currencies(currencies,[ts.the_date for ts in signals])
 
+#pdb.set_trace()
+#csf = ClientSentimentFilter(filter_data, partial_candles)
+cso = CurrencyStrengthOperator(instruments,currencies)
+ema = EMA() 
+ema.period = 5
+rsi = RSI()
+csf = CurrencyStrengthFilter(rsi,cso,ema,filter_data, partial_candles)
 
-#csf =  CorrelationFilter(candle_result)
-csf = CurrencyStrengthFilter(candle_result)
-csf.set_chart_resolution(240)
-csf.rank_gap = 2
 
 filtered_signals  = csf.filter(signals)
 print(str(len(signals)) + ' -> ' + str(len(filtered_signals)))
