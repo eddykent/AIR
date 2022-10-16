@@ -9,6 +9,8 @@ from indicators.reversal import RSI
 from indicators.volatility import BollingerBands
 from indicators.trend import ADX
 
+from charting.candle_stick_pattern import PinBar, Engulfing
+
 
 from charting.chart_pattern import SupportAndResistance
 
@@ -201,12 +203,30 @@ class MeanReversionFFXS(TradeSetup):
 
 #test for pinbars and engulfers above/below the moving average line (pullback strat?)
 class ForexSignalsCandles(TradeSetup):
-	pass
-
-
-
-class WyseTradeBollingerBands(TradeSetup):  #more wysetrade based?
-	pass
+	
+	def detect(self,trade_signalling_data):
+		candlesticks = trade_signalling_data.candlesticks 
+		ema200 = EMA() 
+		ema200.period = 200 
+		ema200_result = ema200.calculate_multiple(candlesticks)[:,:,0]
+		
+		close_values = candlesticks[:,:,csf.close]
+		
+		pinbars = PinBar()
+		engulfers = Engulfing()
+		
+		pinbar_results = pinbars.calculate_multiple(candlesticks)
+		engulf_results = engulfers.calculate_multiple(candlesticks)
+		
+		candle_results = (pinbar_results + engulf_results)[:,:,0]
+		
+		#pin to the 200ema using ATR? 
+		
+		bullish = (candle_results > 0) & (close_values > ema200_result) 
+		bearish = (candle_results < 0) & (close_values < ema200_result)
+		
+		return bullish, bearish
+		
 
 
 
