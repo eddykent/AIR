@@ -52,6 +52,10 @@ news, currrency-strength, client-sentiment & demand forecasting
 
 exiting trades on different type of exit signal?
 
+publish to AWS or similar
+	- dashboard app in android?
+
+
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs
 stringed together. Ex: first channel is GBP/USD then second is NZD/JPY

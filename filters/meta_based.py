@@ -3,6 +3,8 @@
 
 import numpy as np 
 from tqdm import tqdm 
+import scipy
+import time
 
 import pdb
 
@@ -10,6 +12,7 @@ from utils import overrides
 from filters.trade_filter import *
 from indicators.volume import ClientSentiment
 from indicators.reversal import RSI 
+from indicators.indicator import Change
 
 from utils import Database, ListFileReader, Inject
 
@@ -232,7 +235,6 @@ class CurrencyStrengthFilter(PartialIndicatorFilter):
 		filtered_signals = []
 		np_candles = np.concatenate(np_candle_blocks,axis=0)
 		osc_result = self.oscillator._perform(np_candles)[:,:,0] #get just the RSI result
-	
 		osc_columns = np.array(np.split(osc_result,len(trade_signals)))
 		
 		currency_strength_blocks = self.currency_strength.get_strengths(osc_columns)
@@ -263,8 +265,118 @@ class CurrencyStrengthFilter(PartialIndicatorFilter):
 		return filtered_signals
 		
 
-#class CorrelationFilter() #get streams like above, then correlate them using lags and use to get result? 
+class CorrelationFilter(PartialIndicatorFilter):
+	
+	lags = [2,3,4,5,6,7,8,9,10,11,12] #lag must be at least 2 since partial candle is not a good predictor
+	correlation_length = 25  
+	oscillator = None
+	correlation_threshold = 0.25 #0.3? 
+	change_threshold = 0.001 #amount prediction has to be for change (0.1%) 
+	number_threshold = 10 #number of prediction results needed 
+	
+	def __init__(self,oscillator,signalling_data,partial_candles):
+		super().__init__(signalling_data,partial_candles)
+		self.oscillator = oscillator
 
+	def get_correlations(self,x,ys):	
+		#pdb.set_trace()
+		
+		N = x.shape[0] #length of x vector (not number of samples) 
+		Exys = np.dot(x,ys.T)
+		
+		x_mean = np.sum(x) / N
+		y_means = np.sum(ys,axis=1) / N
+		
+		x2 = x*x 
+		y2s = ys*ys
+		
+		Ex2 = np.sum(x2)
+		Ey2s = np.sum(y2s,axis=1)
+		
+		tops = Exys - (N * x_mean * y_means)
+		bottoms = np.sqrt(Ex2 - N*(x_mean*x_mean)) * np.sqrt(Ey2s - N*(y_means*y_means))
+		
+		return tops / bottoms 
+	
+	def get_slopes(self,x,ys,rs):
+		N = x.shape[0]
+		x_mean = np.sum(x) / N
+		y_means = np.sum(ys,axis=1) / N
+		
+		y_minus_means = ys - y_means[:,np.newaxis]
+		x_minus_means = x - x_mean
+		
+		tops = np.sum(np.square(y_minus_means),axis=1) 
+		bottom = np.sum(np.square(x_minus_means)) 
+		
+		return rs * np.sqrt(tops / bottom)
+		
+	#we want to get the ENTIRE set of candles for every instrument, not just the single lines 
+	#use same method as CurrencyStrengthFilter
+	@overrides(PartialIndicatorFilter)  
+	def _get_candles_for_signal(self, signal_index, trade_signal):
+		#use self.signalling_data.np_candles and self.timeline 
+		return CurrencyStrengthFilter._get_candles_for_signal(self, signal_index, trade_signal)
+	
+	def _get_correlation_result_for_signal(self,trade_signal, changes):
+		ii = self._instrument_index(trade_signal.instrument)
+		this_change_string = changes[ii,-self.correlation_length:,0] #the changes specificly for this signal
+		
+		other_change_strings_pre = [] 
+		for lag in self.lags:	
+			other_change_strings_pre.append(changes[:,-(self.correlation_length+lag): -lag + 1, 0]) #add 1 on the end to get the last result for prediction
+		
+		other_change_strings = np.concatenate(other_change_strings_pre,axis=0)
+		this_change_strings = np.array([this_change_string]*other_change_strings.shape[0])
+		
+		correls = self.get_correlations(this_change_string,other_change_strings[:,:-1])
+		slopes = self.get_slopes(this_change_string,other_change_strings[:,:-1],correls)
+		#intercepts = 
+				
+		movements = other_change_strings[:,-1]
+		satisfactory = np.where(np.abs(correls) > self.correlation_threshold)
+		N = satisfactory[0].shape[0]
+		
+		prediction = 0
+		std = 0 #not in use?
+		
+		if N > 0:
+			prediction = np.dot(slopes[satisfactory],movements[satisfactory]) / N 
+		
+		return N, prediction, std
+		
+		
+	
+	def filter(self,trade_signals):
+		np_candle_blocks = self._get_candle_streams(trade_signals) #blocks stacked together 
+		if self.oscillator:
+			np_candles = np.concatenate(np_candle_blocks,axis=0)
+			osc_result = self.oscillator._perform(np_candles) 
+			np_candle_blocks = np.array(np.split(osc_result,len(trade_signals)))
+		
+		#calculate the change for each price since we want to correlate on differences 
+		np_candles = np.concatenate(np_candle_blocks,axis=0)
+		chng = Change() 
+		all_changes = chng._perform(np_candles) 
+		np_change_blocks = np.array(np.split(all_changes,len(trade_signals)))
+		
+		filtered_signals = []
+		
+		t1 = time.time()
+		for ts, changes in zip(trade_signals,np_change_blocks):
+			N, prediction, _  = self._get_correlation_result_for_signal(ts,changes)
+			if N > self.number_threshold and abs(prediction) > self.change_threshold:
+				if ts.direction == TradeDirection.SELL and prediction > 0:
+					continue #skip 
+				if ts.direction == TradeDirection.BUY and prediction < 0:
+					continue
+			
+			filtered_signals.append(ts) 
+			
+		print('time took '+str(time.time() - t1)+' seconds')
+		
+		return filtered_signals
+	
 
 #class ForexClientStentimentWebFilter(InstanceTradeFilter):	 #web based 
 #	pass #this could be a filter that just looks up forex client sentiment website for current client sentiment & overrides the above

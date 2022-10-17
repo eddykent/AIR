@@ -13,7 +13,7 @@ from filters.trade_filter import PartialCandleDataTool
 
 from filters.simple_filters import ForexSignalsAnchorBarFilter
 from filters.time_based import EconomicCalendarFilter
-from filters.meta_based import ClientSentimentFilter, FlatCorrelationFilter, CurrencyStrengthFilter, CurrencyStrengthOperator
+from filters.meta_based import ClientSentimentFilter, FlatCorrelationFilter, CurrencyStrengthFilter, CurrencyStrengthOperator, CorrelationFilter
 
 from indicators.moving_average import EMA 
 from indicators.reversal import RSI
@@ -34,7 +34,7 @@ cdt = CandleDataTool()
 cdt.start_date = start_date
 cdt.end_date = end_date
 cdt.instruments = instruments
-cdt.chart_resolution = 60
+cdt.chart_resolution = 15
 cdt.grace_period = 100 
 cdt.read_data_from_currencies(currencies)
 candle_data = cdt.get_trade_signalling_data()
@@ -51,7 +51,7 @@ cdt2.instruments = instruments
 cdt2.chart_resolution = 240
 cdt2.candle_offset = 120
 cdt2.grace_period = 100 
-cdt2.volumes = True
+#cdt2.volumes = True
 cdt2.read_data_from_currencies(currencies)
 filter_data = cdt2.get_trade_signalling_data()
 
@@ -59,7 +59,7 @@ pcdt = PartialCandleDataTool()
 pcdt.instruments = instruments
 pcdt.chart_resolution = 240
 pcdt.candle_offset = 120
-pcdt.volumes = True
+#pcdt.volumes = True
 partial_candles = pcdt.read_data_from_currencies(currencies,[ts.the_date for ts in signals])
 
 #pdb.set_trace()
@@ -68,8 +68,8 @@ cso = CurrencyStrengthOperator(instruments,currencies)
 ema = EMA() 
 ema.period = 5
 rsi = RSI()
-csf = CurrencyStrengthFilter(rsi,cso,ema,filter_data, partial_candles)
-
+#csf = CurrencyStrengthFilter(rsi,cso,ema,filter_data, partial_candles)
+csf = CorrelationFilter(None,filter_data,partial_candles)
 
 filtered_signals  = csf.filter(signals)
 print(str(len(signals)) + ' -> ' + str(len(filtered_signals)))
@@ -84,9 +84,10 @@ def show_result_summary(sigs):
 	statuses = [r.result_status for r in result]
 	cc = Counter(statuses)
 	print(cc)
+	return result
 
 print('original:')
-show_result_summary(signals)
+results = show_result_summary(signals)
 
 print('filtered:')
 show_result_summary(filtered_signals)

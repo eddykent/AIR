@@ -62,6 +62,7 @@ LogSetup() #think of how to rmeove this line
 #from tests.filter_tests import * 
 #from tests.ai_filter_tests import *
 from tests.advanced_filter_tests import *
+#from tests.pandas_tests import *
 
 
 #list of working for TrianglePattern: 

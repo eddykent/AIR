@@ -242,6 +242,19 @@ class Diff(Indicator):
 		padshape = (later.shape[0],self.diff,later.shape[2])
 		return np.concatenate([np.zeros(padshape), later - earlier],axis=1)
 
+class Change(Indicator):
+	channel_keys = {'OPEN':0,'HIGH':1,'LOW':2,'CLOSE':3} 
+	channel_styles = {'OPEN':'neutral','HIGH':'neutral','LOW':'neutral','CLOSE':'neutral'}
+	candle_sticks = False
+	
+	diff = 1
+	
+	def _perform(self,candles):	
+		later = candles[:,self.diff:,:]
+		earlier = candles[:,:-self.diff,:]
+		padshape = (later.shape[0],self.diff,later.shape[2])
+		return np.concatenate([np.zeros(padshape), (later - earlier) / np.abs(earlier)],axis=1)
+
 #these are actually provided in a toolkit with keras? 
 class Bounded(Indicator):
 	
