@@ -6,7 +6,7 @@ from collections import Counter
 from setups.trade_setup import CandleDataTool, PipStop
 from setups.setups1 import BB_KC_RSI, ADX_EMA_RSI, HA_VWAP_RSI_DIVERGENCE
 from setups.custom_setups import Harmony
-from setups.simple_setups import ForexSignalsAnchorBar, MACD_EMA_SR, FastRSI, MeanReversionFFXS, MediumScalpDaviddAnthony
+from setups.simple_setups import *
 from utils import ListFileReader, Database
 from backtest import BackTesterDatabase
 from filters.simple_filters import LambdaSelectFilter
@@ -22,8 +22,8 @@ currencies = lfr.read('fx_pairs/currencies.txt')
 #axemrsi = ADX_EMA_RSI()
 
 datatool = CandleDataTool() 
-datatool.start_date = datetime.datetime(2021,9,4)
-datatool.end_date = datetime.datetime(2022,4,4)
+datatool.start_date = datetime.datetime(2022,6,4)
+datatool.end_date = datetime.datetime(2022,9,4)
 datatool.instruments = lfr.read('fx_pairs/fx_mains.txt')
 datatool.volumes = True
 datatool.read_data_from_currencies(currencies)
@@ -31,7 +31,7 @@ tsd = datatool.get_trade_signalling_data()
 
 
 
-fxss = ForexSignalsAnchorBar() 
+fxss = ForexSignalsCandles() 
 #signals = mrffx.get_setups(start_date,end_date) #+ axemrsi.get_setups(start_date,end_date)
 #msda = HA_VWAP_RSI_DIVERGENCE()
 #msda.stop_calculator = PipStop(take_profit_pips=30,stop_loss_pips=20)
@@ -39,22 +39,24 @@ signals = fxss.get_setups(tsd)
 
 #pdb.set_trace()
 
-bbckrsi = BB_KC_RSI() 
-axemrsi = ADX_EMA_RSI()
+#bbckrsi = BB_KC_RSI() 
+#axemrsi = ADX_EMA_RSI()
 
 import random
 
-signals1 = bbckrsi.get_setups(tsd) 
-signals2 = axemrsi.get_setups(tsd)
+#signals1 = bbckrsi.get_setups(tsd) 
+#signals2 = axemrsi.get_setups(tsd)
+#random.shuffle(signals1)
+#random.shuffle(signals2)
+#signals = signals1 + signals2 #use when stress testing
+#signals = signals1[:2500] + signals2[:2500] 
+
+
+
 
 random.shuffle(signals)
 
-random.shuffle(signals1)
-random.shuffle(signals2)
 
-
-#signals = signals1 + signals2 #use when stress testing
-signals = signals1[:2500] + signals2[:2500] 
 
 #harmony = Harmony(instruments)
 #harmony.orders = [12,13,14,15]
@@ -78,7 +80,9 @@ btd = BackTesterDatabase(cursor)
 
  #remove when wanting to do stress tests
 
-result = btd.perform(signals,profit_lock=(0.75,0.5,0))
+result = btd.perform(signals) #,profit_lock=(0.75,0.5,0)
+#backteststats = BacktestStatistics(...) 
+
 statuses = [r.result_status for r in result]
 cc = Counter(statuses)
 

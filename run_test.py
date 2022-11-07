@@ -27,6 +27,8 @@ LogSetup() #think of how to rmeove this line
 #from tests.timeline_test import *
 #from tests.backtest_test import *
 
+from tests.backtest_np_test import *
+
 #from tests.spacy_test import *
 
 #
@@ -59,11 +61,14 @@ LogSetup() #think of how to rmeove this line
 #from tests.divergence_test import *
 
 
-#from tests.filter_tests import * 
+#from tests.filter_tests import * 1
 #from tests.ai_filter_tests import *
-from tests.advanced_filter_tests import *
+#from tests.advanced_filter_tests import *w
 #from tests.pandas_tests import *
+ 
+#from tests.data_pull_tests import *
 
+#from tests.selenium_test import * 
 
 #list of working for TrianglePattern: 
 #509 bearish

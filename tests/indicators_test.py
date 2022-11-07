@@ -27,7 +27,7 @@ with Database(commit=False, cache=False) as cursor:
 
 
 #OurIndicator = SMA
-OurIndicator = BollingerBands
+#OurIndicator = BollingerBands
 #OurIndicator = STDDEV
 #OurIndicator = KeltnerChannel
 #OurIndicator = MultiMovingAverage
