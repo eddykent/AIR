@@ -89,7 +89,7 @@ class FlatIndicatorFilter(TimelineTradeFilter):  ##base this on an indicator so 
 	#def check_instrument(self,instrument,direction,the_date):
 	#	raise NotImplementedError('This method must be overridden')
 	
-	def _closest_time_index(self,the_date,offset=0):
+	def _closest_time_index(self,the_date):
 		#unfortunately we dont have the full candle yet in backtesting, so we have to use the previous candle. Otherwise the backtest is wrong.
 		the_date = the_date - datetime.timedelta(minutes=self.candle_length) #comment out to use the next candle (backtest will not be correct)
 
@@ -129,7 +129,7 @@ class PartialIndicatorFilter:
 		mask = (timeline >= start_date) & (timeline <= end_date)
 		inds = np.where(mask)[0]
 		if len(inds):
-			return inds[-1] #get latest most recent index - might be different for news?
+			return inds[-1] #get latest most recent index 
 		raise ValueError('Time '+str(the_date)+' was not found in timeline')
 		return None #not found 
 	
@@ -148,6 +148,7 @@ class PartialIndicatorFilter:
 	
 	def _get_candles_for_signal(self, signal_index, trade_signal):
 		#use self.signalling_data.np_candles and self.timeline 
+		
 		ti = self._closest_time_index(
 			trade_signal.the_date,
 			self.signalling_data.timeline,
@@ -246,10 +247,10 @@ class DataBasedFilter(TimelineTradeFilter):
 
 	#weird stuff - perhaps consider refactoring  
 	def _closest_time_index(self,the_date):
-		return IndicatorFilter._closest_time_index(self,the_date)
+		return FlatIndicatorFilter._closest_time_index(self,the_date)
 	
 	def _instrument_index(self,instrument):
-		return IndicatorFilter._instrument_index(self,instrument)
+		return FlatIndicatorFilter._instrument_index(self,instrument)
 
 	def process_data_piece(self,data_piece):
 		raise NotImplementedError('This method must be overridden')

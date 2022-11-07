@@ -24,8 +24,8 @@ from backtest import BackTesterDatabase
 lfr = ListFileReader()
 
 
-start_date = datetime.datetime(2022,5,4,14,0)
-end_date = datetime.datetime(2022,7,21,14,0)
+start_date = datetime.datetime(2022,10,1,8,0)
+end_date = datetime.datetime(2022,10,13,18,0)
 instruments = lfr.read('fx_pairs/fx_mains.txt')
 currencies = lfr.read('fx_pairs/currencies.txt')
 
@@ -35,7 +35,8 @@ cdt.start_date = start_date
 cdt.end_date = end_date
 cdt.instruments = instruments
 cdt.chart_resolution = 15
-cdt.grace_period = 100 
+cdt.grace_period = 50 
+cdt.volumes = True
 cdt.read_data_from_currencies(currencies)
 candle_data = cdt.get_trade_signalling_data()
 
@@ -50,8 +51,8 @@ cdt2.end_date = end_date
 cdt2.instruments = instruments
 cdt2.chart_resolution = 240
 cdt2.candle_offset = 120
-cdt2.grace_period = 100 
-#cdt2.volumes = True
+cdt2.grace_period = 50 
+cdt2.volumes = True
 cdt2.read_data_from_currencies(currencies)
 filter_data = cdt2.get_trade_signalling_data()
 
@@ -59,19 +60,22 @@ pcdt = PartialCandleDataTool()
 pcdt.instruments = instruments
 pcdt.chart_resolution = 240
 pcdt.candle_offset = 120
-#pcdt.volumes = True
+pcdt.volumes = True
 partial_candles = pcdt.read_data_from_currencies(currencies,[ts.the_date for ts in signals])
 
 #pdb.set_trace()
-#csf = ClientSentimentFilter(filter_data, partial_candles)
+
 cso = CurrencyStrengthOperator(instruments,currencies)
 ema = EMA() 
 ema.period = 5
 rsi = RSI()
-#csf = CurrencyStrengthFilter(rsi,cso,ema,filter_data, partial_candles)
-csf = CorrelationFilter(None,filter_data,partial_candles)
+csf = CurrencyStrengthFilter(rsi,cso,ema,filter_data, partial_candles)
+crsf = CorrelationFilter(None,filter_data,partial_candles)
+clsf = ClientSentimentFilter(filter_data, partial_candles)
 
 filtered_signals  = csf.filter(signals)
+filtered_signals = clsf.filter(filtered_signals)
+filtered_signals = crsf.filter(filtered_signals)
 print(str(len(signals)) + ' -> ' + str(len(filtered_signals)))
 
 cursor = Database(cache=False,commit=False)

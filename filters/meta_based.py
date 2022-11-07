@@ -209,6 +209,8 @@ class CurrencyStrengthFilter(PartialIndicatorFilter):
 	#we want to get the ENTIRE set of candles for every instrument, not just the single lines 
 	@overrides(PartialIndicatorFilter)  
 	def _get_candles_for_signal(self, signal_index, trade_signal):
+		
+		
 		#use self.signalling_data.np_candles and self.timeline 
 		ti = self._closest_time_index(
 			trade_signal.the_date,
@@ -220,8 +222,11 @@ class CurrencyStrengthFilter(PartialIndicatorFilter):
 		if self.partial_candles:
 			pc = self.partial_candles[signal_index]
 		candles_back = self.signalling_data.grace_period
+		if (ti - candles_back - 1) <= 0:
+			pdb.set_trace()
+		assert (ti - candles_back - 1) > 0, "indexing problem - caused from missing data"
 		these_candles = self.signalling_data.np_candles[:,ti-candles_back-1:ti-1,:]
-		#pdb.set_trace()
+		#pdb.set_trace()n
 		if pc is not None:
 			end_candles = np.array(pc)
 			end_candle = end_candles[:,np.newaxis,:-1].astype(np.float) #chop date off 
