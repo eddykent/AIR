@@ -337,7 +337,7 @@ def pull_calendar(n_months_back):
 		te = TradingEconomics(sh)
 		te.load_months(all_months)
 
-pull_calendar(3)
+#pull_calendar(2)
 
 
 
