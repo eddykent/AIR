@@ -3,6 +3,8 @@ from collections import namedtuple
 import uuid
 import datetime
 
+import numpy as np
+
 #looks like you're setting up some kind of grammar!
 class TradeDirection(Enum):
 	SELL = -1
@@ -76,9 +78,9 @@ class TradeSignal:
 		this_signal.instrument = instrument
 		this_signal.strategy_ref = strategy_ref
 		this_signal.direction = direction
-		this_signal.entry = entry,
-		this_signal.entry_cut = entry_cut, 
-		this_signal.entry_expire = entry_expire,
+		this_signal.entry = entry
+		this_signal.entry_cut = entry_cut
+		this_signal.entry_expire = entry_expire
 		this_signal.take_profit_distance = take_profit_distance
 		this_signal.stop_loss_distance = stop_loss_distance
 		this_signal.length = length
@@ -182,9 +184,42 @@ class TradeSignallingData:  #need to force this to break if attemping to set som
 	chart_resolution = 15 #default 
 	candlesticks = []
 	np_candles = None #np array of the candlesticks created when calculate_multiple is called. Useful for speeding stuff up later 
+	_instrument_map = {} 
 	bullish = TradeSignallingPartial()
 	bearish = TradeSignallingPartial() 
 	
+	#perfect this so it can be used everywhere 
+	def closest_time_index(self,the_date):
+		end_date = the_date 
+		start_date = the_date - datetime.timedelta(minutes=1440*3) #just get all indexs less than or equal to the_date - 3 days
+		mask = (self.timeline >= start_date) & (self.timeline <= end_date)
+		inds = np.where(mask)[0]
+		if len(inds):
+			return inds[-1] #then get latest most recent index 
+		raise ValueError('Unable to find closest time index')
+		return None #not found 
+	
+	def instrument_index(self,instrument):
+		if not self._instrument_map:
+			self.set_instruments(self.instruments) 
+		
+		return self._instrument_map[instrument]
+	
+	#override setters here? 
+	def set_instruments(self,instruments):
+		self._instrument_map = {}
+		for e,i in enumerate(instruments):	
+			self._instrument_map[i] = e
+		self.instruments = instruments 
+
+
+
+
+
+
+
+
+
 
 
 
