@@ -24,10 +24,12 @@ class Scraper:
 	source = ''
 	html = None
 	#session = None
+	proxy = None 
 	
-	
-	def __init__(self,source):
+	def __init__(self,source,proxy=None):
 		self.change_link(source)
+		self.proxy = proxy
+		
 	
 	##function to override to get stuff from a website that we want
 	def scrape(self):
@@ -37,6 +39,8 @@ class Scraper:
 		log.debug(f"Performing get to {link}")
 		self.source = link
 		session = requests_html.HTMLSession()
+		if self.proxy: 
+			session.proxies.update({'http':proxy})
 		response = session.get(self.source)
 		self.html = response.html
 
@@ -52,6 +56,8 @@ class Article:
 	source_ref = None
 	full_text = None #dynamically grabbed using requests object if needed 
 	__lazy_load = True
+	
+	TITLE_HEAD_LEN = 50
 	
 	sql_row = "(%(hash_identifier)s,%(published_date)s,%(source_ref)s,%(title_head)s,%(compression)s)"
 	
@@ -175,7 +181,7 @@ class Article:
 		json_bytes = json.dumps(article_data).encode()
 		compressed_bytes = zlib.compress(json_bytes)
 		md5_hash = hashlib.md5(json_bytes).hexdigest()
-		title_head = self.title[:50] #for human readability in the database 
+		title_head = self.title[:self.TITLE_HEAD_LEN] #for human readability in the database 
 		
 		#also perform a check to see if we have an article in the database but the fulltext = article.title + ' ' + article_summary
 		check_data = article_data
