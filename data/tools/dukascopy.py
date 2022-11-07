@@ -304,7 +304,7 @@ class DukascopyData(Crawler): #change to Crawler?
 		download_btn.click()
 		self.handle_login() #does nothing if the modal is not displayed
 		
-	def long_poll_click_save_csv(self,expire=1800): #30 min expire 
+	def long_poll_click_save_csv(self,expire=3600): #60 min expire 
 		start = time.time() 
 		get_button = lambda: self.browser.find_element(By.XPATH,"//div[@class='d-Wh-Xh-Zh-p']//div[contains(@class,'a-b-c') and contains(text(),'Save as .csv')]")
 		get_info = lambda: self.browser.find_element(By.XPATH,"//p[@class='d-Wh-Xh-Yh']")
@@ -395,23 +395,36 @@ class DukascopyData(Crawler): #change to Crawler?
 			return fn.endswith('.csv') and ('bid' in fnl or 'ask' in fnl) and (instrument_noslash in fnl or instrument in fnl)
 			
 		#perform wait on os ? 
-		dir_files = [filename for filename in os.listdir(self.downloads_folder) if suitable_file_name(filename)]
-		bid_files = [filename for filename in dir_files if 'bid' in filename.lower()]
-		ask_files = [filename for filename in dir_files if 'ask' in filename.lower()]
-		
-		bid_file_paths = [os.path.join(self.downloads_folder,base_name) for base_name in bid_files]
-		ask_file_paths = [os.path.join(self.downloads_folder,base_name) for base_name in ask_files]
-		
-		latest_bid_file_paths = [(file_path,os.path.getctime(file_path)) for file_path in bid_file_paths if os.path.getctime(file_path) > t1 - expire]
-		latest_bid_file_paths.sort(key=lambda x: x[1],reverse=True)
-		latest_bid_file_paths = [x[0] for x in latest_bid_file_paths]
-		
-		latest_ask_file_paths = [(file_path,os.path.getctime(file_path)) for file_path in ask_file_paths if os.path.getctime(file_path) > t1 - expire]
-		latest_ask_file_paths.sort(key=lambda x: x[1],reverse=True)
-		latest_ask_file_paths = [x[0] for x in latest_ask_file_paths]
-		
-		latest_ask = latest_ask_file_paths[0]
-		latest_bid = latest_bid_file_paths[0]
+		tries = 0
+		max_tries = 3
+		latest_bid = None 
+		latest_ask = None 
+		while tries < max_tries:
+			dir_files = [filename for filename in os.listdir(self.downloads_folder) if suitable_file_name(filename)]
+			bid_files = [filename for filename in dir_files if 'bid' in filename.lower()]
+			ask_files = [filename for filename in dir_files if 'ask' in filename.lower()]
+			
+			bid_file_paths = [os.path.join(self.downloads_folder,base_name) for base_name in bid_files]
+			ask_file_paths = [os.path.join(self.downloads_folder,base_name) for base_name in ask_files]
+			
+			latest_bid_file_paths = [(file_path,os.path.getctime(file_path)) for file_path in bid_file_paths if os.path.getctime(file_path) > t1 - expire]
+			latest_bid_file_paths.sort(key=lambda x: x[1],reverse=True)
+			latest_bid_file_paths = [x[0] for x in latest_bid_file_paths]
+			
+			latest_ask_file_paths = [(file_path,os.path.getctime(file_path)) for file_path in ask_file_paths if os.path.getctime(file_path) > t1 - expire]
+			latest_ask_file_paths.sort(key=lambda x: x[1],reverse=True)
+			latest_ask_file_paths = [x[0] for x in latest_ask_file_paths]
+			
+			if not latest_ask_file_paths or not latest_bid_file_paths:
+				time.sleep(1)
+				tries += 1
+				if tries == max_tries:
+					raise OSError("Not able to get both files?")
+				continue 
+			
+			latest_ask = latest_ask_file_paths[0]
+			latest_bid = latest_bid_file_paths[0]
+			break
 		
 		lfr = ListFileReader()
 		
@@ -527,9 +540,65 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP;
 class DukascopyCandles(DukascopyData):
 	pass
 
+class Dukascopy(DukascopyData):
+	
+	upsert_row = "(%(the_date)s, %(from_currency)s, %(to_currency)s, %(bid_open)s, %(bid_high)s, %(bid_low)s, %(bid_close)s, %(bid_volume)s, %(ask_open)s, %(ask_high)s, %(ask_low)s, %(ask_close)s, %(ask_volume)s )"
+	
+	upsert_batch = """
+DROP TABLE IF EXISTS upsert_data;
+WITH data(the_date, from_currency, to_currency, bid_open, bid_high, bid_low, bid_close, bid_volume, ask_open, ask_high, ask_low, ask_close, ask_volume) AS (
+	VALUES %(allrows)s
+)
+SELECT * INTO TEMPORARY TABLE upsert_data FROM data;
 
+DELETE FROM raw_fx_candles_15m rfc USING upsert_data ud
+WHERE ud.the_date = rfc.the_date 
+AND ud.from_currency = rfc.from_currency 
+AND ud.to_currency = rfc.to_currency;
 
+INSERT INTO raw_fx_candles_15m(the_date, from_currency, to_currency, full_name, bid_open, bid_high, bid_low, bid_close, bid_volume, ask_open, ask_high, ask_low, ask_close, ask_volume)
+SELECT the_date, from_currency, to_currency, from_currency || '/' || to_currency AS full_name, bid_open, bid_high, bid_low, bid_close, bid_volume, ask_open, ask_high, ask_low, ask_close, ask_volume
+FROM upsert_data; 
 
+UPDATE raw_fx_candles_15m SET note = 'calculated'
+WHERE the_date >= CURRENT_DATE::TIMESTAMP;
+	"""
+
+	def upload_to_database(self,data_list, instrument, batch_size=250):
+		#do it in chunks? 
+		data_batches = [data_list[i:i+batch_size] for i in range(0,len(data_list),batch_size)]
+		from_currency,to_currency = instrument.split('/')[:2]
+		#with Database(commit=True,cache=False) as cursor:
+		if self.cursor is None: 
+			log.info('Not saving to database - cursor was None.')
+			return
+			
+		for batch in tqdm.tqdm(data_batches):
+			sql_rows = [] 
+			for tbb in batch:
+				try:
+					param = {
+						'the_date':tbb['the_date'],
+						'from_currency':from_currency, #tbb['from_currency'],
+						'to_currency':to_currency, # tbb['to_currency'],
+						'bid_open':tbb['bid_open'],
+						'bid_high':tbb['bid_high'],
+						'bid_low':tbb['bid_low'],
+						'bid_close':tbb['bid_close'],
+						'bid_volume':tbb['bid_volume'],
+						'ask_open':tbb['ask_open'],
+						'ask_high':tbb['ask_high'],
+						'ask_low':tbb['ask_low'],
+						'ask_close':tbb['ask_close'],
+						'ask_volume':tbb['ask_volume']
+					}
+					sql_rows.append(self.cursor.mogrify(self.upsert_row, param).decode())
+				except Exception as e:
+					log.warning('Issue with  '+from_currency+'/'+to_currency+' on '+str(tbb['the_date'])+' - "'+str(e)+'"')
+					continue
+			if sql_rows:
+				self.cursor.execute(self.upsert_batch, {'allrows':Inject(','.join(sql_rows))})
+				self.cursor.con.commit()
 
 
 
