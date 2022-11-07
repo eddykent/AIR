@@ -27,21 +27,21 @@ CREATE TABLE debug_log (
 
 
 
-
-
-CREATE TABLE exchange_value_tick (
-	id bigserial NOT NULL,
-	from_currency text NOT NULL,
-	to_currency text NOT NULL,
-	full_name text NOT NULL,
-	open_price float8 NOT NULL,
-	high_price float8 NOT NULL,
-	low_price float8 NOT NULL,
-	close_price float8 NOT NULL,
-	the_date timestamp NOT NULL,
-	captured_date timestamp NULL DEFAULT now(),
-	note text NULL
-);
+--CREATE TABLE exchange_value_tick (
+--	id bigserial NOT NULL,
+--	from_currency text NOT NULL,
+--	to_currency text NOT NULL,
+--	full_name text NOT NULL,
+--	open_price float8 NOT NULL,
+--	high_price float8 NOT NULL,
+--	low_price float8 NOT NULL,
+--	close_price float8 NOT NULL,
+--	the_date timestamp NOT NULL,
+--	captured_date timestamp NULL DEFAULT now(),
+--	note text NULL
+--);
+--
+--indexs?
 
 --table for historical sentiment and sentiment analysis data - don't store relevant keys etc as they all must be calculated
 CREATE TABLE news_article (
@@ -67,46 +67,69 @@ CREATE TABLE economic_calendar (
 );
 
 --other sentiment tables? eg client_sentiment_info? 
-CREATE TABLE exchange_volume_hourly (
-	id BIGSERIAL PRIMARY KEY,
-	from_currency TEXT,
-	to_currency TEXT,
-	full_name TEXT,
-	bid_volume DOUBLE PRECISION,
+--CREATE TABLE exchange_volume_hourly (
+--	id BIGSERIAL PRIMARY KEY,
+--	from_currency TEXT,
+--	to_currency TEXT,
+--	full_name TEXT,
+--	bid_volume DOUBLE PRECISION,
+--	ask_volume DOUBLE PRECISION,
+--	the_date TIMESTAMP, 
+--	captured_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--	note TEXT
+--);
+
+--CREATE INDEX exchange_volume_hourly_from_currency_idx ON exchange_volume_hourly USING btree(from_currency);
+--CREATE INDEX exchange_volume_hourly_to_currency_idx ON exchange_volume_hourly USING btree(to_currency);
+--CREATE INDEX exchange_volume_hourly_full_name_idx ON exchange_volume_hourly USING btree(full_name);
+--CREATE INDEX exchange_volume_hourly_the_date_idx ON exchange_volume_hourly USING btree(the_date);
+--CREATE INDEX exchange_volume_hourly_the_date_full_name_idx ON exchange_volume_hourly USING btree(the_date,full_name);
+--
+--CREATE TABLE exchange_volume_tick (
+--	id BIGSERIAL PRIMARY KEY,
+--	from_currency TEXT,
+--	to_currency TEXT,
+--	full_name TEXT,
+--	bid_volume DOUBLE PRECISION,
+--	ask_volume DOUBLE PRECISION,
+--	the_date TIMESTAMP, 
+--	captured_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--	note TEXT
+--);
+--
+--CREATE INDEX exchange_volume_tick_from_currency_idx ON exchange_volume_hourly USING btree(from_currency);
+--CREATE INDEX exchange_volume_tick_to_currency_idx ON exchange_volume_hourly USING btree(to_currency);
+--CREATE INDEX exchange_volume_tick_full_name_idx ON exchange_volume_hourly USING btree(full_name);
+--CREATE INDEX exchange_volume_tick_the_date_idx ON exchange_volume_hourly USING btree(the_date);
+--CREATE INDEX exchange_volume_tick_the_date_full_name_idx ON exchange_volume_hourly USING btree(the_date,full_name);
+
+
+
+CREATE TABLE IF NOT EXISTS raw_fx_candles_15m( --data that will come from dukascopy  
+	id BIGSERIAL,
+	from_currency TEXT, 
+	to_currency TEXT, 
+	full_name TEXT, 
+	the_date TIMESTAMP,
+	captured_date TIMESTAMP DEFAULT NOW(),
+	bid_open DOUBLE PRECISION, 
+	bid_high DOUBLE PRECISION, 
+	bid_low DOUBLE PRECISION, 
+	bid_close DOUBLE PRECISION, 
+	bid_volume DOUBLE PRECISION, 
+	ask_open DOUBLE PRECISION,
+	ask_high DOUBLE PRECISION, 
+	ask_low DOUBLE PRECISION, 
+	ask_close DOUBLE PRECISION, 
 	ask_volume DOUBLE PRECISION,
-	the_date TIMESTAMP, 
-	captured_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	note TEXT
 );
 
-CREATE INDEX exchange_volume_hourly_from_currency_idx ON exchange_volume_hourly USING btree(from_currency);
-CREATE INDEX exchange_volume_hourly_to_currency_idx ON exchange_volume_hourly USING btree(to_currency);
-CREATE INDEX exchange_volume_hourly_full_name_idx ON exchange_volume_hourly USING btree(full_name);
-CREATE INDEX exchange_volume_hourly_the_date_idx ON exchange_volume_hourly USING btree(the_date);
-CREATE INDEX exchange_volume_hourly_the_date_full_name_idx ON exchange_volume_hourly USING btree(the_date,full_name);
-
-CREATE TABLE exchange_volume_tick (
-	id BIGSERIAL PRIMARY KEY,
-	from_currency TEXT,
-	to_currency TEXT,
-	full_name TEXT,
-	bid_volume DOUBLE PRECISION,
-	ask_volume DOUBLE PRECISION,
-	the_date TIMESTAMP, 
-	captured_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	note TEXT
-);
-
-CREATE INDEX exchange_volume_tick_from_currency_idx ON exchange_volume_hourly USING btree(from_currency);
-CREATE INDEX exchange_volume_tick_to_currency_idx ON exchange_volume_hourly USING btree(to_currency);
-CREATE INDEX exchange_volume_tick_full_name_idx ON exchange_volume_hourly USING btree(full_name);
-CREATE INDEX exchange_volume_tick_the_date_idx ON exchange_volume_hourly USING btree(the_date);
-CREATE INDEX exchange_volume_tick_the_date_full_name_idx ON exchange_volume_hourly USING btree(the_date,full_name);
-
-
-
-
-
+CREATE INDEX IF NOT EXISTS raw_fx_candles_15m_from_currency_from_currency_idx ON raw_fx_candles_15m USING btree(from_currency);
+CREATE INDEX IF NOT EXISTS raw_fx_candles_15m_from_currency_to_currency_idx ON raw_fx_candles_15m USING btree(to_currency);
+CREATE INDEX IF NOT EXISTS raw_fx_candles_15m_from_currency_full_name_idx ON raw_fx_candles_15m USING btree(full_name);
+CREATE INDEX IF NOT EXISTS raw_fx_candles_15m_from_currency_the_date_idx ON raw_fx_candles_15m USING btree(the_date);
+CREATE INDEX IF NOT EXISTS raw_fx_candles_15m_from_currency_full_name_the_date_idx ON raw_fx_candles_15m USING btree(full_name,the_date);
 
 
 
