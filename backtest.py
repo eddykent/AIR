@@ -1,15 +1,21 @@
-import pdb #? 
+
 import datetime
-from collections import namedtuple
+import time
+from collections import namedtuple, Counter
 from typing import Optional,List
 
 from psycopg2.extensions import AsIs as Inject
+import numpy as np 
 
 from enum import Enum
 
+import pdb 
+
 from utils import CurrencyPair, ListFileReader, overrides
 from setups.signal import TradeDirection, TradeSignal, TradeExitSignal
+from charting import candle_stick_functions as csf
 
+#use pandas
 ##classes that take a set of trade signals and then test if they won/lost. Also report statistics (win streaks, percent loss, drawdowns??) 
 
 #stagnated = started but didnt stop, unfit = didnt start as out of bounds? eg already hit tp/sl straight away. or the tp/sl targets dont make sense 
@@ -17,7 +23,7 @@ BackTestStatistic = namedtuple('BackTestStatistic','total stagnated unfinished i
 
 class TradeResultStatus(Enum):
 	#CUT = -5 #the signal is cut if there was an expire_cut price that was hit before the entry price. 
-	INVALID = -5  #the trade parameters were wrong in some way (eg tp > sl in a sell order) 
+	INVALID = -5  #the trade parameters were wrong in some way  
 	STAGNATED = -4 #the trade never hit its entry price 
 	LOST_SL = -3 #the trade stopped out at the stop loss price 
 	LOST_EXIT = -2 #the trade hit an exit criteria and lost
@@ -32,6 +38,11 @@ class TradeResultStatus(Enum):
 TradeProfitPath = namedtuple('TradeProfitPath','typical optimistic pessimistic')
 TradeResult = namedtuple('TradeResult','signal_id entry_date entry_price entry_candle exit_date exit_price exit_candle result_movement result_percent result_status profit_path')
 
+#activation = price to reach in order to move the stops 
+#adjustment = ratio of the take profit distance to place the stop loss at
+#extra_ = ratio of the take profit distance of extra profit to strive for 
+ProfitLockData = namedtuple('ProfitLockData','activation adjustment extra')
+
 #class for handling the stats? eg for querying 
 # allow for sorting/grouping etc of trade results into separate parts 
 class BackTestStatistics: 
@@ -42,6 +53,7 @@ class BackTestStatistics:
 	def __init__(self,signals,results):
 		self.signals = signals
 		self.results = results 
+		
 	
 	def get_statistics_on(self,stategy_refs=[],instruments=[]):  #anything else?
 		subset_signals = [s for s in self.signals if (s.instrument in instruments or not instruments) and (s.strategy_ref in strategy_refs or not strategy_refs)]
@@ -61,15 +73,15 @@ class BackTestStatistics:
 			win_streaks.append(wins)
 			lose_streaks.append(loses)
 		return {
-			'total':len(self.signals),
-			'stagnated':len([s for s in self.signals if s.result_status == TradeResultStatus.STAGNATED]),
-			'unfinished':len([s for s in self.signals if s.result_status not in [TradeResultStatus.WON,TradeResultStatus.LOST]]),
-			'void':len([s for s in self.signals if s.result_status == TradeResultStatus.VOID]),
-			'invalid':len([s for s in self.signals if s.result_status == TradeResultStatus.INVALID]),
-			'wins':len([s for s in self.signals if s.result_status == TradeResultStatus.WON]),
-			'loses':len([s for s in self.signals if s.result_status == TradeResultStatus.LOST]),
-			'ups':len([s for s in self.signals if s.result_status == TradeResultStatus.WINNING]),
-			'downs':len([s for s in self.signals if s.result_status == TradeResultStatus.LOSING]),
+			'total':len(subset_signals),
+			'stagnated':len([s for s in subset_signals if s.result_status == TradeResultStatus.STAGNATED]),
+			'unfinished':len([s for s in subset_signals if s.result_status not in [TradeResultStatus.WON,TradeResultStatus.LOST]]),
+			'void':len([s for s in subset_signals if s.result_status == TradeResultStatus.VOID]),
+			'invalid':len([s for s in subset_signals if s.result_status == TradeResultStatus.INVALID]),
+			'wins':len([s for s in subset_signals if s.result_status == TradeResultStatus.WON]),
+			'loses':len([s for s in subset_signals if s.result_status == TradeResultStatus.LOST]),
+			'ups':len([s for s in subset_signals if s.result_status == TradeResultStatus.WINNING]),
+			'downs':len([s for s in subset_signals if s.result_status == TradeResultStatus.LOSING]),
 			'win_streak':max(win_streaks),
 			'lose_streak':max(lose_streaks)
 			#'growth':max(...)
@@ -104,10 +116,18 @@ class BackTester:
 	mode = 'typical' #TODO - optimistic,pesimistic (use best/worst scenario)
 	fuzz = None  #TODO: add fuzz to the dataset. If not none, the data from the fuzz should be used instead 
 	
+	profit_lock = None 
+	
+	def set_profit_lock(self,profit_lock : ProfitLockData):
+		##if not of type ProfitLockData?
+		if type(profit_lock) != ProfitLockData:
+			profit_lock = ProfitLockData._make(profit_lock)
+		self.profit_lock = profit_lock
+	
 	#def test_trade(trade_signal : TradeSignal) -> TradeResult:
 	#	pass
 	
-	def perform(trade_signals : List[TradeSignal]) -> List[TradeResult]: 
+	def perform(trade_signals : List[TradeSignal], exit_signals : Optional[List[TradeExitSignal]]) -> List[TradeResult]: 
 		'''
 		Function to perform the backtesting. The method is defined in the subclass. 
 		
@@ -123,10 +143,6 @@ class BackTester:
 		'''
 		raise NotImplementedError("This method must be overridden")
 		
-#activation = price to reach in order to move the stops 
-#adjustment = ratio of the take profit distance to place the stop loss at
-#extra_ = ratio of the take profit distance of extra profit to strive for 
-ProfitLockData = namedtuple('ProfitLockData','activation adjustment extra')
 
 #perform a backtest by passing the trade signals directly into the database and using a sql query to get the results. 
 #Due to using the database, there is no way to be able to expose this to a loss function in tensorflow 
@@ -155,13 +171,10 @@ class BackTesterDatabase(BackTester):
 	
 	
 	@overrides(BackTester)
-	def perform(self,trade_signals,exit_signals=[],profit_lock=None):		
+	def perform(self,trade_signals,exit_signals=[]):		
 		
-		if type(profit_lock ) != ProfitLockData:
-			profit_lock = ProfitLockData._make(profit_lock)
-		
-		exit_signals += [TradeExitSignal.mock()]
-		
+		if not exit_signals: 
+			exit_signals = [TradeExitSignal.mock()]
 		
 		entry_sql_rows = [self.cursor.mogrify(TradeSignal.sql_row,ts.to_dict_row()).decode() for ts in trade_signals]
 		exit_sql_rows = [self.cursor.mogrify(TradeExitSignal.sql_row,te.to_dict_row()).decode() for te in exit_signals]
@@ -173,22 +186,25 @@ class BackTesterDatabase(BackTester):
 		query_params = {
 			'trade_signals':Inject(','.join(entry_sql_rows)),
 			'exit_signals':Inject(','.join(exit_sql_rows)),
-			'profit_lock_activation':None if profit_lock is None else profit_lock.activation,
-			'profit_lock_adjustment':None if profit_lock is None else profit_lock.adjustment,
-			'profit_lock_extra':None if profit_lock is None else profit_lock.extra
+			'profit_lock_activation':None,
+			'profit_lock_adjustment':None,
+			'profit_lock_extra':None
 		}
 		
+		if self.profit_lock is not None:
+			query_params['profit_lock_activation'] = self.profit_lock.activation
+			query_params['profit_lock_adjustment'] = self.profit_lock.adjustment
+			query_params['profit_lock_extra'] = self.profit_lock.extra
 		
 		self.cursor.execute(sql_query,query_params)
 		query_result = self.cursor.fetchall()
 		
-		
 		trade_results = []
 		for result in query_result:
-			result_row, path = result #unpack 			
+			result_row, path = result #unpack 
 			result_status = self.trade_result.get(result_row['result_status'].upper(),TradeResultStatus.INVALID)
 			result_row['result_status'] = result_status
-			if path:
+			if path and False:
 				trade_result_paths = TradeProfitPath(**path)
 				result_row['profit_path'] = trade_result_paths
 			else:
@@ -201,7 +217,259 @@ class BackTesterDatabase(BackTester):
 
 #pass streams candles (labelled with their instrument name) to this class and then perfrom backtesting using this data
 #this class might be exposable to an AI loss function. 
-#class BackTesterCandles:
+class BackTesterCandles(BackTester): #allows for fuzzing the data 
+	
+	signalling_data = None
+	_instrument_map = {} 
+	
+	def __init__(self, candle_data):	
+		self.signalling_data = candle_data
+			
+	@overrides(BackTester)
+	def perform(self,trade_signals,exit_signals=[]):
+		
+		#this is what each result needs: 
+		#signal_id entry_date entry_price entry_candle exit_date exit_price exit_candle result_movement result_percent result_status profit_path
+		
+		trade_tracks, timeline_indexs = self._get_trade_tracks_and_timeline_indexs(trade_signals)
+		entry_prices, entry_indexs = self._get_start_prices_and_positions(trade_signals, trade_tracks)
+		signal_ids = [ts.signal_id for ts in trade_signals]
+		
+		ci_max = np.full(trade_tracks.shape[0],trade_tracks.shape[1]-1) #if any index is equal or larger than this it never happened
+		timeline_max = self.signalling_data.timeline.shape[0] - 1
+		overflows = timeline_indexs + ci_max - timeline_max
+		
+		ci_max[overflows > 0] -= overflows[overflows > 0]
+		
+		
+		trade_directions = np.array([ts.direction for ts in trade_signals])
+		
+		result_statuses = np.array([TradeResultStatus.STAGNATED for ts in trade_signals])
+		exit_indexs = ci_max.copy() + 1
+		
+		
+		exit_prices = entry_prices.copy()
+		
+		
+		##key price points 
+		cutoffs, take_profits, stop_losses = self._get_key_price_points(trade_signals, entry_prices)
+		
+		#work out where trades get cut off 
+		cutoff_indexs = self._price_hit_calculation(trade_tracks, cutoffs)   
+		
+		cutoff_mask = cutoff_indexs <= entry_indexs
+		result_statuses[cutoff_mask] = TradeResultStatus.VOID
+		exit_indexs[cutoff_mask] = cutoff_indexs[cutoff_mask]
+		exit_prices[cutoff_mask] = cutoffs[cutoff_mask]	
+	
+		take_profit_indexs = self._price_hit_calculation(trade_tracks,take_profits,entry_indexs)
+		stop_loss_indexs = self._price_hit_calculation(trade_tracks,stop_losses,entry_indexs)
+		
+		stop_loss_mask = ~cutoff_mask & (stop_loss_indexs <= take_profit_indexs) & (stop_loss_indexs <= ci_max) #add bounds to the indexs to keep stagnated trades ?
+		take_profit_mask = ~cutoff_mask & (stop_loss_indexs > take_profit_indexs) & (take_profit_indexs <= ci_max)
+		
+		result_statuses[stop_loss_mask] = TradeResultStatus.LOST_SL
+		result_statuses[take_profit_mask] = TradeResultStatus.WON_TP
+		
+		exit_indexs[stop_loss_mask] = stop_loss_indexs[stop_loss_mask]
+		exit_indexs[take_profit_mask] = take_profit_indexs[take_profit_mask]
+		exit_prices[stop_loss_mask] = stop_losses[stop_loss_mask]
+		exit_prices[take_profit_mask] = take_profits[take_profit_mask]
+			
+		if self.profit_lock:
+			#pl price points 
+			pl_activation, pl_adjustment, pl_extra = self._get_profit_lock_price_points(entry_prices, take_profits)
+			pl_activation_indexs = self._price_hit_calculation(trade_tracks,pl_activation,entry_indexs)
+			
+			profit_locked = stop_loss_indexs > pl_activation_indexs
+			stop_loss_mask = (~cutoff_mask) & (~profit_locked)
+			
+						
+			pl_sl_indexs = self._price_hit_calculation(trade_tracks,pl_adjustment,pl_activation_indexs)
+			pl_tp2_indexs = self._price_hit_calculation(trade_tracks,pl_extra,pl_activation_indexs)
+			
+			won_pl_mask = (~cutoff_mask) & profit_locked & (pl_sl_indexs <= pl_tp2_indexs) & (pl_sl_indexs <= ci_max) 
+			won_extra_mask = (~cutoff_mask) & profit_locked & (pl_sl_indexs > pl_tp2_indexs) & (pl_tp2_indexs <= ci_max) 
+			
+			#re-do stop losses 
+			result_statuses[stop_loss_mask] = TradeResultStatus.LOST_SL
+			exit_indexs[stop_loss_mask] = stop_loss_indexs[stop_loss_mask]
+			exit_prices[stop_loss_mask] = stop_losses[stop_loss_mask]
+			
+			#pl 
+			result_statuses[won_pl_mask] = TradeResultStatus.WON_PL
+			exit_indexs[won_pl_mask] = pl_sl_indexs[won_pl_mask]
+			exit_prices[won_pl_mask] = pl_adjustment[won_pl_mask]
+			
+			#tp2
+			result_statuses[won_extra_mask] = TradeResultStatus.WON_EXTRA if self.profit_lock.extra != 0 else TradeResultStatus.WON_TP
+			exit_indexs[won_extra_mask] = pl_tp2_indexs[won_extra_mask]
+			exit_prices[won_extra_mask] = pl_extra[won_extra_mask]
+			
+		#lastly, check the exit signals and adjust trades that exit before they hit their exit index 	
+		#TODO -  check entry_indexs <= exit_signal <= exit_indexs 
+		
+		#now build results (firstly by deleting any candles that have elapsed the entire track eg (exit_indexs == ci_index)
+		entry_dates = np.full(entry_indexs.shape, None)
+		exit_dates = entry_dates.copy() 
+				
+		result_mask = (entry_indexs <= ci_max) & (exit_indexs <= ci_max) #all these have a result 
+		#result_values =  np.full(entry_indexs.shape, np.nan)
+		
+		entry_dates[result_mask] = self.signalling_data.timeline[timeline_indexs[result_mask] + entry_indexs[result_mask]]
+		exit_dates[result_mask] = self.signalling_data.timeline[timeline_indexs[result_mask] + exit_indexs[result_mask]]
+		
+		
+		depleated_mask = (entry_indexs <= ci_max) & (exit_indexs > ci_max) #handle these using a typical price at ci_max-1?
+		
+		
+		entry_dates[depleated_mask] = self.signalling_data.timeline[timeline_indexs[depleated_mask] + entry_indexs[depleated_mask]]
+		
+		exit_indexs[depleated_mask] = ci_max[depleated_mask]
+		exit_dates[depleated_mask] = self.signalling_data.timeline[timeline_indexs[depleated_mask] + exit_indexs[depleated_mask]] 
+		
+		#use the typical prices for the exit price when no SL or TP was hit
+		exit_prices[depleated_mask] = np.mean(trade_tracks[depleated_mask,exit_indexs[depleated_mask],1:],axis=1)
+		
+		dir_mult = (trade_directions == TradeDirection.BUY).astype(np.int) - (trade_directions == TradeDirection.SELL).astype(np.int)
+		result_movements = (exit_prices - entry_prices) * dir_mult 
+		result_movements[cutoff_mask] = 0
+		result_percents = (result_movements / entry_prices) * 100 
+		
+		result_statuses[~cutoff_mask & depleated_mask & (result_movements <= 0)] = TradeResultStatus.LOSING 
+		result_statuses[~cutoff_mask & depleated_mask & (result_movements > 0)] = TradeResultStatus.WINNING 
+		fake_profit_paths = np.full(result_statuses.shape[0],None)
+		
+		all_results = [] 
+		for result in zip(signal_ids,entry_dates,entry_prices,entry_indexs,exit_dates,exit_prices,exit_indexs,result_movements,result_percents,result_statuses,fake_profit_paths):	
+			all_results.append(TradeResult._make(result))
+		
+		#pdb.set_trace()
+		return all_results 
+		
+		
+		
+	
+	#for every trade, get the list of candles associated with it ordered from the start to end & get the associated timeline index
+	def _get_trade_tracks_and_timeline_indexs(self,trade_signals):
+		
+		trade_tracks = [] 
+		trade_lengths = [] 
+		timeline_indexs = [] 
+		
+		for ts in trade_signals:
+			ii = self.signalling_data.instrument_index(ts.instrument)
+			ti = self.signalling_data.closest_time_index(ts.the_date)
+			timeline_indexs.append(ti)
+			#if we are not on a weekend 
+			ti_ub = ti + (ts.length // self.signalling_data.chart_resolution) 
+			
+			#what if weekend? 
+			trade_track = self.signalling_data.np_candles[ii,ti : ti_ub,:]
+			trade_tracks.append(trade_track)
+			trade_lengths.append(trade_track.shape[0])
+			
+			#if not trade_tracks[-1].shape[0] == trade_lengths[-1]:
+			#	pdb.set_trace()
+			#	print('hit a problem building tts')
+			#	assert trade_tracks[-1].shape[0] == trade_lengths[-1]
+		
+		maxlen = np.max(trade_lengths)
+		result = np.full((len(trade_signals),maxlen,4),np.nan)
+		
+		for i,(tt,tl) in enumerate(zip(trade_tracks,trade_lengths)):
+			try:	
+				result[i,:tl] = tt[:,:4]
+			except Exception as e:
+				pdb.set_trace()
+				print('hit a problem')
+			
+		return result, np.array(timeline_indexs)
+		
+	
+	def _get_start_prices_and_positions(self, trade_signals, trade_tracks):	
+		
+		signal_start_prices = np.array([ts.entry for ts in trade_signals],dtype=np.float64)
+		nanmask = np.isnan(signal_start_prices)
+		
+		start_prices = np.full(len(trade_signals),np.nan)
+		start_positions = np.full(len(trade_signals),0)
+		
+		start_candles = trade_tracks[:,0,:]
+		start_prices[nanmask] = np.mean(start_candles[nanmask,1:],axis=1) #typical price (csf.open = 0)
+		start_prices[~nanmask] = signal_start_prices[~nanmask]
+		
+		#TODO: uncomment out when this is working & example
+		price_start_poistions =  self._price_hit_calculation(trade_tracks[~nanmask],signal_start_prices[~nanmask])
+		start_positions[~nanmask] = price_start_poistions # self._price_hit_calculation(trade_tracks[~nanmask],signal_start_prices[~nanmask])
+		
+		return start_prices, start_positions
+		
+		
+	def _get_key_price_points(self,trade_signals,start_prices):
+		
+		tpd = np.array([ts.take_profit_distance for ts in trade_signals],dtype=np.float64)
+		sld = np.array([ts.stop_loss_distance for ts in trade_signals],dtype=np.float64)
+		
+		dirs = np.array([1 if ts.direction == TradeDirection.BUY else -1 if ts.direction == TradeDirection.SELL else 0 for ts in trade_signals],dtype=np.float64)
+		
+		cutoffs = np.array([ts.entry_cut for ts in trade_signals],dtype=np.float64)
+		
+		take_profits = start_prices + (dirs * tpd)
+		stop_losses = start_prices - (dirs * sld)
+		
+		return cutoffs, take_profits, stop_losses #, profit_lock_activations, profit_lock_adjustments, profit_lock_extra
+	
+	def _get_profit_lock_price_points(self, start_prices, take_profits):
+		
+		pl_activation_mult = self.profit_lock.activation if self.profit_lock is not None and self.profit_lock.activation is not None else np.nan
+		pl_adjustment_mult = self.profit_lock.adjustment if self.profit_lock is not None and self.profit_lock.adjustment is not None else np.nan
+		pl_extra_mult = self.profit_lock.extra if self.profit_lock is not None and self.profit_lock.extra is not None else np.nan 
+		
+		tpd = take_profits - start_prices
+		
+		profit_lock_activations = start_prices + (tpd *  pl_activation_mult)
+		profit_lock_adjustments = start_prices + (tpd *  pl_adjustment_mult)
+		profit_lock_extra = start_prices + (tpd * (1.0 + pl_extra_mult))
+		
+		return profit_lock_activations, profit_lock_adjustments, profit_lock_extra
+		
+	
+	#most used part of the backtesting algorithm so needs to be fast  
+	@staticmethod
+	def _price_hit_calculation(trade_tracks, price_target, start_pos=None):
+	
+		price_target = price_target[:,np.newaxis] #newaxis somewhere
+		within = (trade_tracks[:,:,csf.low] <= price_target) & (price_target <= trade_tracks[:,:,csf.high])
+		
+		trade_track_closes = trade_tracks[:,:-1,csf.close]
+		padding = np.full((trade_track_closes.shape[0],1),np.nan)
+		prev_closes = np.concatenate([padding, trade_tracks[:,:-1,csf.close]],axis=1)
+		next_opens = trade_tracks[:,:,csf.open]
+		
+		before_low = (prev_closes <= price_target) & (price_target <= next_opens)
+		before_high = (next_opens <= price_target) & (price_target <= prev_closes)
+		
+		#unsure of this 	
+		result_grid = within | before_low | before_high
+		time_ind = np.arange(result_grid.shape[1]) + 1
+		
+		if start_pos is None:
+			start_pos = np.zeros(price_target.shape[0])
+		
+		start_positions = 1.0 / (start_pos + 1.0)
+		
+		#to ensure we get the earliest after start position, everything before that index will be less than 1 so we can floor it off
+		result_numeric = np.floor(time_ind[np.newaxis,:]  * result_grid.astype(np.int) * start_positions[:,np.newaxis]).astype(np.int)
+		result_numeric[result_numeric == 0] = result_numeric.shape[1] ##then set all 0s to max value to stop them being selected by argmin
+		
+		result_numeric = np.concatenate([result_numeric,np.full((result_numeric.shape[0],1), result_numeric.shape[1]-1)],axis=1)
+		results = np.argmin(result_numeric,axis=1)
+		
+		return results
+	
+
+
 
 
 
