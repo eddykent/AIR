@@ -3,9 +3,9 @@
 DROP TABLE IF EXISTS backtest_parameters;
 CREATE TEMPORARY TABLE backtest_parameters 
 AS SELECT 
-%(profit_lock_activation)s::FLOAT8 AS profit_lock_activation, 
-%(profit_lock_adjustment)s::FLOAT8 AS profit_lock_adjustment, 
-%(profit_lock_extra)s::FLOAT8 AS profit_lock_extra
+0.6 AS profit_lock_activation, 
+0.3 AS profit_lock_adjustment, 
+0.0 AS profit_lock_extra
 ;
 
 
@@ -21,14 +21,49 @@ AS SELECT
 DROP TABLE IF EXISTS trade_signals; 
 CREATE TEMPORARY TABLE trade_signals 
 AS SELECT * FROM (VALUES 
-	%(trade_signals)s
+		('8688317b-5c58-4349-8eeb-4061750b653b','BB_KC_RSI','2021-12-29T09:15:00'::timestamp,'USD/CHF','SELL',(NULL),(NULL),(120),0.00313500000000003,0.0020900000000000202,1440),
+		('00d9aef9-60a5-4d7e-bc2a-c6462eda2d03','BB_KC_RSI','2022-01-14T17:30:00'::timestamp,'USD/CHF','SELL',(NULL),(NULL),(120),0.003805714285714285,0.0025371428571428567,1440),
+		('6f0ec00b-0cb8-4b87-894d-319587165de0','BB_KC_RSI','2021-10-05T09:00:00'::timestamp,'EUR/GBP','BUY',(NULL),(NULL),(120),0.001523571428571489,0.0010157142857143261,1440),
+		('e1460a72-6a55-4c8a-9433-7bbb52f32ad2','BB_KC_RSI','2022-02-27T22:15:00'::timestamp,'AUD/USD','BUY',(NULL),(NULL),(120),0.004180714285714244,0.002787142857142829,1440),
+		('4312a3ac-2d41-495f-8901-deffae77805a','BB_KC_RSI','2022-02-21T07:30:00'::timestamp,'AUD/CAD','SELL',(NULL),(NULL),(120),0.003992142857142841,0.0026614285714285607,1440),
+		('6b97925a-a8bd-4f37-bcbd-9ad84fee81b6','BB_KC_RSI','2022-02-18T16:00:00'::timestamp,'GBP/CHF','BUY',(NULL),(NULL),(120),0.004487142857142848,0.0029914285714285655,1440),
+		('156b8b72-b5ac-45dd-9586-127b9ba67916','BB_KC_RSI','2021-12-22T15:45:00'::timestamp,'AUD/CHF','SELL',(NULL),(NULL),(120),0.004397142857142853,0.0029314285714285688,1440),
+		('0c51c733-4b13-45c2-be82-14077e06900b','BB_KC_RSI','2022-02-04T12:00:00'::timestamp,'GBP/CAD','SELL',(NULL),(NULL),(120),0.004229999999999925,0.0028199999999999497,1440),
+		('5c5a5857-096f-40b7-8e12-1393f46eb8f1','BB_KC_RSI','2022-02-03T13:45:00'::timestamp,'EUR/CHF','SELL',(NULL),(NULL),(120),0.003537857142857053,0.0023585714285713688,1440),
+		('d6262bd4-293f-4e11-bc3d-d002af07ce53','BB_KC_RSI','2022-01-11T17:00:00'::timestamp,'USD/CHF','BUY',(NULL),(NULL),(120),0.004032857142857085,0.0026885714285713896,1440),
+		('cb6d543d-5bb8-47f9-9f61-cd999ab66ea0','ADX_EMA_RSI','2021-10-27T19:45:00'::timestamp,'AUD/CAD','SELL',(NULL),(NULL),(120),0.001718571428571387,0.001145714285714258,1440),
+		('7969da40-6b33-4af4-9c13-7bd1c57d23e0','ADX_EMA_RSI','2022-02-25T01:15:00'::timestamp,'USD/CHF','BUY',(NULL),(NULL),(120),0.0033299999999999753,0.0022199999999999837,1440),
+		('72b763d6-4d81-4290-81b8-26206232c31a','ADX_EMA_RSI','2021-10-12T02:00:00'::timestamp,'AUD/CAD','BUY',(NULL),(NULL),(120),0.001517142857142828,0.001011428571428552,1440),
+		('b0105796-acde-4ad2-911f-050ba3bbef3f','ADX_EMA_RSI','2022-03-03T02:15:00'::timestamp,'USD/CAD','SELL',(NULL),(NULL),(120),0.0029571428571429116,0.001971428571428608,1440),
+		('18d7fcb5-1269-4416-8550-e901520605ba','ADX_EMA_RSI','2021-10-13T01:45:00'::timestamp,'EUR/USD','SELL',(NULL),(NULL),(120),0.0006900000000000478,0.00046000000000003184,1440),
+		('934efced-40b1-4e90-9cd7-63a66adc8528','ADX_EMA_RSI','2021-12-17T01:45:00'::timestamp,'EUR/AUD','BUY',(NULL),(NULL),(120),0.0031800000000000877,0.0021200000000000585,1440),
+		('e3ae1471-fb56-4b09-916d-5a1b4e8979af','ADX_EMA_RSI','2022-02-04T05:45:00'::timestamp,'AUD/NZD','SELL',(NULL),(NULL),(120),0.0025864285714286245,0.0017242857142857496,1440),
+		('315254ca-2754-443a-8ce4-1954e09a038c','ADX_EMA_RSI','2022-03-10T08:45:00'::timestamp,'EUR/CHF','BUY',(NULL),(NULL),(120),0.00355071428571428,0.0023671428571428533,1440),
+		('5ff6e7f0-8d13-44eb-9cf4-7f38f863a665','ADX_EMA_RSI','2022-03-23T07:45:00'::timestamp,'GBP/CHF','BUY',(NULL),(NULL),(120),0.003595714285714432,0.002397142857142955,1440),
+		('51a81c03-e8dc-484f-b5c4-8a602583f919','ADX_EMA_RSI','2021-09-17T05:00:00'::timestamp,'GBP/USD','SELL',(NULL),(NULL),(120),0.0014271428571428807,0.0009514285714285872,1440),
+('e32e2c8f-b6a9-4669-a9c6-2856c9c544c6','ForexSignalsAnchorBar','2021-10-08T17:15:00'::timestamp,'NZD/JPY','BUY',(77.811),(77.66),(120),0.2314285714285711,0.15428571428571405,1440),
+('88d65da8-9c19-4fdd-be2b-3e23469a7b15','ForexSignalsAnchorBar','2021-12-10T09:45:00'::timestamp,'EUR/AUD','SELL',(1.57766),(1.5793162169711903),(120),0.0033835714285712797,0.0022557142857141865,1440),
+('e63ab896-8db0-4c63-8a8a-7a9d15e1c429','ForexSignalsAnchorBar','2021-10-18T04:00:00'::timestamp,'CHF/JPY','SELL',(123.404),(123.593),(120),0.22628571428571376,0.1508571428571425,1440),
+('bb4a5658-6f9e-4c77-bd01-c0339cf457b9','ForexSignalsAnchorBar','2021-12-16T22:30:00'::timestamp,'EUR/CHF','SELL',(1.04088),(1.04177),(120),0.0011742857142857466,0.0007828571428571644,1440),
+('ef82384c-6919-42b9-ac2e-49126fd1e727','ForexSignalsAnchorBar','2022-02-18T16:00:00'::timestamp,'EUR/JPY','SELL',(130.34),(130.633),(120),0.47742857142857326,0.3182857142857155,1440),
+('1424d164-7fde-4d11-85d3-9d6e9aa07c9e','ForexSignalsAnchorBar','2021-11-04T16:15:00'::timestamp,'GBP/NZD','SELL',(1.89669),(1.9012),(120),0.006366428571428455,0.004244285714285637,1440),
+('e7e69a54-9292-41e8-801a-7e9e808cff41','ForexSignalsAnchorBar','2021-09-22T07:00:00'::timestamp,'AUD/CHF','BUY',(0.67073),(0.66987),(120),0.001334999999999991,0.000889999999999994,1440),
+('48c765e6-529c-49ab-9fac-9f3618f735bb','ForexSignalsAnchorBar','2022-03-07T21:00:00'::timestamp,'USD/CAD','BUY',(1.28148),(1.2785),(120),0.004319999999999943,0.002879999999999962,1440),
+('c66c4f95-7ded-4bb7-9c69-8ae8c1f30211','ForexSignalsAnchorBar','2022-01-07T18:30:00'::timestamp,'AUD/CAD','SELL',(0.90676),(0.90837),(120),0.00469071428571423,0.0031271428571428206,1440),
+('3905df22-e341-4f46-9653-eb62bd884948','ForexSignalsAnchorBar','2021-10-15T17:30:00'::timestamp,'NZD/CHF','BUY',(0.65359),(0.65292),(120),0.0016242857142856736,0.0010828571428571157,1440),
+('050487eb-ccc9-4ce2-8f6b-e71d42aaec30','ForexSignalsAnchorBar','2022-02-21T21:15:00'::timestamp,'EUR/GBP','SELL',(0.8314),(0.83202),(120),0.0016928571428570516,0.0011285714285713677,1440),
+('581c0e66-7209-4b5e-96f0-9f9170d7f2a3','ForexSignalsAnchorBar','2022-04-01T11:00:00'::timestamp,'EUR/AUD','SELL',(1.4689),(1.47314),(120),0.006627857142857074,0.004418571428571383,1440),
+('4965742b-1d32-4893-a271-4a01d1f32e30','ForexSignalsAnchorBar','2022-01-28T03:00:00'::timestamp,'NZD/CHF','SELL',(0.61156),(0.61263),(120),0.0023464285714286225,0.0015642857142857483,1440),
+('b10a1954-fe80-4b71-a88d-608c4581af9d','ForexSignalsAnchorBar','2022-03-14T19:30:00'::timestamp,'AUD/JPY','SELL',(84.88),(85.129),(120),0.3929999999999946,0.2619999999999964,1440),
+('ab502d01-8484-48bb-9814-cea9f163ae12','ForexSignalsAnchorBar','2022-02-25T07:00:00'::timestamp,'NZD/CAD','BUY',(0.85897),(0.85799),(120),0.0023464285714285982,0.0015642857142857322,1440)
 ) AS ts(signal_id, strategy_ref, the_date, instrument, direction, entry_price, entry_cutoff, entry_expiry, take_profit_difference, stop_loss_difference, duration);
 
 
 DROP TABLE IF EXISTS exit_signals;
 CREATE TEMPORARY TABLE exit_signals 
 AS SELECT * FROM (VALUES  
-	 %(exit_signals)s
+	 ('7338cb57-ff3b-49c9-9ee8-1e474ae6ab42','BB_KC_RSI','2022-02-28T05:15:00'::timestamp,'AUD/USD','BUY'),
+	 ('7348cb56-ff3b-49c9-9ee8-1e474ae6ab42','strat1','1990-01-01T00:00:00'::timestamp,NULL,'VOID')
 ) AS te(signal_id, strategy_ref, the_date, instrument, direction);
 
 DROP TABLE IF EXISTS candle_selection;
@@ -46,9 +81,7 @@ AS SELECT * FROM (
 	--sort weekend here
 	SELECT 
 	signal_id,
-	instrument,
-	start_date,
-	end_date,
+	instrument, 
 	tsrange(start_date,end_date,'[)') AS the_range,
 	expire_date
 FROM trades 
@@ -61,17 +94,12 @@ DROP TABLE IF EXISTS trade_reels;
 CREATE TEMPORARY TABLE trade_reels 
 AS SELECT * FROM (
 	WITH date_range AS (
-		SELECT 
-		min(the_date) as start_date,
-		max(the_date) + (max(duration) || ' minutes')::INTERVAL AS end_date,
-		tsrange(min(the_date),max(the_date) + (max(duration) || ' minutes')::INTERVAL) AS d FROM trade_signals 
+		SELECT tsrange(min(the_date),max(the_date) + (max(duration) || ' days')::INTERVAL) AS d FROM trade_signals 
 	),
 	exchange_value_tick_sub AS (
 		SELECT evt.*  
 		FROM exchange_value_tick evt, date_range dr
-		WHERE dr.d @> evt.the_date 
-		AND evt.the_date >= dr.start_date 
-		AND evt.the_date < dr.end_date
+		WHERE dr.d @> evt.the_date
 	)
 	SELECT 
 	cs.signal_id, 
@@ -85,10 +113,8 @@ AS SELECT * FROM (
 	evt.the_date < cs.expire_date AS not_expired--,
 	--tsrange(evt.the_date,LEAD(evt.the_date) OVER (PARTITION BY cs.signal_id ORDER BY evt.the_date ASC)) AS candle_trange 
 	FROM candle_selection cs 
-	JOIN exchange_value_tick_sub evt ON evt.full_name = cs.instrument 
+	JOIN exchange_value_tick evt ON evt.full_name = cs.instrument 
 	WHERE cs.the_range @> evt.the_date
-	AND evt.the_date >= cs.start_date 
-	AND evt.the_date < cs.end_date
 ) ranged_select;
 
 
@@ -107,7 +133,7 @@ AND ts.entry_price IS NULL  --enter straight away if the entry price was NULL
 UNION
 SELECT ts.signal_id,
 tr.candle_number,
-ts.entry_price::DOUBLE PRECISION,
+ts.entry_price,
 'between' AS status
 FROM trade_signals ts  --enter at the entry price if it has been crossed by the candles 
 JOIN trade_reels tr ON ts.signal_id = tr.signal_id 
@@ -179,6 +205,7 @@ FROM backtest_parameters params, trade_starts st
 JOIN trade_signals ts ON st.signal_id = ts.signal_id;
 
 --=======NOW BUILD EVENT TABLE - for everything that can happen lets record it and the candle number in an event table along with the signal ID 
+--first, create all the temp tables for the various events 
 --CUTOFF EVENTS 
 DROP TABLE IF EXISTS trade_cutoff_cross;
 CREATE TEMPORARY TABLE trade_cutoff_cross AS 
@@ -348,7 +375,6 @@ JOIN trade_starts ts ON ts.signal_id = tcc.signal_id
 WHERE tcc.candle_number < ts.candle_number
 ORDER BY signal_id, candle_number ASC;
 
-
 DROP TABLE IF EXISTS trade_events;
 CREATE TEMPORARY TABLE trade_events 
 AS SELECT * FROM (
@@ -454,7 +480,6 @@ WHERE is_exit--drops trades whose time elapsed - add these back IN & WORK OUT IF
 ORDER BY signal_id, candle_number ASC;
 
 ---results 
-DROP TABLE IF EXISTS trade_results; 
 WITH results_pre AS (
 	SELECT te.signal_id,
 	tsig.direction,
@@ -563,7 +588,7 @@ AND pps.candle_number <= te.candle_number
 GROUP BY pps.signal_id;
 
 SELECT 
-to_json(tr) AS trade_result, --json OBJECT 
+tr.*, to_json(tr) AS trade_result, --json OBJECT 
 json_build_object(
 	'optimistic',pp.optimistic,
 	'pessimistic',pp.pessimistic,
@@ -571,14 +596,6 @@ json_build_object(
 ) AS profit_path
 FROM trade_results tr
 LEFT JOIN profit_paths pp ON tr.signal_id = pp.signal_id
-
-
-
-
-
-
-
-
 
 
 
