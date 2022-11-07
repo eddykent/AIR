@@ -9,6 +9,7 @@ from selenium.common.exceptions import TimeoutException, ElementClickIntercepted
 
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.proxy import Proxy, ProxyType
 from selenium.webdriver.remote.webelement import WebElement
 
 from webdriver_manager.chrome import ChromeDriverManager
@@ -35,9 +36,13 @@ class SeleniumHandler:
 	
 	config = None
 	#WINDOW_SIZE = "1920,1080"
+	capabilities = None
 	
-	def __init__(self,hidden=False,chrome_options=None):
-		self.config = Configuration()
+	def __init__(self,hidden=False,chrome_options=None,proxy=None,config=None):
+		if config is None:
+			self.config = Configuration()
+		else:
+			self.config = config
 		
 		if not chrome_options:
 			chrome_options = ChromeOptions()
@@ -47,6 +52,19 @@ class SeleniumHandler:
 		chrome_options.add_experimental_option("prefs",prefs)
 		if hidden:
 			chrome_options.add_argument('--headless')
+		
+		self.capabilities = webdriver.DesiredCapabilities.CHROME
+		if proxy:
+			prox = Proxy()
+			prox.proxy_type = ProxyType.MANUAL
+			prox.http_proxy = proxy
+			prox.socks_proxy = proxy
+			prox.ssl_proxy = proxy
+			prox.socks_version = 5
+
+			prox.add_to_capabilities(self.capabilities)
+			
+			#chrome_options.add_argument('--proxy-server=%s' % proxy)
 		
 		self.chrome_options = chrome_options
 				
@@ -62,7 +80,8 @@ class SeleniumHandler:
 	def start(self):
 		self.browser = webdriver.Chrome(\
 			service=Service(ChromeDriverManager().install()),\
-			chrome_options=self.chrome_options\
+			chrome_options=self.chrome_options,\
+			desired_capabilities=self.capabilities\
 		)
 		#self.browser.implicitly_wait(0.5) #surely nothing will load longer than 0.5 seconds or we will use a longer wait using perform_wait
 	
