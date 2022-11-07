@@ -124,6 +124,11 @@ Setup Object - the base object for setups, where a setup is a
 signal generating tactic using anything we have already and can be used 
 with multiple timeframes. This will help with screening all the pairs
 
+correlation filter needs to use partial candles (inherit from PartialIndicatorFilter)
+
+- fix fxstreet to use the indexing strategy to pull new articles (eg https://www.fxstreet.com/news?q=GBPUSD&hPP=999&idx=FxsIndexPro&p=0)
+	pull links using selenium, check against db & if there is content? then read only the missing stuff 
+
 
 BUGS:
 (FIXED)

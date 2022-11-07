@@ -13,8 +13,6 @@ refactor setups
 		-base yes, higher drawing functions can draw the underlying indicators if on candlesticks
 		-consider drawing any results from self?  
 
-correlation filter needs to use partial candles (inherit from PartialIndicatorFilter)
-
 additional constraints for chart patterns & speed
 	- harmonics - eg why are there so few? fix the cache method in Harmony (custom_setups)
 	- trend pattern - what additional constraints can be added to get better results? 
@@ -28,6 +26,8 @@ data_pull scripts for getting latest data?
 
 Write testing framework (to run a bunch of tests sequentially) and store the results. Then leave it running to find best param settings 
 report % wins, streaks etc   --go for similar behaviour to ProQuant?
+strategy search - keep 3 lists of different indicators/setups and do some kinda iteration/search through them to find 
+best combination. 
 
 keep all trades (demo & live) in a table called trade_journal - make trade_journal.py
 
@@ -87,8 +87,6 @@ parameter tuning - try shit loads of calculating using regression
 	- minimise loses 
 	- (subgradient optimisation!) (use GA or some shit if you want) 
 
-strategy search - keep 3 lists of different indicators/setups and do some kinda iteration/search through them to find 
-best combination. 
 
 ADVANCED: 
 Make a NN that takes a sequence of candlesticks and indicators AND a list of 28  
@@ -110,9 +108,13 @@ ICT based trading?
 
 BUGS: - data must be fixed first before continuing with real backtesting 
 DATA: some other areas are rounded. Consider overwriting data with histdata from 2012 to now
-DATA: on 15 min chart, candles all look very "top-heavy" . Perhaps caused by something in the candle selector query 
+DATA: on 15 min chart, candles all look very "top-heavy" . Perhaps caused by something in the candle selector query - bid vs ask issues
 DATA: january 2022 has rounded prices - overrwrite with stuff from histdata 
 DATA: hole in data: 4th april 2022 - 8th april 2022
+DATA: hole in data: 28th July 6pm to 7th August at 22pm
+DATA: hole in data: 31st August 2pm to 12 September 6pm 
+
+DATA: hole in data: 18 oct 2022 at 12:00 to 15:30 (GBP/CAD, GBP/NZD)
 
 Perhaps using pandas data frames will be more efficient and better for the whole thing? 
 Practice will also land you a high paying datascience role if you move jobs...
