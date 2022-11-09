@@ -29,7 +29,7 @@ def client_sentiment():
 	fx_pairs = lfr.read('fx_pairs/fx_mains.txt') + lfr.read('fx_pairs/currencies.txt')
 
 	with SeleniumHandler(hidden=True) as sh:
-		fcsc = Dukascopy(sh,url,fx_pairs)
+		fcsc = Dukascopy(sh,fx_pairs)
 		client_sentiment = fcsc.get_client_sentiment_info()
 		#wait_for_me()
 
@@ -53,9 +53,9 @@ def get_volumes():
 	
 	cursor = Database(commit=True,cache=False)
 	with SeleniumHandler() as sh:
-		duk = DukascopyVolumes(sh,url,cursor)
+		duk = DukascopyVolumes(sh,cursor)
 		duk.set_gets(instruments, date_from, date_to)
-		duk.get_all_instruments()
+		duk.perform()
 		wait_for_me()
 
 

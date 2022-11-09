@@ -18,7 +18,11 @@ class DukascopyData(Crawler): #change to Crawler?
 	chart_resolution = 15 #stay at 15 since we will store all data at this resolution
 	iframe_identifier = 'historical_data_feed'
 	
+	began = False
+	
 	cursor = None
+	credentials = None
+	url = 'https://www.dukascopy.com/swiss/english/marketwatch/historical/'
 	
 	downloads_folder = 'C:/Users/Ed/Downloads' #change as necessary
 	
@@ -59,12 +63,13 @@ class DukascopyData(Crawler): #change to Crawler?
 		'December':12		
 	}
 	
-	def __init__(self,selenium_handle,source,cursor=''):  #make it break with an empty string because None means debug 
-		super().__init__(selenium_handle,source)
+	def __init__(self,selenium_handle,cursor='',credentials=None):  #make it break with an empty string because None means debug 
+		super().__init__(selenium_handle,self.url)
 		if cursor is None or cursor.commit:
 			self.cursor = cursor
 		else:
 			raise ValueError('Cursor must be a utils.Database object with commit = True, or None')
+		self.credentials = credentials
 	
 	def set_gets(self,instruments,from_date,to_date):
 		self.instruments = instruments
@@ -72,18 +77,34 @@ class DukascopyData(Crawler): #change to Crawler?
 		self.to_date = to_date
 		
 	def begin(self):
+		if self.began:
+			return
 		the_iframe = self.browser.find_element(By.XPATH,"//iframe[contains(@src,'"+self.iframe_identifier+"')]")
 		self.browser.switch_to.frame(the_iframe)
+		self.began = True
 		#log in! 
 	
 	def search_instrument(self,instrument):
 		log.info("Waiting for element with 'All instruments'")
+		print("waiting for element 'All instruments'")
 		self.perform_wait(By.XPATH,"//div/ul/li[contains(text(),'All instruments')]",2)
 		all_instruments = self.browser.find_element(By.XPATH,"//div/ul/li[contains(text(),'All instruments')]")
 		all_instruments.click()  #or self.click_on(all_instruments)
-		#now find in the big list anything that resembles instrument 
+		
+		#speed up by finding forex and lcicking it 
+		forex_btn = self.browser.find_element(By.XPATH,"//div/ul/li[contains(text(),'Forex')]")
+		forex_btn.click()
+		
+		#first attempt to find instrument using xpath here 
+		
+		
+		##on the case where we failed to find the instrument, do exhaustive search here
+		#now find in the big list anything that resembles instrument 		
+		print('getting all instrument rows')
 		all_instrument_rows = self.browser.find_elements(By.XPATH,"//div[@class='d-qh-eh-eh-p']/ul/li")
 		log.debug('search all_instrument_rows')
+		print('searching rows')		
+		
 		search_rows = [ir for ir in all_instrument_rows if ir.get_attribute('data-instrument') == instrument] #consider adding a mapping here
 		if search_rows == []:
 			log.warning(f"Unable to find {instrument}")
@@ -147,9 +168,16 @@ class DukascopyData(Crawler): #change to Crawler?
 		#test if it is visible - if not, we are already signed in 
 		modal = [modal for modal in self.browser.find_elements(By.XPATH,"//div[@class='d-oh-i-ph-Rh-l']") if 'Log in' in modal.text and modal.is_displayed()]
 		if modal:
-			cfg = Configuration()
-			user = cfg.get('dukascopy','username')
-			passwd = cfg.get('dukascopy','password')
+			user = None
+			passwd = None
+			if self.credentials:
+				user = self.credentials['username']
+				passwd = self.credentials['password']
+			else:
+				cfg = Configuration()
+				user = cfg.get('dukascopy','username')
+				passwd = cfg.get('dukascopy','password')
+			
 			
 			username_field = self.perform_wait(By.XPATH,"//input[@class='d-e-Xg' and @type='text' and contains(@placeholder,'Nickname or email')]",1)
 			password_field = self.perform_wait(By.XPATH,"//input[@class='d-e-Xg' and @type='password']",1)
@@ -323,8 +351,11 @@ class DukascopyData(Crawler): #change to Crawler?
 		raise TimeoutException('Download took too long.')
 
 	def get_full_data(self,instrument):
+		print('searching for instrument')
 		if self.search_instrument(instrument):	
+			#print('found instrument')
 			self.input_settings() 
+			#print('input settings')
 			self.press_bid() 
 			self.press_download() 
 			got_bid_str = self.long_poll_click_save_csv()
@@ -376,12 +407,21 @@ class DukascopyData(Crawler): #change to Crawler?
 		if today_ave_bid_volume and today_ave_ask_volume: #ensure there is some sort of reading for today
 			bid_scale = hist_ave_bid_volume / today_ave_bid_volume 
 			ask_scale = hist_ave_ask_volume / today_ave_ask_volume 
-			
-			for td in todays_data:
-				td['bid_volume'] = td['bid_volume'] * bid_scale
-				td['ask_volume'] = td['ask_volume'] * ask_scale
-			
-		return historic_data + todays_data
+		
+		todays_data_skip_bid_overrun = [] #happens when we pull data and one file contains later version than the other 
+		missing_dates = []
+		for td in todays_data:
+			if 'bid_volume' not in td or 'ask_volume' not in td:
+				missing_dates.append(td['the_date']) 
+			td['bid_volume'] = td['bid_volume'] * bid_scale
+			td['ask_volume'] = td['ask_volume'] * ask_scale
+			todays_data_skip_bid_overrun.append(td)
+		
+		if missing_dates:
+			log.warning('Missing dates when calculating volumes') #log the data?
+			log.warning(missing_dates)
+		
+		return historic_data + todays_data_skip_bid_overrun
 	
 	
 	
@@ -463,8 +503,8 @@ class DukascopyData(Crawler): #change to Crawler?
 		data_list = list(all_data.values())
 		return data_list
 		
-	def get_all_instruments(self):
-		self.begin()	
+	def perform(self):
+		self.begin() #incase 
 		for instrument in self.instruments:
 			print(f"Getting {instrument}...\n")
 			data = self.get_full_data(instrument)
