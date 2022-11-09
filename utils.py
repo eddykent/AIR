@@ -453,7 +453,7 @@ class Database:
 	cache = True
 	query = ''
 	rows = [] 
-	query_cache_dir = 'pickles/datacache'
+	query_cache_dir = 'data/pickles/datacache'
 	previous_query_filename = 'queries/previous_query.txt'
 	commit = False
 	

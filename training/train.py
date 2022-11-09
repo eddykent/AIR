@@ -37,7 +37,7 @@ class CobwebCache:
 	filename = None
 	the_date = None
 	notes = ''#store any text that we can use to describe this cobweb - eg what the data is or why it is useful/ where it is used 
-	cobweb_silk_directory = './pickles/cobwebs/silk' #directory to store loose row data
+	cobweb_silk_directory = './data/pickles/cobwebs/silk' #directory to store loose row data
 	
 	
 	def __init__(self,filename,notes=''):
@@ -137,7 +137,7 @@ class DataProvider: #cobweb functions?
 	#pre_training_data = {} 
 	#pre_validation_data = {}
 	
-	cobweb_directory = './pickles/cobwebs'
+	cobweb_directory = './data/pickles/cobwebs'
 	
 	#__cache_forward_pass = False #set to true once we have a cobweb, if we are caching. 
 	cobweb = None #cobwebs for storing row data on the disk
