@@ -2,8 +2,9 @@
 
 --from currencies 
 
-DROP FUNCTION IF EXISTS trading.get_partial_candles_from_instruments(TEXT[], TIMESTAMP[], int, int);
-CREATE OR REPLACE FUNCTION trading.get_partial_candles_from_instruments(_instruments TEXT[], _trade_times TIMESTAMP[], _chart_resolution INTEGER DEFAULT 15, _candle_offset INTEGER DEFAULT 0)
+--DROP FUNCTION IF EXISTS trading.get_partial_candles_from_instruments(TEXT[], TIMESTAMP[], int, int);
+DROP FUNCTION IF EXISTS trading.get_partial_candles_from_instruments(TEXT[], TIMESTAMP[], int, int, bool);
+CREATE OR REPLACE FUNCTION trading.get_partial_candles_from_instruments(_instruments TEXT[], _trade_times TIMESTAMP[], _chart_resolution INTEGER DEFAULT 15, _candle_offset INTEGER DEFAULT 0, _ask_candles BOOLEAN DEFAULT FALSE)
 RETURNS TABLE (
 	row_index INTEGER,	
 	from_currency TEXT,
@@ -65,15 +66,15 @@ BEGIN
 			FROM __candle_ends ce
 		),
 		selected_candles AS (
-			SELECT evt.from_currency, evt.to_currency,
-			evt.open_price,
-			evt.high_price,
-			evt.low_price,
-			evt.close_price, 
-			evt.the_date
-			FROM exchange_value_tick evt
-			JOIN the_range tr ON evt.the_date <= tr.end_date AND evt.the_date >= tr.start_date AND tsrange(tr.start_date,tr.end_date) @> evt.the_date
-			WHERE evt.full_name  = ANY(_instruments) 
+			SELECT rfc.from_currency, rfc.to_currency,
+			CASE WHEN _ask_candles THEN rfc.ask_open ELSE rfc.bid_open END AS open_price,
+			CASE WHEN _ask_candles THEN rfc.ask_high ELSE rfc.bid_high END AS high_price,
+			CASE WHEN _ask_candles THEN rfc.ask_low ELSE rfc.bid_low END AS low_price,
+			CASE WHEN _ask_candles THEN rfc.ask_close ELSE rfc.bid_close END AS close_price, 
+			rfc.the_date
+			FROM raw_fx_candles_15m rfc
+			JOIN the_range tr ON rfc.the_date <= tr.end_date AND rfc.the_date >= tr.start_date AND tsrange(tr.start_date,tr.end_date) @> rfc.the_date
+			WHERE rfc.full_name  = ANY(_instruments) 
 		), 
 		candle_groups AS (
 			SELECT sc.from_currency, 
@@ -126,7 +127,7 @@ BEGIN
 END
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION trading.get_partial_candles_from_instruments(TEXT[], TIMESTAMP[], int, int) IS 'From instrument names and candle end times, get the associated forex partial candles';
+COMMENT ON FUNCTION trading.get_partial_candles_from_instruments(TEXT[], TIMESTAMP[], int, int, bool) IS 'From instrument names and candle end times, get the associated forex partial candles';
 
 
 

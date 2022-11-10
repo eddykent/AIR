@@ -70,14 +70,14 @@ BEGIN
 			FROM __candle_ends ce
 		),
 		selected_volumes AS (
-			SELECT evt.from_currency, evt.to_currency,
-			evt.bid_volume,
-			evt.ask_volume,
-			evt.the_date
-			FROM exchange_volume_tick evt
-			JOIN the_range tr ON evt.the_date <= tr.end_date AND evt.the_date >= tr.start_date AND tsrange(tr.start_date,tr.end_date) @> evt.the_date
-			WHERE evt.from_currency = ANY(SELECT currency FROM __currencies_tmp) 
-			AND evt.to_currency = ANY(SELECT currency FROM __currencies_tmp) 
+			SELECT rfc.from_currency, rfc.to_currency,
+			rfc.bid_volume,
+			rfc.ask_volume,
+			rfc.the_date
+			FROM raw_fx_candles_15m rfc
+			JOIN the_range tr ON rfc.the_date <= tr.end_date AND rfc.the_date >= tr.start_date AND tsrange(tr.start_date,tr.end_date) @> rfc.the_date
+			WHERE rfc.from_currency = ANY(SELECT currency FROM __currencies_tmp) 
+			AND rfc.to_currency = ANY(SELECT currency FROM __currencies_tmp) 
 		), 
 		volume_groups AS (
 			SELECT sv.from_currency, 

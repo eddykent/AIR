@@ -63,13 +63,13 @@ BEGIN
 			FROM __candle_ends ce
 		),
 		selected_volumes AS (
-			SELECT evt.from_currency, evt.to_currency,
-			evt.bid_volume,
-			evt.ask_volume,
-			evt.the_date
-			FROM exchange_volume_tick evt
-			JOIN the_range tr ON evt.the_date <= tr.end_date AND evt.the_date >= tr.start_date AND tsrange(tr.start_date,tr.end_date) @> evt.the_date
-			WHERE evt.full_name  = ANY(_instruments) 
+			SELECT rfc.from_currency, rfc.to_currency,
+			rfc.bid_volume,
+			rfc.ask_volume,
+			rfc.the_date
+			FROM raw_fx_candles_15m rfc
+			JOIN the_range tr ON rfc.the_date <= tr.end_date AND rfc.the_date >= tr.start_date AND tsrange(tr.start_date,tr.end_date) @> rfc.the_date
+			WHERE rfc.full_name  = ANY(_instruments) 
 		), 
 		volume_groups AS (
 			SELECT sv.from_currency, 

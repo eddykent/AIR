@@ -2,8 +2,9 @@
 
 --from currencies 
 
-DROP FUNCTION IF EXISTS trading.get_partial_candles_volumes_from_instruments(TEXT[], TIMESTAMP[], int, int);
-CREATE OR REPLACE FUNCTION trading.get_partial_candles_volumes_from_instruments(_instruments TEXT[], _trade_times TIMESTAMP[], _chart_resolution INTEGER DEFAULT 15, _candle_offset INTEGER DEFAULT 0)
+--DROP FUNCTION IF EXISTS trading.get_partial_candles_volumes_from_instruments(TEXT[], TIMESTAMP[], int, int);
+DROP FUNCTION IF EXISTS trading.get_partial_candles_volumes_from_instruments(TEXT[], TIMESTAMP[], int, int, bool);
+CREATE OR REPLACE FUNCTION trading.get_partial_candles_volumes_from_instruments(_instruments TEXT[], _trade_times TIMESTAMP[], _chart_resolution INTEGER DEFAULT 15, _candle_offset INTEGER DEFAULT 0, _ask_candles BOOLEAN DEFAULT FALSE)
 RETURNS TABLE (
 	row_index INTEGER,	
 	from_currency TEXT,
@@ -67,15 +68,17 @@ BEGIN
 			FROM __candle_ends ce
 		),
 		selected_candles AS (
-			SELECT evt.from_currency, evt.to_currency,
-			evt.open_price,
-			evt.high_price,
-			evt.low_price,
-			evt.close_price, 
-			evt.the_date
-			FROM exchange_value_tick evt
-			JOIN the_range tr ON evt.the_date <= tr.end_date AND evt.the_date >= tr.start_date AND tsrange(tr.start_date,tr.end_date) @> evt.the_date
-			WHERE evt.full_name  = ANY(_instruments) 
+			SELECT rfc.from_currency, rfc.to_currency,
+			CASE WHEN _ask_candles THEN rfc.ask_open ELSE rfc.bid_open END AS open_price,
+			CASE WHEN _ask_candles THEN rfc.ask_high ELSE rfc.bid_high END AS high_price,
+			CASE WHEN _ask_candles THEN rfc.ask_low ELSE rfc.bid_low END AS low_price,
+			CASE WHEN _ask_candles THEN rfc.ask_close ELSE rfc.bid_close END AS close_price, 
+			rfc.bid_volume,
+			rfc.ask_volume,
+			rfc.the_date
+			FROM raw_fx_candles_15m rfc
+			JOIN the_range tr ON rfc.the_date <= tr.end_date AND rfc.the_date >= tr.start_date AND tsrange(tr.start_date,tr.end_date) @> rfc.the_date
+			WHERE rfc.full_name  = ANY(_instruments) 
 		), 
 		candle_groups AS (
 			SELECT sc.from_currency, 
@@ -84,30 +87,13 @@ BEGIN
 			sc.high_price,
 			sc.low_price,
 			sc.close_price,
+			sc.bid_volume,
+			sc.ask_volume,
 			TO_TIMESTAMP (FLOOR(( EXTRACT ('EPOCH' FROM (sc.the_date )) ) / (60*15) ) * (60*15)) AT TIME ZONE 'UTC' AS the_date, --fix date
 			cr.row_index
 			FROM selected_candles sc
 			JOIN __candle_ranges cr ON sc.the_date >= cr.start_date AND sc.the_date < cr.end_date AND tsrange(cr.start_date,cr.end_date) @> sc.the_date
 		),		
-		selected_volumes AS (
-			SELECT evt.from_currency, evt.to_currency,
-			evt.bid_volume,
-			evt.ask_volume,
-			evt.the_date
-			FROM exchange_volume_tick evt
-			JOIN the_range tr ON evt.the_date <= tr.end_date AND evt.the_date >= tr.start_date AND tsrange(tr.start_date,tr.end_date) @> evt.the_date
-			WHERE evt.full_name = ANY(_instruments) 
-		), 
-		volume_groups AS (
-			SELECT sv.from_currency, 
-			sv.to_currency,
-			sv.bid_volume,
-			sv.ask_volume,
-			TO_TIMESTAMP (FLOOR(( EXTRACT ('EPOCH' FROM (sv.the_date )) ) / (60*15) ) * (60*15)) AT TIME ZONE 'UTC' AS the_date, --fix date
-			cr.row_index
-			FROM selected_volumes sv
-			JOIN __candle_ranges cr ON sv.the_date >= cr.start_date AND sv.the_date < cr.end_date AND tsrange(cr.start_date,cr.end_date) @> sv.the_date
-		),
 		almost_candles AS (
 			SELECT 
 			cg.row_index,
@@ -118,12 +104,10 @@ BEGIN
 			MAX(cg.high_price) AS high_price,
 			MIN(cg.low_price) AS low_price,
 			ARRAY_AGG(cg.close_price ORDER BY cg.the_date) AS close_prices,
-			SUM(vg.bid_volume) AS bid_volume,
-			SUM(vg.ask_volume) AS ask_volume,
-			LEAST(MIN(cg.the_date),MIN(vg.the_date)) AS the_date
+			SUM(cg.bid_volume) AS bid_volume,
+			SUM(cg.ask_volume) AS ask_volume,
+			MIN(cg.the_date) AS the_date
 			FROM candle_groups cg 
-			JOIN volume_groups vg ON cg.from_currency = vg.from_currency AND cg.to_currency = vg.to_currency 
-			AND cg.row_index = vg.row_index AND cg.the_date = vg.the_date
 			GROUP BY cg.from_currency, cg.to_currency, cg.row_index
 		),
 		partial_candles AS (
@@ -153,7 +137,7 @@ BEGIN
 END
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION trading.get_partial_candles_volumes_from_instruments(TEXT[], TIMESTAMP[], int, int) IS 'From a set of currencies and candle end times, get the associated forex partial candles and volumes';
+COMMENT ON FUNCTION trading.get_partial_candles_volumes_from_instruments(TEXT[], TIMESTAMP[], int, int, bool) IS 'From a set of currencies and candle end times, get the associated forex partial candles and volumes';
 
 
 
