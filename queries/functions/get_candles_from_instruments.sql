@@ -2,8 +2,9 @@
 --quarts are 15m, halfs are 30m and quads are 4h candles 
 
 --from currencies 
-DROP FUNCTION IF EXISTS trading.get_candles_from_instruments(TEXT[], timestamp, int, int, int);
-CREATE OR REPLACE FUNCTION trading.get_candles_from_instruments(_instruments TEXT[], _this_date TIMESTAMP, _days_back INTEGER, _chart_resolution INTEGER DEFAULT 15, _candle_offset INTEGER DEFAULT 0)
+--DROP FUNCTION IF EXISTS trading.get_candles_from_instruments(TEXT[], timestamp, int, int, int);
+DROP FUNCTION IF EXISTS trading.get_candles_from_instruments(TEXT[], timestamp, int, int, int, bool);
+CREATE OR REPLACE FUNCTION trading.get_candles_from_instruments(_instruments TEXT[], _this_date TIMESTAMP, _days_back INTEGER, _chart_resolution INTEGER DEFAULT 15, _candle_offset INTEGER DEFAULT 0, _ask_candles BOOL DEFAULT FALSE)
 RETURNS TABLE (
 	row_index INTEGER,	
 	from_currency TEXT,
@@ -30,16 +31,16 @@ BEGIN
 	--ON COMMIT DROP --consider  
 	AS (
 		WITH selected_candles AS (
-			SELECT evt.from_currency, evt.to_currency,
-			evt.open_price,
-			evt.high_price,
-			evt.low_price,
-			evt.close_price, 
-			evt.the_date - (_candle_offset || ' mins')::INTERVAL AS the_date
-			FROM exchange_value_tick evt 
-			WHERE evt.full_name  = ANY(_instruments) 
-			AND evt.the_date < _this_date
-			AND evt.the_date >= _this_date -  (_days_back || ' days')::INTERVAL --600 = 400 + 200 (days_back + normalisation_window)
+			SELECT rfc.from_currency, rfc.to_currency,
+			CASE WHEN _ask_candles THEN rfc.ask_open ELSE rfc.bid_open END AS open_price,
+			CASE WHEN _ask_candles THEN rfc.ask_high ELSE rfc.bid_high END AS high_price,
+			CASE WHEN _ask_candles THEN rfc.ask_low ELSE rfc.bid_low END AS low_price,
+			CASE WHEN _ask_candles THEN rfc.ask_close ELSE rfc.bid_close END AS close_price, 
+			rfc.the_date - (_candle_offset || ' mins')::INTERVAL AS the_date
+			FROM raw_fx_candles_15m rfc
+			WHERE rfc.full_name  = ANY(_instruments) 
+			AND rfc.the_date < _this_date
+			AND rfc.the_date >= _this_date -  (_days_back || ' days')::INTERVAL --600 = 400 + 200 (days_back + normalisation_window)
 		), 
 		candle_indexs AS (
 			SELECT sc.from_currency, 
@@ -96,7 +97,7 @@ BEGIN
 END
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION trading.get_candles_from_instruments(TEXT[], timestamp, int, int, int) IS 'From a set of instruments, and a timestamp, get the associated forex candles.';
+COMMENT ON FUNCTION trading.get_candles_from_instruments(TEXT[], timestamp, int, int, int, bool) IS 'From a set of instruments, and a timestamp, get the associated forex candles.';
 
 --TEST
 --SELECT * FROM get_candles_from_instruments(ARRAY['EUR/USD','GBP/JPY'], '07 Mar 2022 12:30:00'::timestamp, 100, 240,120) 

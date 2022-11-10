@@ -2,8 +2,9 @@
 --quarts are 15m, halfs are 30m and quads are 4h candles 
 
 --from currencies 
-DROP FUNCTION IF EXISTS trading.get_candles_volumes_from_currencies(TEXT[], timestamp, int, int, int);
-CREATE OR REPLACE FUNCTION trading.get_candles_volumes_from_currencies(_currencies TEXT[], _this_date TIMESTAMP, _days_back INTEGER, _chart_resolution INTEGER DEFAULT 15, _candle_offset INTEGER DEFAULT 0)
+--DROP FUNCTION IF EXISTS trading.get_candles_volumes_from_currencies(TEXT[], timestamp, int, int, int);
+DROP FUNCTION IF EXISTS trading.get_candles_volumes_from_currencies(TEXT[], timestamp, int, int, int, bool);
+CREATE OR REPLACE FUNCTION trading.get_candles_volumes_from_currencies(_currencies TEXT[], _this_date TIMESTAMP, _days_back INTEGER, _chart_resolution INTEGER DEFAULT 15, _candle_offset INTEGER DEFAULT 0, _ask_candles BOOLEAN DEFAULT FALSE)
 RETURNS TABLE (
 	row_index INTEGER,	
 	from_currency TEXT,
@@ -39,17 +40,19 @@ BEGIN
 	ON COMMIT DROP  
 	AS (
 		WITH selected_candles AS (
-			SELECT evt.from_currency, evt.to_currency,
-			evt.open_price,
-			evt.high_price,
-			evt.low_price,
-			evt.close_price, 
-			evt.the_date - (_candle_offset || ' mins')::INTERVAL AS the_date
-			FROM exchange_value_tick evt
-			WHERE evt.from_currency  = ANY(SELECT currency FROM __currencies_tmp) 
-			AND evt.to_currency = ANY(SELECT currency FROM __currencies_tmp)
-			AND evt.the_date < _this_date
-			AND evt.the_date >= _this_date -  (_days_back || ' days')::INTERVAL --600 = 400 + 200 (days_back + normalisation_window)
+			SELECT rfc.from_currency, rfc.to_currency,
+			CASE WHEN _ask_candles THEN rfc.ask_open ELSE rfc.bid_open END AS open_price,
+			CASE WHEN _ask_candles THEN rfc.ask_high ELSE rfc.bid_high END AS high_price,
+			CASE WHEN _ask_candles THEN rfc.ask_low ELSE rfc.bid_low END AS low_price,
+			CASE WHEN _ask_candles THEN rfc.ask_close ELSE rfc.bid_close END AS close_price, 
+			rfc.bid_volume,
+			rfc.ask_volume,
+			rfc.the_date - (_candle_offset || ' mins')::INTERVAL AS the_date
+			FROM raw_fx_candles_15m rfc
+			WHERE rfc.from_currency  = ANY(SELECT currency FROM __currencies_tmp) 
+			AND rfc.to_currency = ANY(SELECT currency FROM __currencies_tmp)
+			AND rfc.the_date < _this_date
+			AND rfc.the_date >= _this_date -  (_days_back || ' days')::INTERVAL --600 = 400 + 200 (days_back + normalisation_window)
 		), 
 		candle_indexs AS (
 			SELECT sc.from_currency, 
@@ -58,31 +61,12 @@ BEGIN
 			sc.high_price,
 			sc.low_price,
 			sc.close_price,
+			sc.bid_volume,
+			sc.ask_volume,
 			TO_TIMESTAMP (FLOOR(( EXTRACT ('EPOCH' FROM (sc.the_date )) ) / (60*15) ) * (60*15)) AT TIME ZONE 'UTC' AS the_date, --fix date
 			(EXTRACT(MINUTE FROM sc.the_date) + 60 * EXTRACT (HOUR FROM sc.the_date))::INT / _chart_resolution AS candle_index,
 			sc.the_date::DATE AS date_day
 			FROM selected_candles sc
-		),
-		selected_volumes AS ( --need to select the volumes separately because the candle might be offset within the 15 mins (or chart res)
-			SELECT evt.from_currency, evt.to_currency,
-			evt.bid_volume,
-			evt.ask_volume,
-			evt.the_date - (_candle_offset || ' mins')::INTERVAL AS the_date
-			FROM exchange_volume_tick evt
-			WHERE evt.from_currency  = ANY(SELECT currency FROM __currencies_tmp) 
-			AND evt.to_currency = ANY(SELECT currency FROM __currencies_tmp)
-			AND evt.the_date < _this_date
-			AND evt.the_date >= _this_date -  (_days_back || ' days')::INTERVAL --600 = 400 + 200 (days_back + normalisation_window)
-		),
-		volume_indexs AS (
-			SELECT sv.from_currency, 
-			sv.to_currency,
-			sv.bid_volume,
-			sv.ask_volume,
-			TO_TIMESTAMP (FLOOR(( EXTRACT ('EPOCH' FROM (sv.the_date )) ) / (60*15) ) * (60*15)) AT TIME ZONE 'UTC' AS the_date, --fix date
-			(EXTRACT(MINUTE FROM sv.the_date) + 60 * EXTRACT (HOUR FROM sv.the_date))::INT / _chart_resolution AS volume_index,
-			sv.the_date::DATE AS date_day
-			FROM selected_volumes sv
 		),
 		almost_candles AS (
 			SELECT ci.from_currency, 
@@ -93,14 +77,11 @@ BEGIN
 			MAX(ci.high_price) AS high_price,
 			MIN(ci.low_price) AS low_price,
 			ARRAY_AGG(ci.close_price ORDER BY ci.the_date) AS close_prices,
-			SUM(vi.bid_volume) AS bid_volume,
-			SUM(vi.ask_volume) AS ask_volume,
-			LEAST(MIN(ci.the_date),MIN(vi.the_date)) AS the_date
+			SUM(ci.bid_volume) AS bid_volume,
+			SUM(ci.ask_volume) AS ask_volume,
+			MIN(ci.the_date) AS the_date
 			FROM candle_indexs ci
-			JOIN volume_indexs vi 
-			ON ci.from_currency = vi.from_currency AND ci.to_currency = vi.to_currency 
-			AND ci.candle_index = vi.volume_index AND ci.date_day = vi.date_day
-			GROUP BY ci.from_currency, ci.to_currency, ci.candle_index, ci.date_day --, vi.from_currency, vi.to_currency, vi.volume_index, vi.date_day  --yikes!
+			GROUP BY ci.from_currency, ci.to_currency, ci.candle_index, ci.date_day 
 		),
 		time_indexed_candles AS (
 			SELECT 
@@ -133,7 +114,7 @@ BEGIN
 END
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION trading.get_candles_volumes_from_currencies(TEXT[], timestamp, int, int, int) IS 'From a set of currencies, and a timestamp, get the associated forex candles with their bid and ask volumes.';
+COMMENT ON FUNCTION trading.get_candles_volumes_from_currencies(TEXT[], timestamp, int, int, int, bool) IS 'From a set of currencies, and a timestamp, get the associated forex candles with their bid and ask volumes.';
 
 --TEST
 --SELECT * FROM trading.get_candles_volumes_from_currencies(ARRAY['EUR','USD','GBP','JPY'], '07 Mar 2022 12:30:00'::timestamp, 100) 

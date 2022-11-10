@@ -35,15 +35,15 @@ BEGIN
 	ON COMMIT DROP  
 	AS (
 		WITH selected_volume AS (
-			SELECT evt.from_currency, evt.to_currency,
-			evt.bid_volume,
-			evt.ask_volume,
-			evt.the_date - (_candle_offset || ' mins')::INTERVAL AS the_date
-			FROM exchange_volume_tick evt 
-			WHERE evt.from_currency  = ANY(SELECT currency FROM __currencies_tmp) 
-			AND evt.to_currency = ANY(SELECT currency FROM __currencies_tmp)
-			AND evt.the_date < _this_date
-			AND evt.the_date >= _this_date -  (_days_back || ' days')::INTERVAL --600 = 400 + 200 (days_back + normalisation_window)
+			SELECT rfc.from_currency, rfc.to_currency,
+			rfc.bid_volume,
+			rfc.ask_volume,
+			rfc.the_date - (_candle_offset || ' mins')::INTERVAL AS the_date
+			FROM raw_fx_candles_15m rfc
+			WHERE rfc.from_currency  = ANY(SELECT currency FROM __currencies_tmp) 
+			AND rfc.to_currency = ANY(SELECT currency FROM __currencies_tmp)
+			AND rfc.the_date < _this_date
+			AND rfc.the_date >= _this_date -  (_days_back || ' days')::INTERVAL --600 = 400 + 200 (days_back + normalisation_window)
 		), 
 		volume_indexs AS (
 			SELECT sv.from_currency, 
