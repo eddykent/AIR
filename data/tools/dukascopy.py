@@ -86,7 +86,7 @@ class DukascopyData(Crawler): #change to Crawler?
 	
 	def search_instrument(self,instrument):
 		log.info("Waiting for element with 'All instruments'")
-		print("waiting for element 'All instruments'")
+		#print("waiting for element 'All instruments'")
 		self.perform_wait(By.XPATH,"//div/ul/li[contains(text(),'All instruments')]",2)
 		all_instruments = self.browser.find_element(By.XPATH,"//div/ul/li[contains(text(),'All instruments')]")
 		all_instruments.click()  #or self.click_on(all_instruments)
@@ -96,21 +96,26 @@ class DukascopyData(Crawler): #change to Crawler?
 		forex_btn.click()
 		
 		#first attempt to find instrument using xpath here 
+		instrument_row = None
+		try:
+			instrument_row = self.browser.find_element(By.XPATH,"//div[@class='d-qh-eh-eh-p']/ul/li[@data-instrument='"+instrument+"']")
+		except:
+			##on the case where we failed to find the instrument, do exhaustive search here
+			#now find in the big list anything that resembles instrument 		
+			print('getting all instrument rows')
+			all_instrument_rows = self.browser.find_elements(By.XPATH,"//div[@class='d-qh-eh-eh-p']/ul/li")
+			log.debug('search all_instrument_rows')
+			#print('searching rows')		
+			
+			search_rows = [ir for ir in all_instrument_rows if ir.get_attribute('data-instrument') == instrument] #consider adding a mapping here
+			if search_rows:
+				instrument_row = search_rows[0]
 		
-		
-		##on the case where we failed to find the instrument, do exhaustive search here
-		#now find in the big list anything that resembles instrument 		
-		print('getting all instrument rows')
-		all_instrument_rows = self.browser.find_elements(By.XPATH,"//div[@class='d-qh-eh-eh-p']/ul/li")
-		log.debug('search all_instrument_rows')
-		print('searching rows')		
-		
-		search_rows = [ir for ir in all_instrument_rows if ir.get_attribute('data-instrument') == instrument] #consider adding a mapping here
-		if search_rows == []:
+		if instrument_row is None:
 			log.warning(f"Unable to find {instrument}")
-			return False
-		else:
-			search_rows[0].click() 
+			return False			
+		
+		instrument_row.click()
 		return True
 		
 	def input_settings(self,settings={}):
@@ -351,7 +356,7 @@ class DukascopyData(Crawler): #change to Crawler?
 		raise TimeoutException('Download took too long.')
 
 	def get_full_data(self,instrument):
-		print('searching for instrument')
+		#print('searching for instrument')
 		if self.search_instrument(instrument):	
 			#print('found instrument')
 			self.input_settings() 

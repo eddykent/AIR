@@ -1,6 +1,7 @@
 
 #maybe?
 import datetime
+import time
 import psycopg2
 from collections import namedtuple
 import pdb
@@ -59,7 +60,9 @@ class DataWorker():
 	
 	def run(self):
 		
-		selenium_handle = SeleniumHandler(proxy='45.79.110.81') #hidden=True?, proxy=? 45.79.110.81
+		#need proxy! 
+		#need to be headless! (caused file system issues)
+		selenium_handle = SeleniumHandler(hidden=False) #hidden=True?, proxy=? 45.79.110.81
 		selenium_handle.start() 
 		cursor = Database(commit=True, cache=False)
 		
@@ -100,6 +103,7 @@ class CandleSnatcherDukascopy: #consider super later if needed
 	#browser_threads = None #store available browsers 
 	worker_pool = []
 	browser_threads = []
+	startup_wait = 1.5 # wait this long to ensure no spam of dukascopy and disconnect 
 	
 	task_queue = None #store all data processing tasks 
 	
@@ -141,10 +145,16 @@ class CandleSnatcherDukascopy: #consider super later if needed
 			browser_thread = Process(target=worker,args={})
 			browser_thread.start()
 			self.browser_threads.append(browser_thread)
+			if self.startup_wait:
+				time.sleep(self.startup_wait) 
 		
 		for instrument in instruments: 
 			self.task_queue.put({'instrument':instrument,'date_from':date_from,'date_to':date_to})
+			if self.startup_wait: #wait in task queue too to prevent spam? 
+				time.sleep(self.startup_wait) 
+		
 		##should now be running all at once
+		#wait until completion 
 		
 		self.tear_down()
 		
