@@ -368,6 +368,7 @@ class CandleDataTool:
 	end_date = datetime.datetime.now()
 	grace_period = 50 
 	start_date =  datetime.datetime.now()#startdate is 
+	ask_candles = False
 	
 	_candlesticks = None  #data to be read 
 	_instruments = None 
@@ -413,7 +414,8 @@ class CandleDataTool:
 			'this_date':self.end_date,
 			'days_back':days_back,
 			'chart_resolution':self.chart_resolution,
-			'candle_offset':self.candle_offset
+			'candle_offset':self.candle_offset,
+			'ask_candles':self.ask_candles
 		})
 		
 		candle_result = composer.result(as_json=True)
