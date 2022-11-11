@@ -7,11 +7,10 @@ refactor currency strength nn to be of the same form as DataProvider etc
 refator fundamental stuff 
 	- keywords/tags for every story in DB for easier lookup! (direct & indirect tags)
 
-social trading - follow whales  
-	- forex factory
-
 journaling  
+	- make trade_journal.py
 	- capture any website data in capture/snapshot/tracking from forex factory, forex client sentiment etc (json blobs)
+	- keep all trades (demo & live) in a table called trade_journal 
 
 backtesting - use new raw_fx_candles_15m 
 	- use for np candles version too 
@@ -23,9 +22,9 @@ mathematical indicators
 trading rush checklist? 
 
 refactor setups 
-	#- core signals func - -1, 0 and 1s 
-	#- stop tools (atr/std etc) - take list of signals and hints to produce full signals 
-	#- meta tools - divergence 
+	#done?- core signals func - -1, 0 and 1s 
+	#done?- stop tools (atr/std etc) - take list of signals and hints to produce full signals 
+	#done?- meta tools - divergence - bug
 	- init step for putting indicators/patterns onto self
 	- drawing consists of list of TradeSignal and nothing else? 
 		-base yes, higher drawing functions can draw the underlying indicators if on candlesticks
@@ -46,8 +45,6 @@ Write testing framework (to run a bunch of tests sequentially) and store the res
 report % wins, streaks etc   --go for similar behaviour to ProQuant?
 strategy search - keep 3 lists of different indicators/setups and do some kinda iteration/search through them to find 
 best combination. 
-
-keep all trades (demo & live) in a table called trade_journal - make trade_journal.py
 
 Partial RNN - use correlation matrix for grouping pairs together before running through an RNN
 
@@ -102,6 +99,10 @@ parameter tuning - try shit loads of calculating using regression
 	- vary each param slightly 
 	- minimise loses 
 	- (subgradient optimisation!) (use GA or some shit if you want) 
+
+social trading concepts - follow the whales 
+	- forex factory
+	- etoro
 
 
 ADVANCED: 
@@ -160,6 +161,8 @@ fxstreet archive does not read anymore - use search indexer
 dailyfx blocked - ask them nicely to unblock ip (use proxies in future!)
 
 dukascopy web scraper hangs on some stuff when inputting instrument
+
+dukascopy CandleSnatcher/crawler does not save files in hidden mode 
 
 
 ONGOING: - stuff that might not ever have an end to it because it can always be made better

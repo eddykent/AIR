@@ -19,6 +19,7 @@ class CandleType(Enum):
 	CANDLE = 0
 	VOLUME = 1
 	CANDLE_VOLUME = 2
+	FULL_CANDLE = 3
 
 class Indicator:
 	
@@ -45,7 +46,8 @@ class Indicator:
 	candle_type_dimension_map = {
 		CandleType.CANDLE : 4,
 		CandleType.VOLUME : 2,
-		CandleType.CANDLE_VOLUME : 6
+		CandleType.CANDLE_VOLUME : 6,
+		CandleType.FULL_CANDLE: 10
 	}
 	
 	def pass_instrument_names(self,_instrument_names):

@@ -232,7 +232,15 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		#signal_id entry_date entry_price entry_candle exit_date exit_price exit_candle result_movement result_percent result_status profit_path
 		
 		trade_tracks, timeline_indexs = self._get_trade_tracks_and_timeline_indexs(trade_signals)
-		entry_prices, entry_indexs = self._get_start_prices_and_positions(trade_signals, trade_tracks)
+		trade_directions = np.array([ts.direction for ts in trade_signals])
+		trade_directions_end = (trade_directions == TradeDirection.SELL).astype(np.int) 
+		trade_directions_start = 1 - trade_directions_end 
+		
+		bid_ask_trade_tracks = np.stack([trade_tracks[:,:,0,:],trade_tracks[:,:,1,:]])
+		trade_tracks_start = bid_ask_trade_tracks[(trade_directions_start,np.arange(trade_tracks.shape[0]))]
+		trade_tracks_end = bid_ask_trade_tracks[(trade_directions_end,np.arange(trade_tracks.shape[0]))]
+		
+		entry_prices, entry_indexs = self._get_start_prices_and_positions(trade_signals, trade_tracks_start)
 		signal_ids = [ts.signal_id for ts in trade_signals]
 		
 		ci_max = np.full(trade_tracks.shape[0],trade_tracks.shape[1]-1) #if any index is equal or larger than this it never happened
@@ -255,15 +263,15 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		cutoffs, take_profits, stop_losses = self._get_key_price_points(trade_signals, entry_prices)
 		
 		#work out where trades get cut off 
-		cutoff_indexs = self._price_hit_calculation(trade_tracks, cutoffs)   
+		cutoff_indexs = self._price_hit_calculation(trade_tracks_start, cutoffs)   
 		
 		cutoff_mask = cutoff_indexs <= entry_indexs
 		result_statuses[cutoff_mask] = TradeResultStatus.VOID
 		exit_indexs[cutoff_mask] = cutoff_indexs[cutoff_mask]
 		exit_prices[cutoff_mask] = cutoffs[cutoff_mask]	
 	
-		take_profit_indexs = self._price_hit_calculation(trade_tracks,take_profits,entry_indexs)
-		stop_loss_indexs = self._price_hit_calculation(trade_tracks,stop_losses,entry_indexs)
+		take_profit_indexs = self._price_hit_calculation(trade_tracks_end,take_profits,entry_indexs)
+		stop_loss_indexs = self._price_hit_calculation(trade_tracks_end,stop_losses,entry_indexs)
 		
 		stop_loss_mask = ~cutoff_mask & (stop_loss_indexs <= take_profit_indexs) & (stop_loss_indexs <= ci_max) #add bounds to the indexs to keep stagnated trades ?
 		take_profit_mask = ~cutoff_mask & (stop_loss_indexs > take_profit_indexs) & (take_profit_indexs <= ci_max)
@@ -279,14 +287,14 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		if self.profit_lock:
 			#pl price points 
 			pl_activation, pl_adjustment, pl_extra = self._get_profit_lock_price_points(entry_prices, take_profits)
-			pl_activation_indexs = self._price_hit_calculation(trade_tracks,pl_activation,entry_indexs)
+			pl_activation_indexs = self._price_hit_calculation(trade_tracks_end,pl_activation,entry_indexs)
 			
 			profit_locked = stop_loss_indexs > pl_activation_indexs
 			stop_loss_mask = (~cutoff_mask) & (~profit_locked)
 			
 						
-			pl_sl_indexs = self._price_hit_calculation(trade_tracks,pl_adjustment,pl_activation_indexs)
-			pl_tp2_indexs = self._price_hit_calculation(trade_tracks,pl_extra,pl_activation_indexs)
+			pl_sl_indexs = self._price_hit_calculation(trade_tracks_end,pl_adjustment,pl_activation_indexs)
+			pl_tp2_indexs = self._price_hit_calculation(trade_tracks_end,pl_extra,pl_activation_indexs)
 			
 			won_pl_mask = (~cutoff_mask) & profit_locked & (pl_sl_indexs <= pl_tp2_indexs) & (pl_sl_indexs <= ci_max) 
 			won_extra_mask = (~cutoff_mask) & profit_locked & (pl_sl_indexs > pl_tp2_indexs) & (pl_tp2_indexs <= ci_max) 
@@ -329,7 +337,7 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		exit_dates[depleated_mask] = self.signalling_data.timeline[timeline_indexs[depleated_mask] + exit_indexs[depleated_mask]] 
 		
 		#use the typical prices for the exit price when no SL or TP was hit
-		exit_prices[depleated_mask] = np.mean(trade_tracks[depleated_mask,exit_indexs[depleated_mask],1:],axis=1)
+		exit_prices[depleated_mask] = np.mean(trade_tracks_end[depleated_mask,exit_indexs[depleated_mask],1:],axis=1)
 		
 		dir_mult = (trade_directions == TradeDirection.BUY).astype(np.int) - (trade_directions == TradeDirection.SELL).astype(np.int)
 		result_movements = (exit_prices - entry_prices) * dir_mult 
@@ -365,7 +373,7 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 			ti_ub = ti + (ts.length // self.signalling_data.chart_resolution) 
 			
 			#what if weekend? 
-			trade_track = self.signalling_data.np_candles[ii,ti : ti_ub,:]
+			trade_track = self.signalling_data.np_candles[ii,ti : ti_ub,...]
 			trade_tracks.append(trade_track)
 			trade_lengths.append(trade_track.shape[0])
 			
@@ -375,11 +383,11 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 			#	assert trade_tracks[-1].shape[0] == trade_lengths[-1]
 		
 		maxlen = np.max(trade_lengths)
-		result = np.full((len(trade_signals),maxlen,4),np.nan)
-		
+		result = np.full((len(trade_signals),maxlen,2,4),np.nan)
+		#pdb.set_trace()
 		for i,(tt,tl) in enumerate(zip(trade_tracks,trade_lengths)):
 			try:	
-				result[i,:tl] = tt[:,:4]
+				result[i,:tl] = tt[:tl,:,:4] #length,(bid0 or ask1),ohlc
 			except Exception as e:
 				pdb.set_trace()
 				print('hit a problem')

@@ -85,12 +85,26 @@ btdatatool.start_date = datetime.datetime(2022,6,4)
 btdatatool.end_date = datetime.datetime(2022,9,4)
 btdatatool.instruments = lfr.read('fx_pairs/fx_mains.txt')
 btdatatool.chart_resolution = 15 
+
+#gct = time.time() 
+#btdatatool.ask_candles = False 
+#btdatatool.read_data_from_currencies(currencies)
+#btsd_bid = btdatatool.get_trade_signalling_data()
+#
+#btdatatool.ask_candles = True 
+#btdatatool.read_data_from_currencies(currencies)
+#btsd_ask = btdatatool.get_trade_signalling_data()
+#gcttt = time.time() - gct 
+#
+#print("Time taken to get bid & ask candles = "+str(gcttt))
+
+btdatatool.backtesting = True
+fctt = time.time() 
 btdatatool.read_data_from_currencies(currencies)
 btsd = btdatatool.get_trade_signalling_data()
+print("Time taken to get full candles = "+str(time.time() - fctt))
 
-#grab the candles here! 
 
- 
 btc = BackTesterCandles(btsd)
 #btc.set_profit_lock(profit_lock=(0.75,0.5,0))
 
@@ -105,10 +119,16 @@ statuses1 = [r.result_status for r in result1]
 cc1 = Counter(statuses1)
 
 cur = Database(commit=False,cache=False)
+
 btd = BackTesterDatabase(cur)
+
 #btd.set_profit_lock(profit_lock=(0.75,0.5,0))
 
+dtt = time.time()
 result2 = btd.perform(signals)
+ttt = time.time() - dtt
+print('Time taken for backtest in database = '+str(ttt))
+
 statuses2 = [r.result_status for r in result2]
 cc2 = Counter(statuses2)
 
@@ -136,8 +156,7 @@ srs_keys = list(srs.keys())
 srs_diff_keys = [s for s in srs if srs[s]['r1'].result_status != srs[s]['r2'].result_status and srs[s]['r1'].exit_candle < srs[s]['r2'].exit_candle]
 
 #worry about candles that died right away too 
-srs_diff_keys = [s for s in srs if srs[s]['r1'].result_status != srs[s]['r2'].result_status and srs[s]['r1'].exit_candle < srs[s]['r2'].exit_candle and srs[s]['r1'].exit_candle > 0
-]
+srs_diff_keys = [s for s in srs if srs[s]['r1'].result_status != srs[s]['r2'].result_status and srs[s]['r1'].exit_candle < srs[s]['r2'].exit_candle and srs[s]['r1'].exit_candle > 0]
 
 
 

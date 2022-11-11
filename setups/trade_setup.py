@@ -369,6 +369,8 @@ class CandleDataTool:
 	grace_period = 50 
 	start_date =  datetime.datetime.now()#startdate is 
 	ask_candles = False
+	backtesting = False #if true, get the bid AND the ask candles into np_candles 
+	
 	
 	_candlesticks = None  #data to be read 
 	_instruments = None 
@@ -376,6 +378,7 @@ class CandleDataTool:
 	_timeline = None 
 	
 	_dbcursor = None 
+	
 	
 	def __init__(self,cursor=None):
 		self._dbcursor = cursor 
@@ -409,45 +412,86 @@ class CandleDataTool:
 	def __call_db_read_data_from_currencies(self,currencies,grace_period,cursor):
 		days_back = self.__get_days_back(grace_period)
 		composer = DataComposer(cursor,True) #.candles(params).call()...
-		composer.call('get_candles'+('_volumes_' if self.volumes else '_') + 'from_currencies',{
-			'currencies':currencies,
-			'this_date':self.end_date,
-			'days_back':days_back,
-			'chart_resolution':self.chart_resolution,
-			'candle_offset':self.candle_offset,
-			'ask_candles':self.ask_candles
-		})
-		
-		candle_result = composer.result(as_json=True)
-		candlesticks = DataComposer.as_candles_volumes(candle_result,self.instruments) if self.volumes else DataComposer.as_candles(candle_result,self.instruments)
-		self._candlesticks = np.array([candlesticks[instr] for instr in self.instruments if candlesticks.get(instr)]) #always used a block 
-		self._instruments = [instr for instr in self.instruments if candlesticks.get(instr)]
-		candlesticks_pre = CandleSticks()
-		if self.volumes:
-			candlesticks_pre.candle_type = CandleType.CANDLE_VOLUME
-		self._np_candles = candlesticks_pre.calculate_multiple(self._candlesticks)
-		self._timeline = candlesticks_pre.timeline[:,0] #this is a 2d array make it 1d
+		if not self.backtesting:
+			composer.call('get_candles'+('_volumes_' if self.volumes else '_') + 'from_currencies',{
+				'currencies':currencies,
+				'this_date':self.end_date,
+				'days_back':days_back,
+				'chart_resolution':self.chart_resolution,
+				'candle_offset':self.candle_offset,
+				'ask_candles':self.ask_candles
+			})
+			candle_result = composer.result(as_json=True)
+			candlesticks = DataComposer.as_candles_volumes(candle_result,self.instruments) if self.volumes else DataComposer.as_candles(candle_result,self.instruments)
+			self._candlesticks = np.array([candlesticks[instr] for instr in self.instruments if candlesticks.get(instr)]) #always used a block 
+			self._instruments = [instr for instr in self.instruments if candlesticks.get(instr)]
+			
+			candlesticks_pre = CandleSticks()
+			if self.volumes:
+				candlesticks_pre.candle_type = CandleType.CANDLE_VOLUME
+			self._np_candles = candlesticks_pre.calculate_multiple(self._candlesticks)
+			self._timeline = candlesticks_pre.timeline[:,0] #this is a 2d array make it 1d
+		else:
+			composer.call('get_full_from_currencies',{
+				'currencies':currencies,
+				'this_date':self.end_date,
+				'days_back':days_back,
+				'chart_resolution':self.chart_resolution,
+				'candle_offset':self.candle_offset,
+			})
+			candle_result = composer.result(as_json=True)
+			candlesticks = DataComposer.as_full_candles(candle_result,self.instruments)
+			self._candlesticks = np.array([candlesticks[instr] for instr in self.instruments if candlesticks.get(instr)]) #always used a block 
+			self._instruments = [instr for instr in self.instruments if candlesticks.get(instr)]
+			candlesticks_pre = CandleSticks()
+			candlesticks_pre.candle_type = CandleType.FULL_CANDLE
+			bidaskcandles = candlesticks_pre.calculate_multiple(self._candlesticks)
+			bidcandles = bidaskcandles[:,:,0:4]
+			askcandles = bidaskcandles[:,:,4:8]
+			self._np_candles = np.stack([bidcandles,askcandles],axis=2)
+			self._timeline = candlesticks_pre.timeline[:,0] #this is a 2d array make it 1d
 	
 	def __call_db_read_data_from_instruments(self,instruments,grace_period,cursor):
 		days_back = self.__get_days_back(grace_period)
 		composer = DataComposer(cursor,True) #.candles(params).call()...
-		composer.call('get_candles'+('_volumes_' if self.volumes else '_') + 'from_instruments',{
-			'instruments':instruments,
-			'this_date':self.end_date,
-			'days_back':days_back,
-			'chart_resolution':self.chart_resolution,
-			'candle_offset':self.candle_offset
-		})
-	
-		candle_result = composer.result(as_json=True)
-		candlesticks = DataComposer.as_candles_volumes(candle_result,instruments) if self.volumes else DataComposer.as_candles(candle_result,instruments)
-		self._candlesticks = np.array([candlesticks[instr] for instr in instruments if candlesticks.get(instr)]) #always used a block 
-		self._instruments = [instr for instr in instruments if candlesticks.get(instr)]
-		candlesticks_pre = CandleSticks()
-		if self.volumes:
-			candlesticks_pre.candle_type = CandleType.CANDLE_VOLUME
-		self._np_candles = candlesticks_pre.calculate_multiple(self._candlesticks)
-		self._timeline = candlesticks_pre.timeline[:,0] #this is a 2d array make it 1d
+		if self.backtesting:
+			composer.call('get_candles'+('_volumes_' if self.volumes else '_') + 'from_instruments',{
+				'instruments':instruments,
+				'this_date':self.end_date,
+				'days_back':days_back,
+				'chart_resolution':self.chart_resolution,
+				'candle_offset':self.candle_offset
+			})
+		
+			candle_result = composer.result(as_json=True)
+			candlesticks = DataComposer.as_candles_volumes(candle_result,instruments) if self.volumes else DataComposer.as_candles(candle_result,instruments)
+			self._candlesticks = np.array([candlesticks[instr] for instr in instruments if candlesticks.get(instr)]) #always used a block 
+			self._instruments = [instr for instr in instruments if candlesticks.get(instr)]
+			candlesticks_pre = CandleSticks()
+			if self.volumes:
+				candlesticks_pre.candle_type = CandleType.CANDLE_VOLUME
+			self._np_candles = candlesticks_pre.calculate_multiple(self._candlesticks)
+			self._timeline = candlesticks_pre.timeline[:,0] #this is a 2d array make it 1d
+		else:
+			composer.call('get_full_from_instruments',{
+				'instruments':instruments,
+				'this_date':self.end_date,
+				'days_back':days_back,
+				'chart_resolution':self.chart_resolution,
+				'candle_offset':self.candle_offset
+			})
+		
+			candle_result = composer.result(as_json=True)
+			candlesticks = DataComposer.as_full_candles(candle_result,instruments)
+			self._candlesticks = np.array([candlesticks[instr] for instr in instruments if candlesticks.get(instr)]) #always used a block 
+			self._instruments = [instr for instr in instruments if candlesticks.get(instr)]
+			candlesticks_pre = CandleSticks()
+			candlesticks_pre.candle_type = CandleType.FULL_CANDLE
+			idaskcandles = candlesticks_pre.calculate_multiple(self._candlesticks)
+			bidcandles = bidaskcandles[:,:,0:4]
+			askcandles = bidaskcandles[:,:,4:8]
+			self._np_candles = np.stack([bidcandles,askcandles],axis=2)
+			self._timeline = candlesticks_pre.timeline[:,0] #this is a 2d array make it 1d
 	
 	#use this to get a fresh TradeSignallingData that can be put into any setup
 	def get_trade_signalling_data(self):
