@@ -4,11 +4,29 @@ DEFENSIVE CODING: documentation, type hints and overrides for all non-testing py
 refactor currency strength nn to be of the same form as DataProvider etc 
 	- find out what is still to do!
 
+refator fundamental stuff 
+	- keywords/tags for every story in DB for easier lookup! (direct & indirect tags)
+
+social trading - follow whales  
+	- forex factory
+
+journaling  
+	- capture any website data in capture/snapshot/tracking from forex factory, forex client sentiment etc (json blobs)
+
+backtesting - use new raw_fx_candles_15m 
+	- use for np candles version too 
+
+mathematical indicators 
+	- fourier noise cancellation 
+	- lag correlation values & n of corr > 0.3 (etc...)
+
+trading rush checklist? 
+
 refactor setups 
+	#- core signals func - -1, 0 and 1s 
+	#- stop tools (atr/std etc) - take list of signals and hints to produce full signals 
+	#- meta tools - divergence 
 	- init step for putting indicators/patterns onto self
-	- core signals func - -1, 0 and 1s 
-	- stop tools (atr/std etc) - take list of signals and hints to produce full signals 
-	- meta tools - divergence 
 	- drawing consists of list of TradeSignal and nothing else? 
 		-base yes, higher drawing functions can draw the underlying indicators if on candlesticks
 		-consider drawing any results from self?  
@@ -49,8 +67,6 @@ currency buying/selling pressure from bids & asks (contrarian to currency streng
 lazy loading for news AI backtesting 
 
 news, currrency-strength, client-sentiment & demand forecasting
-
-exiting trades on different type of exit signal?
 
 publish to AWS or similar
 	- dashboard app in android?

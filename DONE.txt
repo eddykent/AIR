@@ -19,6 +19,8 @@ Boilinger Bands filter
 Lag correlation matrix - find correlations between 4h candles over a period (like an advanced ARIMA model!) 
 Currency Strength apply new RNN in PRD to create trading filters 
 
+choppy index
+
 RSS Reader - create filter based on recent news feeds about any pairs or currencies. This incorps fundamentals to decisions 
 
 Added offset value to database queries for 4h and for intra-hour trades if we ever want to run the algorithm at any time 
