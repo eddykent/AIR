@@ -3,7 +3,7 @@ import numpy as np
 
 from utils import overrides
 
-from indicators.indicator import Indicator
+from indicators.indicator import Indicator, RunningHigh, RunningLow
 from indicators.moving_average import SMA, EMA
 from charting import candle_stick_functions as csf
 
@@ -107,6 +107,41 @@ class DonchianChannel(Indicator):
 		lower = np.nanmin(windows[:,:,csf.low,:],axis=2)
 		middle = (upper + lower) / 2.0
 		return np.stack([middle,upper,lower],axis=2)
+
+
+class ChoppinessIndex(Indicator):
+	channel_keys = {'CHOP':0, 'TREND':1, 'CONSOLIDATION':2}
+	channel_styles = {'CHOP':'bearish','TREND':'neutral','CONSOLIDATION':'neutral'} 
+	candle_sticks = False 
+	
+	trend_value = 0.382
+	consolidation_value = 0.618
+	
+	period = 14
+	
+	@overrides(Indicator)
+	def _perform(self,candles):	
+		atr = ATR()
+		atr.period  = self.period
+		atr_result = atr._perform(candles) 
+		true_ranges = atr_result[:,:,atr.channel_keys['ATR']] * self.period 
+		highs = RunningHigh()
+		lows = RunningLow() 
+		highs.period = self.period
+		lows.period = self.period
+		high_vals = highs._perform(candles)[:,:,highs.channel_keys['HIGH']]
+		low_vals = lows._perform(candles)[:,:,lows.channel_keys['LOW']]
+		chop = np.log10((true_ranges / (high_vals - low_vals))) / np.log10(self.period)
+		return np.stack([chop,np.full(chop.shape,self.trend_value),np.full(chop.shape,self.consolidation_value)],axis=2)
+		
+		
+		
+	
+	
+
+
+
+
 
 
 
