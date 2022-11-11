@@ -1088,6 +1088,31 @@ class DataComposer:
 				return_dict[instrument] = None 
 		return return_dict
 	
+	@staticmethod
+	def as_full_candles(candle_result,instruments):
+		return_dict = {} 	
+		for instrument in instruments:
+			try:
+				return_dict[instrument] = sorted([
+				[
+					snapshot[2][instrument]['bid_open'],
+					snapshot[2][instrument]['bid_high'],	
+					snapshot[2][instrument]['bid_low'],
+					snapshot[2][instrument]['bid_close'],
+					snapshot[2][instrument]['ask_open'],
+					snapshot[2][instrument]['ask_high'],	
+					snapshot[2][instrument]['ask_low'],
+					snapshot[2][instrument]['ask_close'],
+					snapshot[2][instrument]['bid_volume'],
+					snapshot[2][instrument]['ask_volume'],
+					snapshot[0] #the date should always go at the bottom of the candle
+				]
+				for snapshot in candle_result],key=lambda c:c[-1]) #sort into chronological order 
+			except KeyError as ke:
+				log.warning(f"Unable to find '{instrument}'.",exc_info=True)
+				return_dict[instrument] = None 
+		return return_dict
+	
 	
 #prepares all database results that have dates into samples ready for a learning algorithm
 #In other words, this does all the painful timeseries preprocessing
