@@ -262,6 +262,7 @@ class ChartView:
 			else:
 				self.draw('candle_sticks neutral candles',candle)	
 	
+	#perhaps extend to shaded?
 	def draw_background_results(self,_results): # should be list of numbers - might want to check?
 		min_x, min_y, max_x, max_y = self.calculate_bounds()
 		bearbox = []
@@ -607,8 +608,8 @@ class PlotlyChartPainter(ChartPainter):
 		self.__paint_plotly_boxes(chart_layer,'backgrounds',0)
 	
 	def _paint_carets(self, chart_layer):
-		self.__paint_plotly_lines(chart_layer,'carets',2) #lines are usually the actual time piece so lets add thinkness
-		self.__paint_plotly_paths(chart_layer,'carets',1)
+		self.__paint_plotly_lines(chart_layer,'carets',1) 
+		#self.__paint_plotly_paths(chart_layer,'carets',1)
 		
 	def _paint_faint_traces(self, chart_layer):
 		self.__paint_plotly_paths(chart_layer,'faint_traces',1)
