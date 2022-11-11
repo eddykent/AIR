@@ -31,7 +31,16 @@ in_params AS (
 	) AS ins
 	FROM user_defined_functions udf 
 	WHERE udf.parameter_mode = 'IN'
-	AND (udf.routine_name LIKE 'values_%' OR udf.routine_name LIKE 'candles_%' OR udf.routine_name LIKE 'get_candles_%' OR udf.routine_name LIKE 'get_values_%' OR udf.routine_name LIKE 'get_volumes_%' OR udf.routine_name LIKE 'get_partial_candles_%' OR udf.routine_name LIKE 'get_partial_volumes_%')
+	AND (
+		udf.routine_name LIKE 'values_%' OR 
+		udf.routine_name LIKE 'candles_%' OR 
+		udf.routine_name LIKE 'get_candles_%' OR 
+		udf.routine_name LIKE 'get_values_%' OR 
+		udf.routine_name LIKE 'get_volumes_%' OR 
+		udf.routine_name LIKE 'get_partial_candles_%' OR 
+		udf.routine_name LIKE 'get_partial_volumes_%' OR
+		udf.routine_name LIKE 'get_full_%'
+	)
 	GROUP BY udf.routine_name 
 ),
 out_params AS (
@@ -50,7 +59,16 @@ out_params AS (
 	) AS outs
 	FROM user_defined_functions udf 
 	WHERE udf.parameter_mode = 'OUT'
-	AND (udf.routine_name LIKE 'values_%' OR udf.routine_name LIKE 'candles_%' OR udf.routine_name LIKE 'get_candles_%' OR udf.routine_name LIKE 'get_values_%' OR udf.routine_name LIKE 'get_volumes_%' OR udf.routine_name LIKE 'get_partial_candles_%' OR udf.routine_name LIKE 'get_partial_volumes_%')
+	AND (
+		udf.routine_name LIKE 'values_%' OR 
+		udf.routine_name LIKE 'candles_%' OR 
+		udf.routine_name LIKE 'get_candles_%' OR 
+		udf.routine_name LIKE 'get_values_%' OR 
+		udf.routine_name LIKE 'get_volumes_%' OR 
+		udf.routine_name LIKE 'get_partial_candles_%' OR 
+		udf.routine_name LIKE 'get_partial_volumes_%' OR
+		udf.routine_name LIKE 'get_full_%'
+	)
 	GROUP BY udf.routine_name 
 )
 SELECT json_object_agg(
