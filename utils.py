@@ -636,7 +636,9 @@ class DataComposer:
 		'INTEGER':int,
 		'DOUBLE PRECISION':float,
 		'TEXT':str,
-		'ARRAY':list
+		'ARRAY':list,
+		'BOOL':bool, 
+		'BOOLEAN':bool
 	}
 	
 	def __startup(self):	
