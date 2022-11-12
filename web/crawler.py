@@ -48,13 +48,31 @@ class SeleniumHandler:
 			chrome_options = ChromeOptions()
 		#location = config.get('chrome_driver','location') #handled with ChromeDriverManager
 		downloads_dir = self.config.get('webdriver','downloads')
-		prefs = {"download.default_directory":downloads_dir}
+		prefs = {
+			"download.default_directory":downloads_dir,
+			"download.prompt_for_download":False,
+			"download.directory_upgrade":True,
+			"safebrowsing_for_trusted_sources_enabled": False,
+			"safebrowsing.enabled": False
+		}
 		chrome_options.add_experimental_option("prefs",prefs)
 		if hidden:
 			chrome_options.add_argument('--headless')
 			chrome_options.add_argument('--window-size=1920,1080')
-			#chrome_options.add_argument("--disable-web-security")
-			#chrome_options.add_argument("--disable-site-isolation-trials")
+			chrome_options.add_argument("--disable-web-security") #be aware
+			chrome_options.add_argument("--disable-site-isolation-trials")
+			chrome_options.add_argument("--disable-extensions")
+			chrome_options.add_argument("--disable-gpu")
+			chrome_options.add_argument("--disable-dev-shm-usage")
+			chrome_options.add_argument("--no-sandbox")
+			chrome_options.add_argument("--ignore-certificate-errors")
+			chrome_options.add_argument("--allow-running-insecure-content")
+			chrome_options.add_argument('--disable-gpu')
+			chrome_options.add_argument('--disable-software-rasterizer')
+			#chrome_options.add_user_profile_preference("download.prompt_for_download", False)
+			
+			#chrome_options.add_argument('--no-sandbox')
+		
 		
 		self.capabilities = webdriver.DesiredCapabilities.CHROME
 		if proxy:
@@ -86,6 +104,15 @@ class SeleniumHandler:
 			chrome_options=self.chrome_options,\
 			desired_capabilities=self.capabilities\
 		)
+		
+		#headless_settings = { "behavior", "allow" }
+		downloads_dir = self.config.get('webdriver','downloads')
+		#pdb.set_trace()
+		#downloads_dir = 'C:\\Users\\Ed\\Downloads'
+		params = {'cmd': 'Page.setDownloadBehavior', 'params': {'behavior': 'allow', 'downloadPath': downloads_dir}}
+		self.browser.command_executor._commands["send_command"] = ("POST", '/session/$sessionId/chromium/send_command')
+		command_result = self.browser.execute("send_command", params)
+		#self.browser.execute_chrome_command("Page.setDownloadBehavior",headless_settings)
 		#self.browser.implicitly_wait(0.5) #surely nothing will load longer than 0.5 seconds or we will use a longer wait using perform_wait
 	
 	def finish(self):
