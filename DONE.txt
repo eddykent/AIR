@@ -195,3 +195,16 @@ TURN is_tutorial INTO A RATE BASED, NOT COUNT BASED THING?-- might not be that i
 (FIXED) currency_strength_diff_auto_regression_rsi.sql is not producing enough rows to run in database_tests.py
 	--this didnt work well anyway!
 
+dukascopy web scraper hangs on some stuff when inputting instrument
+
+dukascopy CandleSnatcher/crawler does not save files in hidden mode 
+
+BUGS: - data must be fixed first before continuing with real backtesting 
+DATA: some other areas are rounded. Consider overwriting data with histdata from 2012 to now
+DATA: on 15 min chart, candles all look very "top-heavy" . Perhaps caused by something in the candle selector query - bid vs ask issues
+DATA: january 2022 has rounded prices - overrwrite with stuff from histdata 
+DATA: hole in data: 4th april 2022 - 8th april 2022
+DATA: hole in data: 28th July 6pm to 7th August at 22pm
+DATA: hole in data: 31st August 2pm to 12 September 6pm 
+DATA: hole in data: 18 oct 2022 at 12:00 to 15:30 (GBP/CAD, GBP/NZD)
+

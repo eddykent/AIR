@@ -3,6 +3,7 @@ DEFENSIVE CODING: documentation, type hints and overrides for all non-testing py
 
 refactor currency strength nn to be of the same form as DataProvider etc 
 	- find out what is still to do!
+	- pslit all data into signal basis
 
 refator fundamental stuff 
 	- keywords/tags for every story in DB for easier lookup! (direct & indirect tags)
@@ -12,8 +13,7 @@ journaling
 	- capture any website data in capture/snapshot/tracking from forex factory, forex client sentiment etc (json blobs)
 	- keep all trades (demo & live) in a table called trade_journal 
 
-backtesting - use new raw_fx_candles_15m 
-	- use for np candles version too 
+backtesting - sql not using bid/ask yet 
 
 mathematical indicators 
 	- fourier noise cancellation 
@@ -68,6 +68,7 @@ news, currrency-strength, client-sentiment & demand forecasting
 publish to AWS or similar
 	- dashboard app in android?
 
+data - hole finder
 
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs
@@ -123,15 +124,6 @@ research more about quantconnect - might have some useful things or even might b
 
 ICT based trading? 
 
-BUGS: - data must be fixed first before continuing with real backtesting 
-DATA: some other areas are rounded. Consider overwriting data with histdata from 2012 to now
-DATA: on 15 min chart, candles all look very "top-heavy" . Perhaps caused by something in the candle selector query - bid vs ask issues
-DATA: january 2022 has rounded prices - overrwrite with stuff from histdata 
-DATA: hole in data: 4th april 2022 - 8th april 2022
-DATA: hole in data: 28th July 6pm to 7th August at 22pm
-DATA: hole in data: 31st August 2pm to 12 September 6pm 
-
-DATA: hole in data: 18 oct 2022 at 12:00 to 15:30 (GBP/CAD, GBP/NZD)
 
 Perhaps using pandas data frames will be more efficient and better for the whole thing? 
 Practice will also land you a high paying datascience role if you move jobs...
@@ -159,10 +151,6 @@ divergence tool isnt using non-lookahead stuff
 fxstreet archive does not read anymore - use search indexer
 
 dailyfx blocked - ask them nicely to unblock ip (use proxies in future!)
-
-dukascopy web scraper hangs on some stuff when inputting instrument
-
-dukascopy CandleSnatcher/crawler does not save files in hidden mode 
 
 
 ONGOING: - stuff that might not ever have an end to it because it can always be made better
