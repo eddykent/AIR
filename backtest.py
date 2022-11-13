@@ -117,6 +117,7 @@ class BackTester:
 	fuzz = None  #TODO: add fuzz to the dataset. If not none, the data from the fuzz should be used instead 
 	
 	profit_lock = None 
+	exit_per_entry = False # if true, every entry signal also has an exit signal (speeds up the backtest)
 	
 	def set_profit_lock(self,profit_lock : ProfitLockData):
 		##if not of type ProfitLockData?
@@ -188,7 +189,8 @@ class BackTesterDatabase(BackTester):
 			'exit_signals':Inject(','.join(exit_sql_rows)),
 			'profit_lock_activation':None,
 			'profit_lock_adjustment':None,
-			'profit_lock_extra':None
+			'profit_lock_extra':None,
+			'exit_per_entry':self.exit_per_entry
 		}
 		
 		if self.profit_lock is not None:
@@ -316,6 +318,12 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 			
 		#lastly, check the exit signals and adjust trades that exit before they hit their exit index 	
 		#TODO -  check entry_indexs <= exit_signal <= exit_indexs 
+		exit_timeline_signal_indexs = None 
+		if self.exit_per_entry :
+			self._get_timeline_indexs_from_datetimes([es.the_date for es in exit_signals])
+		else:
+			exit_timeline_signal_indexs = self._get_exit_signal_indexs(trade_signals, exit_signals) 
+		exit_signal_indexs = exit_timeline_signal_indexs - timeline_indexs
 		
 		#now build results (firstly by deleting any candles that have elapsed the entire track eg (exit_indexs == ci_index)
 		entry_dates = np.full(entry_indexs.shape, None)
@@ -324,12 +332,12 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		result_mask = (entry_indexs <= ci_max) & (exit_indexs <= ci_max) #all these have a result 
 		#result_values =  np.full(entry_indexs.shape, np.nan)
 		
+		exit_signal_mask = (entry_indexs <= exit_signal_indexs) & (exit_signal_indexs <= exit_indexs)
+		
 		entry_dates[result_mask] = self.signalling_data.timeline[timeline_indexs[result_mask] + entry_indexs[result_mask]]
 		exit_dates[result_mask] = self.signalling_data.timeline[timeline_indexs[result_mask] + exit_indexs[result_mask]]
 		
-		
 		depleated_mask = (entry_indexs <= ci_max) & (exit_indexs > ci_max) #handle these using a typical price at ci_max-1?
-		
 		
 		entry_dates[depleated_mask] = self.signalling_data.timeline[timeline_indexs[depleated_mask] + entry_indexs[depleated_mask]]
 		
@@ -338,14 +346,20 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		
 		#use the typical prices for the exit price when no SL or TP was hit
 		exit_prices[depleated_mask] = np.mean(trade_tracks_end[depleated_mask,exit_indexs[depleated_mask],1:],axis=1)
+		exit_prices[exit_signal_mask] = np.mean(trade_tracks_end[exit_signal_mask,exit_indexs[exit_signal_mask],1:],axis=1)
 		
 		dir_mult = (trade_directions == TradeDirection.BUY).astype(np.int) - (trade_directions == TradeDirection.SELL).astype(np.int)
 		result_movements = (exit_prices - entry_prices) * dir_mult 
 		result_movements[cutoff_mask] = 0
 		result_percents = (result_movements / entry_prices) * 100 
 		
+		exit_indexs[exit_signal_mask] = exit_signal_indexs[exit_signal_mask] 
+			
 		result_statuses[~cutoff_mask & depleated_mask & (result_movements <= 0)] = TradeResultStatus.LOSING 
 		result_statuses[~cutoff_mask & depleated_mask & (result_movements > 0)] = TradeResultStatus.WINNING 
+		result_statuses[~cutoff_mask & exit_signal_mask & (result_movements <= 0)] = TradeResultStatus.LOST_EXIT 
+		result_statuses[~cutoff_mask & exit_signal_mask & (result_movements > 0)] = TradeResultStatus.WON_EXIT 
+		
 		fake_profit_paths = np.full(result_statuses.shape[0],None)
 		
 		all_results = [] 
@@ -356,7 +370,9 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		return all_results 
 		
 		
-		
+	def _get_timeline_indexs_from_datetimes(self, datetimes):
+		return [self.signalling_data.closest_time_index(dt) for dt in datetimes] #check for later ones to ensure they don't just all end up as at the end
+	
 	
 	#for every trade, get the list of candles associated with it ordered from the start to end & get the associated timeline index
 	def _get_trade_tracks_and_timeline_indexs(self,trade_signals):
@@ -393,7 +409,62 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 				print('hit a problem')
 			
 		return result, np.array(timeline_indexs)
+	
+	def _get_exit_signal_indexs(self, trade_signals, exit_signals):
 		
+		#st = time.time()
+		exit_indexs = np.full(len(trade_signals),-1)
+		
+		#looks mad but this works well and is faster than iterating in loops (test!)
+		#firstly, turn every comparat to np arrays
+		exit_signal_dates = np.array([es.the_date for es in exit_signals]).astype(np.datetime64)
+		entry_start_dates = np.array([ts.the_date for ts in trade_signals]).astype(np.datetime64)
+		entry_end_dates = np.array([ts.the_date + datetime.timedelta(minutes=ts.length) for ts in trade_signals]).astype(np.datetime64)
+		
+		entry_strategy_refs = np.array([ts.strategy_ref for ts in trade_signals])
+		exit_strategy_refs = np.array([es.strategy_ref for es in exit_signals])
+		
+		entry_instruments  = np.array([ts.instrument for ts in trade_signals])
+		exit_instruments  = np.array([es.instrument for es in exit_signals])
+		
+		entry_directions = np.array([ts.direction for ts in trade_signals])
+		exit_directions = np.array([es.direction for es in exit_signals])
+		
+		#next, calculate the truthy matrices for every conditional 
+		match_strategy_refs = entry_strategy_refs[:,np.newaxis] == exit_strategy_refs[np.newaxis,:]
+		match_instruments = entry_instruments[:,np.newaxis] == exit_instruments[np.newaxis,:]
+		match_directions = entry_directions[:,np.newaxis] == exit_directions[np.newaxis,:]
+		within_dates = (entry_start_dates[:,np.newaxis] <= exit_signal_dates[np.newaxis,:]) & (exit_signal_dates[np.newaxis,:] < entry_end_dates[:,np.newaxis])
+		
+		#and all the matrices together 
+		exit_signal_matches = np.all(np.stack([match_strategy_refs,match_instruments,match_directions,within_dates],axis=2),axis=2)
+		
+		#find the earliest exit signal date for non-nan rows 
+		exit_mask = np.any(exit_signal_matches,axis=1)
+		exit_datetimes = np.full(exit_signal_matches.shape,datetime.datetime(9999,1,1))  #Surely I will live this long to see this bug :D 
+		indexer = np.where(exit_signal_matches)
+		exit_datetimes[indexer] = exit_signal_dates[indexer[1]]
+		exit_signal_dates_np = np.min(exit_datetimes,axis=1)
+		
+		exit_indexs[exit_mask] = [self.signalling_data.closest_time_index(the_date) for the_date in exit_signal_dates_np[exit_mask]]
+		#print("time took with np = "+str(time.time() - st))
+		
+		#st = time.time()
+		#test with regular python
+		exit_signal_dates_py = [None] * len(trade_signals)
+		for i,ts in enumerate(trade_signals):
+			for es in exit_signals:
+				if (ts.strategy_ref, ts.direction, ts.instrument) == (es.strategy_ref, es.direction, es.instrument):
+					if es.the_date >= ts.the_date and es.the_date <= ts.the_date + datetime.timedelta(minutes=ts.length):
+						if exit_signal_dates_py[i] is None or exit_signal_dates_py[i] > es.the_date:
+							exit_signal_dates_py[i] = es.the_date
+		
+		#finally, use the earliest exit signal datetimes to get the timeline indexs 
+		exit_indexs2 = [-1 if the_date is None else self.signalling_data.closest_time_index(the_date) for the_date in exit_signal_dates_py]
+		#print("time took with py = "+str(time.time() - st))
+		#pdb.set_trace()
+		
+		return exit_indexs
 	
 	def _get_start_prices_and_positions(self, trade_signals, trade_tracks):	
 		
@@ -460,7 +531,7 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		
 		#unsure of this 	
 		result_grid = within | before_low | before_high
-		time_ind = np.arange(result_grid.shape[1]) + 1
+		time_ind = np.arange(result_grid.shape[1]) + 1 
 		
 		if start_pos is None:
 			start_pos = np.zeros(price_target.shape[0])
@@ -473,7 +544,7 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		
 		result_numeric = np.concatenate([result_numeric,np.full((result_numeric.shape[0],1), result_numeric.shape[1]-1)],axis=1)
 		results = np.argmin(result_numeric,axis=1)
-		
+
 		return results
 	
 

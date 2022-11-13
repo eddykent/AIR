@@ -28,7 +28,7 @@ AS SELECT * FROM (VALUES
 DROP TABLE IF EXISTS exit_signals;
 CREATE TEMPORARY TABLE exit_signals 
 AS SELECT * FROM (VALUES  
-	 %(exit_signals)s
+	%(exit_signals)s
 ) AS te(signal_id, strategy_ref, the_date, instrument, direction);
 
 DROP TABLE IF EXISTS candle_selection;
@@ -66,29 +66,54 @@ AS SELECT * FROM (
 		max(the_date) + (max(duration) || ' minutes')::INTERVAL AS end_date,
 		tsrange(min(the_date),max(the_date) + (max(duration) || ' minutes')::INTERVAL) AS d FROM trade_signals 
 	),
-	exchange_value_tick_sub AS (
-		SELECT evt.*  
-		FROM exchange_value_tick evt, date_range dr
-		WHERE dr.d @> evt.the_date 
-		AND evt.the_date >= dr.start_date 
-		AND evt.the_date < dr.end_date
+	raw_fx_candles_sub AS (
+		SELECT rfc.*  
+		FROM raw_fx_candles_15m rfc, date_range dr
+		WHERE dr.d @> rfc.the_date 
+		AND rfc.the_date >= dr.start_date 
+		AND rfc.the_date < dr.end_date
 	)
 	SELECT 
 	cs.signal_id, 
-	LAG(evt.close_price) OVER (PARTITION BY cs.signal_id ORDER BY evt.the_date ASC) AS prev_close,  --slows it down a BIT? 
-	evt.open_price,
-	evt.high_price,
-	evt.low_price,
-	evt.close_price,
-	evt.the_date,
-	ROW_NUMBER() OVER (PARTITION BY cs.signal_id ORDER BY evt.the_date ASC) - 1 AS candle_number,
-	evt.the_date < cs.expire_date AS not_expired--,
+	LAG(rfc.bid_close) OVER (PARTITION BY cs.signal_id ORDER BY rfc.the_date ASC) AS prev_close,  --slows it down a BIT? 
+	'SELL' AS entry_side,
+	'BUY' AS exit_side,
+	rfc.bid_open AS open_price,
+	rfc.bid_high AS high_price,
+	rfc.bid_low AS low_price,
+	rfc.bid_close AS close_price,
+	rfc.the_date,
+	ROW_NUMBER() OVER (PARTITION BY cs.signal_id ORDER BY rfc.the_date ASC) - 1 AS candle_number,
+	rfc.the_date < cs.expire_date AS not_expired--,
 	--tsrange(evt.the_date,LEAD(evt.the_date) OVER (PARTITION BY cs.signal_id ORDER BY evt.the_date ASC)) AS candle_trange 
 	FROM candle_selection cs 
-	JOIN exchange_value_tick_sub evt ON evt.full_name = cs.instrument 
-	WHERE cs.the_range @> evt.the_date
-	AND evt.the_date >= cs.start_date 
-	AND evt.the_date < cs.end_date
+	JOIN raw_fx_candles_sub rfc ON rfc.full_name = cs.instrument 
+	WHERE cs.the_range @> rfc.the_date
+	AND rfc.the_date >= cs.start_date 
+	AND rfc.the_date < cs.end_date
+	
+	UNION 
+	
+	SELECT 
+	cs.signal_id, 
+	LAG(rfc.ask_close) OVER (PARTITION BY cs.signal_id ORDER BY rfc.the_date ASC) AS prev_close,  --slows it down a BIT? 
+	'BUY' AS entry_side,
+	'SELL' AS exit_side,
+	rfc.ask_open AS open_price,
+	rfc.ask_high AS high_price,
+	rfc.ask_low AS low_price,
+	rfc.ask_close AS close_price,
+	rfc.the_date,
+	ROW_NUMBER() OVER (PARTITION BY cs.signal_id ORDER BY rfc.the_date ASC) - 1 AS candle_number,
+	rfc.the_date < cs.expire_date AS not_expired--,
+	--tsrange(evt.the_date,LEAD(evt.the_date) OVER (PARTITION BY cs.signal_id ORDER BY evt.the_date ASC)) AS candle_trange 
+	FROM candle_selection cs 
+	JOIN raw_fx_candles_sub rfc ON rfc.full_name = cs.instrument 
+	WHERE cs.the_range @> rfc.the_date
+	AND rfc.the_date >= cs.start_date 
+	AND rfc.the_date < cs.end_date
+	
+	
 ) ranged_select;
 
 
@@ -101,7 +126,7 @@ SELECT ts.signal_id,
 (tr.high_price + tr.low_price + tr.close_price) / 3.0 AS entry_price,--typical price 
 'instant' AS status
 FROM trade_signals ts
-JOIN trade_reels tr ON ts.signal_id = tr.signal_id 
+JOIN trade_reels tr ON ts.signal_id = tr.signal_id AND ts.direction = tr.entry_side
 WHERE tr.candle_number = 0
 AND ts.entry_price IS NULL  --enter straight away if the entry price was NULL 
 UNION
@@ -110,7 +135,7 @@ tr.candle_number,
 ts.entry_price::DOUBLE PRECISION,
 'between' AS status
 FROM trade_signals ts  --enter at the entry price if it has been crossed by the candles 
-JOIN trade_reels tr ON ts.signal_id = tr.signal_id 
+JOIN trade_reels tr ON ts.signal_id = tr.signal_id  AND ts.direction = tr.entry_side
 WHERE ts.entry_price::DOUBLE PRECISION > tr.low_price 
 AND ts.entry_price::DOUBLE PRECISION < tr.high_price
 AND ts.entry_price IS NOT NULL;
@@ -122,7 +147,7 @@ tr.candle_number,
 tr.open_price AS entry_price, --we have open as entry since price has skipped from close to open 
 'pco skip' AS status
 FROM trade_signals ts
-JOIN trade_reels tr ON ts.signal_id = tr.signal_id 
+JOIN trade_reels tr ON ts.signal_id = tr.signal_id AND ts.direction = tr.entry_side
 WHERE ts.entry_price IS NOT NULL AND (
 	ts.entry_price::DOUBLE PRECISION > tr.prev_close  
 	AND ts.entry_price::DOUBLE PRECISION <= tr.open_price
@@ -140,7 +165,7 @@ WITH earliest_entries AS (
 SELECT ee.signal_id, ee.candle_number, ee.entry_price, ee.status 
 INTO TEMPORARY TABLE trade_starts
 FROM earliest_entries ee 
-JOIN trade_reels tr ON tr.signal_id = ee.signal_id AND tr.candle_number = ee.candle_number
+JOIN trade_reels tr ON tr.signal_id = ee.signal_id AND tr.entry_side = 'BUY' AND tr.candle_number = ee.candle_number
 WHERE tr.not_expired; --NOTE: whatever isnt in trade_start is stagnant 
 
 --DETERMINE ALL TRADE TARGET PRICES 
@@ -186,7 +211,7 @@ SELECT ts.signal_id,
 tr.candle_number,
 'low->price->high' AS status
 FROM trade_signals ts  --enter at the entry price if it has been crossed by the candles 
-JOIN trade_reels tr ON ts.signal_id = tr.signal_id 
+JOIN trade_reels tr ON ts.signal_id = tr.signal_id  AND ts.direction = tr.entry_side
 WHERE ts.entry_cutoff::DOUBLE PRECISION > tr.low_price 
 AND ts.entry_cutoff::DOUBLE PRECISION < tr.high_price
 AND ts.entry_cutoff IS NOT NULL;
@@ -196,7 +221,7 @@ SELECT tr.signal_id,
 tr.candle_number,
 'close->price->open' AS status
 FROM trade_signals ts
-JOIN trade_reels tr ON ts.signal_id = tr.signal_id 
+JOIN trade_reels tr ON ts.signal_id = tr.signal_id AND ts.direction = tr.entry_side
 WHERE ts.entry_cutoff IS NOT NULL AND (
 	ts.entry_cutoff::DOUBLE PRECISION > tr.prev_close  --is this wrong? - need to make the case for BUY and SELL separately? 
 	AND ts.entry_cutoff::DOUBLE PRECISION < tr.open_price
@@ -212,7 +237,7 @@ SELECT ts.signal_id,
 tr.candle_number,
 'low->price->high' AS status
 FROM trade_signals ts  --enter at the entry price if it has been crossed by the candles 
-JOIN trade_reels tr ON ts.signal_id = tr.signal_id
+JOIN trade_reels tr ON ts.signal_id = tr.signal_id AND ts.direction = tr.exit_side
 JOIN trade_targets tt ON ts.signal_id = tt.signal_id
 WHERE tt.take_profit_price > tr.low_price 
 AND tt.take_profit_price < tr.high_price;
@@ -222,7 +247,7 @@ SELECT tr.signal_id,
 tr.candle_number,
 'close->price->open' AS status
 FROM trade_signals ts
-JOIN trade_reels tr ON ts.signal_id = tr.signal_id 
+JOIN trade_reels tr ON ts.signal_id = tr.signal_id AND ts.direction = tr.exit_side
 JOIN trade_targets tt ON ts.signal_id = tt.signal_id
 WHERE tt.take_profit_price IS NOT NULL AND (
 	tt.take_profit_price > tr.prev_close  
@@ -239,7 +264,7 @@ SELECT ts.signal_id,
 tr.candle_number,
 'low->price->high' AS status
 FROM trade_signals ts  --enter at the entry price if it has been crossed by the candles 
-JOIN trade_reels tr ON ts.signal_id = tr.signal_id
+JOIN trade_reels tr ON ts.signal_id = tr.signal_id AND ts.direction = tr.exit_side
 JOIN trade_targets tt ON ts.signal_id = tt.signal_id
 WHERE tt.profit_lock_activation_price > tr.low_price 
 AND tt.profit_lock_activation_price < tr.high_price;
@@ -249,7 +274,7 @@ SELECT tr.signal_id,
 tr.candle_number,
 'close->price->open' AS status
 FROM trade_signals ts
-JOIN trade_reels tr ON ts.signal_id = tr.signal_id 
+JOIN trade_reels tr ON ts.signal_id = tr.signal_id AND ts.direction = tr.exit_side
 JOIN trade_targets tt ON ts.signal_id = tt.signal_id
 WHERE tt.profit_lock_activation_price IS NOT NULL AND (
 	tt.profit_lock_activation_price > tr.prev_close  
@@ -266,7 +291,7 @@ SELECT ts.signal_id,
 tr.candle_number,
 'low->price->high' AS status
 FROM trade_signals ts  --enter at the entry price if it has been crossed by the candles 
-JOIN trade_reels tr ON ts.signal_id = tr.signal_id
+JOIN trade_reels tr ON ts.signal_id = tr.signal_id AND ts.direction = tr.exit_side
 JOIN trade_targets tt ON ts.signal_id = tt.signal_id
 WHERE tt.profit_lock_adjustment_price > tr.low_price 
 AND tt.profit_lock_adjustment_price < tr.high_price;
@@ -276,7 +301,7 @@ SELECT tr.signal_id,
 tr.candle_number,
 'close->price->open' AS status
 FROM trade_signals ts
-JOIN trade_reels tr ON ts.signal_id = tr.signal_id 
+JOIN trade_reels tr ON ts.signal_id = tr.signal_id AND ts.direction = tr.exit_side
 JOIN trade_targets tt ON ts.signal_id = tt.signal_id
 WHERE tt.profit_lock_adjustment_price IS NOT NULL AND (
 	tt.profit_lock_adjustment_price > tr.prev_close  
@@ -293,7 +318,7 @@ SELECT ts.signal_id,
 tr.candle_number,
 'low->price->high' AS status
 FROM trade_signals ts  --enter at the entry price if it has been crossed by the candles 
-JOIN trade_reels tr ON ts.signal_id = tr.signal_id
+JOIN trade_reels tr ON ts.signal_id = tr.signal_id AND ts.direction = tr.exit_side
 JOIN trade_targets tt ON ts.signal_id = tt.signal_id
 WHERE tt.profit_lock_extra_price > tr.low_price 
 AND tt.profit_lock_extra_price < tr.high_price;
@@ -320,7 +345,7 @@ SELECT ts.signal_id,
 tr.candle_number,
 'low->price->high' AS status
 FROM trade_signals ts  --enter at the entry price if it has been crossed by the candles 
-JOIN trade_reels tr ON ts.signal_id = tr.signal_id
+JOIN trade_reels tr ON ts.signal_id = tr.signal_id AND ts.direction = tr.exit_side
 JOIN trade_targets tt ON ts.signal_id = tt.signal_id
 WHERE tt.stop_loss_price > tr.low_price 
 AND tt.stop_loss_price < tr.high_price;
@@ -330,7 +355,7 @@ SELECT tr.signal_id,
 tr.candle_number,
 'close->price->open' AS status
 FROM trade_signals ts
-JOIN trade_reels tr ON ts.signal_id = tr.signal_id 
+JOIN trade_reels tr ON ts.signal_id = tr.signal_id AND ts.direction = tr.exit_side
 JOIN trade_targets tt ON ts.signal_id = tt.signal_id
 WHERE tt.stop_loss_price IS NOT NULL AND (
 	tt.stop_loss_price > tr.prev_close  
@@ -391,16 +416,16 @@ SELECT * FROM (
 		LEFT JOIN trade_events stop_loss ON stop_loss.signal_id = tpac.signal_id AND stop_loss.evt = 'stop_loss'
 		LEFT JOIN trade_events profit_lock ON profit_lock.signal_id = tpac.signal_id AND profit_lock.evt = 'profit_lock'
 		WHERE COALESCE(stop_loss.candle_number,999) > COALESCE(profit_lock.candle_number ,1000)
-		AND profit_lock.candle_number < tpac.candle_number
+		AND profit_lock.candle_number <= tpac.candle_number
 		AND COALESCE(stop_loss.candle_number,999)  > tpac.candle_number
 		ORDER BY tpac.signal_id, tpac.candle_number ASC
 	)
 	UNION
 	(
 		SELECT DISTINCT ON (tpec.signal_id) tpec.signal_id, tpec.candle_number, 'take_profit_extra' AS evt, TRUE AS is_exit FROM backtest_parameters, trade_profit_extra_cross tpec
-		LEFT JOIN trade_events take_profit ON take_profit.signal_id = tpec.signal_id 
-		LEFT JOIN trade_events profit_lock ON profit_lock.signal_id = tpec.signal_id 
-		WHERE COALESCE(take_profit.candle_number,999) > COALESCE(profit_lock.candle_number ,1000)
+		LEFT JOIN trade_events stop_loss ON stop_loss.signal_id = tpec.signal_id  AND stop_loss.evt = 'stop_loss'
+		LEFT JOIN trade_events profit_lock ON profit_lock.signal_id = tpec.signal_id AND profit_lock.evt = 'profit_lock'
+		WHERE COALESCE(stop_loss.candle_number,999) > COALESCE(profit_lock.candle_number ,1000) --ensure profit lock is before stop loss
 		AND profit_lock.candle_number < tpec.candle_number 
 		AND NULLIF(backtest_parameters.profit_lock_extra,0) IS NOT NULL 
 		ORDER BY tpec.signal_id, tpec.candle_number ASC
@@ -414,7 +439,8 @@ SELECT *, TRUE AS is_exit FROM trades_cut;
 --inserto into trade events the ending candles incase any trades elapse their whole length
 INSERT INTO trade_events 
 SELECT DISTINCT ON (tr.signal_id) tr.signal_id, tr.candle_number, 'trade_end' AS evt, TRUE AS is_exit
-FROM trade_reels tr 
+FROM trade_signals ts 
+JOIN trade_reels tr ON ts.signal_id = tr.signal_id AND ts.direction = tr.exit_side
 WHERE EXISTS (SELECT 1 FROM trade_starts ts WHERE ts.signal_id = tr.signal_id) --esnure it actually started
 ORDER BY tr.signal_id, tr.candle_number DESC;
 
@@ -422,13 +448,15 @@ INSERT INTO trade_events
 SELECT signal_id, NULL AS candle_number, 'stagnated' AS evt, TRUE AS is_exit FROM 
 trade_signals ts WHERE NOT EXISTS (SELECT 1 FROM trade_events te WHERE te.signal_id = ts.signal_id);
 
---inssert into trade events any exit signals that lie on the open trades 
+
+--insert into trade events any exit signals that lie on the open trades 
 WITH candle_start_end AS (
 	SELECT signal_id, 
 	candle_number,
 	the_date AS start_date,
 	LEAD(the_date) OVER (PARTITION BY signal_id ORDER BY the_date) AS end_date
-	FROM trade_reels
+	FROM trade_reels 
+	WHERE entry_side = 'BUY' --get only one of the sides we dont need both
 ),
 candle_periods AS (
 	SELECT signal_id,
@@ -439,7 +467,7 @@ candle_periods AS (
 )
 INSERT INTO trade_events
 SELECT ts.signal_id,
-cp.candle_number + 1 AS candle_number, --detected ON prev candle so EXIT ON this candle?
+cp.candle_number AS candle_number, --detected ON prev candle so EXIT ON this candle?
 'exit_signal' AS evt, 
 TRUE AS is_exit
 FROM exit_signals es 
@@ -466,43 +494,71 @@ WITH results_pre AS (
 --	tre.low_price,
 	((tre.high_price + tre.low_price + tre.close_price) / 3.0) AS typical_exit_price,
 	te.candle_number AS exit_candle, 
-	te.evt AS status,
-	CASE 
-			WHEN tsig.direction = 'BUY' THEN ((tre.high_price + tre.low_price + tre.close_price) / 3.0) - ts.entry_price
-			WHEN tsig.direction = 'SELL' THEN ts.entry_price - ((tre.high_price + tre.low_price + tre.close_price) / 3.0)
-			ELSE NULL
-	END AS result_movement
+	te.evt AS status
 	FROM trade_ends te
 	JOIN trade_signals tsig ON te.signal_id = tsig.signal_id 
 	LEFT JOIN trade_starts ts ON te.signal_id = ts.signal_id
-	LEFT JOIN trade_reels trs ON trs.signal_id = te.signal_id AND trs.candle_number = ts.candle_number 
-	LEFT JOIN trade_reels tre ON tre.signal_id = te.signal_id AND tre.candle_number = te.candle_number 
+	LEFT JOIN trade_reels trs ON trs.signal_id = te.signal_id AND trs.candle_number = ts.candle_number AND tsig.direction = trs.exit_side
+	LEFT JOIN trade_reels tre ON tre.signal_id = te.signal_id AND tre.candle_number = te.candle_number AND tsig.direction = tre.exit_side
+),
+exit_prices AS (
+	SELECT rp.*, 
+	CASE 
+		WHEN rp.status = 'stagnated' THEN NULL
+		WHEN rp.status = 'take_profit' THEN tt.take_profit_price
+		WHEN rp.status = 'stop_loss' THEN tt.stop_loss_price
+		WHEN rp.status = 'trade_end' THEN rp.typical_exit_price
+		WHEN rp.status = 'cutoff' THEN NULL
+		WHEN rp.status = 'exit_signal' THEN rp.typical_exit_price
+		WHEN rp.status = 'profit_stop_loss' THEN tt.profit_lock_adjustment_price
+		WHEN rp.status = 'take_profit_extra' THEN tt.profit_lock_extra_price
+		ELSE NULL
+	END AS exit_price 
+	FROM results_pre rp
+	JOIN trade_targets tt ON rp.signal_id = tt.signal_id
+),
+result_movements AS (
+	SELECT ep.*, 
+	(ep.exit_price - ep.entry_price) * (
+		CASE 
+			WHEN ts.direction = 'BUY' THEN 1.0 
+			WHEN ts.direction = 'SELL' THEN -1.0 
+			ELSE 0
+		END
+	) AS result_movement
+	FROM exit_prices ep 
+	JOIN trade_signals ts ON ep.signal_id = ts.signal_id
+),
+results_post AS (
+	SELECT *,
+	CASE 
+		WHEN status = 'stagnated' THEN 'STAGNATED'
+		WHEN status = 'take_profit' THEN 'WON'
+		WHEN status = 'stop_loss' THEN 'LOST'
+		WHEN status = 'trade_end' AND result_movement <= 0 THEN 'LOSING'
+		WHEN status = 'trade_end' AND result_movement > 0 THEN 'WINNING'
+		WHEN status = 'cutoff' THEN 'VOID'
+		WHEN status = 'exit_signal' AND result_movement <= 0 THEN 'EXIT_DOWN'
+		WHEN status = 'exit_signal' AND result_movement > 0 THEN 'EXIT_UP'
+		WHEN status = 'profit_stop_loss' THEN 'PROFIT_LOCK'
+		WHEN status = 'take_profit_extra' THEN 'WON_EXTRA'
+		ELSE 'INVALID'
+	END AS result_status
+	FROM result_movements
 )
 SELECT signal_id, 
 entry_date,
 entry_price, 
 entry_candle,
 exit_date,
-typical_exit_price AS exit_price,
+typical_exit_price AS exit_price, --should be TP or SL price here 
 exit_candle, 
 result_movement,
 (result_movement / entry_price) * 100 AS result_percent,
-CASE 
-	WHEN status = 'stagnated' THEN 'STAGNATED'
-	WHEN status = 'take_profit' THEN 'WON'
-	WHEN status = 'stop_loss' THEN 'LOST'
-	WHEN status = 'trade_end' AND result_movement <= 0 THEN 'LOSING'
-	WHEN status = 'trade_end' AND result_movement > 0 THEN 'WINNING'
-	WHEN status = 'cutoff' THEN 'VOID'
-	WHEN status = 'exit_signal' AND result_movement <= 0 THEN 'EXIT_DOWN'
-	WHEN status = 'exit_signal' AND result_movement > 0 THEN 'EXIT_UP'
-	WHEN status = 'profit_stop_loss' THEN 'PROFIT_LOCK'
-	WHEN status = 'take_profit_extra' THEN 'WON_EXTRA'
-	ELSE 'INVALID'
-END AS result_status, 
+result_status,
 NULL AS profit_path
 INTO TEMPORARY TABLE trade_results
-FROM results_pre;
+FROM results_post;
 
 DROP TABLE IF EXISTS profit_paths; 
 WITH profit_path_prices AS (

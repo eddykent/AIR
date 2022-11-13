@@ -9,6 +9,7 @@ import pickle
 from setups.trade_setup import CandleDataTool, PipStop
 from setups.setups1 import BB_KC_RSI, ADX_EMA_RSI, HA_VWAP_RSI_DIVERGENCE
 from setups.custom_setups import Harmony
+from setups.signal import TradeExitSignal
 from setups.simple_setups import *
 from utils import ListFileReader, Database
 from backtest import BackTesterDatabase, BackTesterCandles
@@ -55,9 +56,17 @@ with open('data/pickles/signals_11Oct2022.pkl','rb') as f:
 #signals = signals1 + signals2 #use when stress testing
 #signals = signals1[:2500] + signals2[:2500] 
 
+#signals = signals[:25]
 
+#signals = [s for s in signals if s.signal_id == '0f07cde8-43c9-4047-a1c5-0bcd52e42771']
 
+#exit signals (the_date, instrument, strategy_ref, direction) 
+legit_exit_signals = [TradeExitSignal.create(ts.the_date + datetime.timedelta(minutes=480), ts.instrument, ts.strategy_ref, ts.direction) for ts in signals]
+duff_exit_signals1 = [TradeExitSignal.create(ts.the_date + datetime.timedelta(minutes=120), ts.instrument, 'nothing ref', ts.direction) for ts in signals[:2]]
+duff_exit_signals2 = [TradeExitSignal.create(ts.the_date + datetime.timedelta(minutes=120), 'fuck_corp', ts.strategy_ref, ts.direction) for ts in signals[:2]]
+duff_exit_signals3 = [TradeExitSignal.create(ts.the_date + datetime.timedelta(weeks=120), ts.instrument, ts.strategy_ref, ts.direction) for ts in signals[:2]]
 
+exit_signals = legit_exit_signals + duff_exit_signals1 +duff_exit_signals2 + duff_exit_signals3
 
 #harmony = Harmony(instruments)
 #harmony.orders = [12,13,14,15]
@@ -106,11 +115,11 @@ print("Time taken to get full candles = "+str(time.time() - fctt))
 
 
 btc = BackTesterCandles(btsd)
-#btc.set_profit_lock(profit_lock=(0.75,0.5,0))
+btc.set_profit_lock(profit_lock=(0.75,0.5,0))
 
 #remove when wanting to do stress tests
 stt = time.time() 
-result1 = btc.perform(signals)
+result1 = btc.perform(signals, exit_signals)
 ttt = time.time() - stt
 print('Time taken for backtest np candles = '+str(ttt))
 #backteststats = BacktestStatistics(...) 
@@ -122,10 +131,10 @@ cur = Database(commit=False,cache=False)
 
 btd = BackTesterDatabase(cur)
 
-#btd.set_profit_lock(profit_lock=(0.75,0.5,0))
+btd.set_profit_lock(profit_lock=(0.75,0.5,0))
 
 dtt = time.time()
-result2 = btd.perform(signals)
+result2 = btd.perform(signals, exit_signals)
 ttt = time.time() - dtt
 print('Time taken for backtest in database = '+str(ttt))
 
