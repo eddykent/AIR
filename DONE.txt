@@ -131,6 +131,7 @@ correlation filter needs to use partial candles (inherit from PartialIndicatorFi
 - fix fxstreet to use the indexing strategy to pull new articles (eg https://www.fxstreet.com/news?q=GBPUSD&hPP=999&idx=FxsIndexPro&p=0)
 	pull links using selenium, check against db & if there is content? then read only the missing stuff 
 
+backtesting in sql now uses bid and ask prices 
 
 BUGS:
 (FIXED)

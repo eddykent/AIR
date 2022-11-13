@@ -3,17 +3,18 @@ DEFENSIVE CODING: documentation, type hints and overrides for all non-testing py
 
 refactor currency strength nn to be of the same form as DataProvider etc 
 	- find out what is still to do!
-	- pslit all data into signal basis
+	- all data into signal basis
 
-refator fundamental stuff 
+refactor fundamental stuff 
 	- keywords/tags for every story in DB for easier lookup! (direct & indirect tags)
 
 journaling  
 	- make trade_journal.py
 	- capture any website data in capture/snapshot/tracking from forex factory, forex client sentiment etc (json blobs)
+		- forex factory
+		- forex client sentiment 
+		- etoro
 	- keep all trades (demo & live) in a table called trade_journal 
-
-backtesting - sql not using bid/ask yet 
 
 mathematical indicators 
 	- fourier noise cancellation 
@@ -28,7 +29,11 @@ refactor setups
 	- init step for putting indicators/patterns onto self
 	- drawing consists of list of TradeSignal and nothing else? 
 		-base yes, higher drawing functions can draw the underlying indicators if on candlesticks
-		-consider drawing any results from self?  
+		-consider drawing any results from self? 
+	exit signals
+		- write exit signals for some setups
+		- utilise length property of trade_signal for faster backtesting (exit signals can be slow)
+			- or use exit_per_entry = true! :) 
 
 additional constraints for chart patterns & speed
 	- harmonics - eg why are there so few? fix the cache method in Harmony (custom_setups)
@@ -93,7 +98,8 @@ AI to forcast buying/selling pressure of currencies
 test chart patterns and practice drawing them - gradient descent for finding params? 
 shape based and trending are pretty broken and need fixing up 
 
-backtesting fuzz - add 5% uniform error to all data for better backtesting?
+backtesting 
+	- fuzz - add 5% uniform error to all data for better backtesting?
 
 parameter tuning - try shit loads of calculating using regression
 	- record params each time 
@@ -101,7 +107,7 @@ parameter tuning - try shit loads of calculating using regression
 	- minimise loses 
 	- (subgradient optimisation!) (use GA or some shit if you want) 
 
-social trading concepts - follow the whales 
+social trading concepts - follow the whales - filter?
 	- forex factory
 	- etoro
 
