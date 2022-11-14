@@ -55,6 +55,7 @@ with Database(commit=False, cache=False) as cursor:
 #chart_pattern = FallingWedge()
 
 chart_pattern = RisingTriangle() 
+#chart_pattern = Bat()
 #chart_pattern = FallingTriangle()
 #chart_pattern = ApproximateChannel()
 

@@ -20,12 +20,17 @@ log = logging.getLogger(__name__)
 
 from utils import overrides, deprecated
 
-
-class XtremeWindowBundle:	
-	required_candles = 0
+class XtremeWindowSettings:
+	required_candles = 100
 	xtreme_degree = 1
 	order = 1
-	breakout_candles  = 0
+	breakout_candles  = 3
+	mask = []
+	
+
+class XtremeWindowBundle:	
+	
+	settings = XtremeWindowSettings()
 	xtreme_windows = []
 	window_map = []
 	np_candles = []
@@ -33,7 +38,6 @@ class XtremeWindowBundle:
 	window_heights = []
 	x_start_positions = []
 	average_true_ranges = []
-	mask = []
 	
 #class XtremeWindowBundleConstructor: #if we use a chart pattern, we can override some of the settings so it is easier
 	
@@ -78,13 +82,13 @@ class ChartPattern(Indicator):
 		return self._bundle_perform(xtreme_bundle,return_flat)
 	
 	
-	def _bundle_perform(self,xtreme_bundle,return_flat):
+	def _bundle_perform(self,xtreme_bundle,return_flat=False):
 		
 		#check settings? check what ones are needed to not change structure/break etc 
-		assert self._order == xtreme_bundle.order
-		assert self._breakout_candles == xtreme_bundle.breakout_candles
-		assert self._xtreme_degree == xtreme_bundle.xtreme_degree
-		assert self._required_candles == xtreme_bundle.required_candles
+		assert self._order == xtreme_bundle.settings.order
+		assert self._breakout_candles == xtreme_bundle.settings.breakout_candles
+		assert self._xtreme_degree == xtreme_bundle.settings.xtreme_degree
+		assert self._required_candles == xtreme_bundle.settings.required_candles
 	
 		chart_result = self._chart_perform(xtreme_bundle) 
 		
@@ -114,14 +118,16 @@ class ChartPattern(Indicator):
 		xwb = XtremeWindowBundle() 
 		
 		#chart pattern settings - (check/fix these/refactor) 
-		xwb.required_candles = self._required_candles
-		xwb.xtreme_degree = self._xtreme_degree
-		xwb.order = self._order
-		xwb.breakout_candles  = self._breakout_candles
+		xwb.settings.required_candles = self._required_candles
+		xwb.settings.xtreme_degree = self._xtreme_degree
+		xwb.settings.order = self._order
+		xwb.settings.breakout_candles  = self._breakout_candles
+		
+		
 		
 		#_perform parameters 
 		xwb.np_candles = np_candles 
-		xwb.mask = mask 
+		xwb.settings.mask = mask 
 		
 		#_chart_perform parameters - what about _precandles?
 		xwb.xtreme_windows, xwb.window_map = self._generate_xtreme_windows(np_candles,mask)
