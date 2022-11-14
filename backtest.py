@@ -320,6 +320,7 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		#TODO -  check entry_indexs <= exit_signal <= exit_indexs 
 		exit_timeline_signal_indexs = None 
 		if self.exit_per_entry :
+			assert len(trade_signals) == len(exit_signals), "Number of exit signals must match number of entry signals"
 			self._get_timeline_indexs_from_datetimes([es.the_date for es in exit_signals])
 		else:
 			exit_timeline_signal_indexs = self._get_exit_signal_indexs(trade_signals, exit_signals) 
