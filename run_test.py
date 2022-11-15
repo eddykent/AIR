@@ -27,13 +27,14 @@ LogSetup() #think of how to rmeove this line
 #from tests.timeline_test import *
 #from tests.backtest_test import *
 
-from tests.backtest_np_test import *
+#from tests.backtest_np_test import *
 
 #from tests.spacy_test import *
 
 #
 #from tests.heikinashi_test  import *
 #from tests.setup_test import *
+#from tests.chart_pattern_collection_test import *
 #from tests.logging_test import *
 #from tests.data_compose_test import *
 #from tests.data_compose_branch_test import *
@@ -66,9 +67,7 @@ from tests.backtest_np_test import *
 #from tests.advanced_filter_tests import *w
 #from tests.pandas_tests import *
  
- 
-#from tests.data_pull_tests import *
-
+#[Bat,Crab,Butterfly,Gartley,DeepCrab]
 #from tests.selenium_test import * 
 
 #list of working for TrianglePattern: 
@@ -78,12 +77,18 @@ from tests.backtest_np_test import *
 #394 bullish 
 
 
-
+#from tests.selenium_test import *
 #from tests.save_articles_test import *
+
+
+#from tests.data_pull_tests import *
 #if __name__ == "__main__":	
 #	run_test()
 
-#from tests.maths_indicator_test import *
+#import debugging.charts as dbc
+
+from tests.maths_indicator_test import *
+
 
 #from debug.charts import *
 

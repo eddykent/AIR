@@ -25,8 +25,8 @@ with Database(commit=False, cache=False) as cursor:
 	candles = composer.as_candles(candle_result,fx_pairs)
 
 
-#OurIndicator = FourierAnalyser
-OurIndicator = ChoppinessIndex
+OurIndicator = FourierGradient
+#OurIndicator = ChoppinessIndex
 
 indicator = OurIndicator()
 
@@ -34,16 +34,13 @@ candle_streams = [candles[fx] for fx in fx_pairs]
 results = indicator.calculate_multiple(candle_streams)
 
 
-#pdb.set_trace()
-this_view = chv.ChartView()
-this_view.draw_candles(candle_streams[0])
-indicator_view = indicator.draw_snapshot(candle_streams[0])
-this_view += indicator_view
 
+indicator_view = indicator.draw_snapshot(candle_streams[0])
 
 pcp = chv.PlotlyChartPainter()
-#pcp.paint(indicator_view)
-pcp.paint(this_view)
+if indicator.candle_sticks:
+	indicator_view.draw_candles(candle_streams[0])
+pcp.paint(indicator_view)
 pcp.show()
 
 #pcp = PlotlyChartPainter()
