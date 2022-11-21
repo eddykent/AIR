@@ -135,18 +135,19 @@ class ParabolicSAR(Indicator):
 		return np.stack([uptrends,downtrends],axis=2)
 			
 
+#WARNING: we do not move anything on the timeline dimension on this indicator -that is the job of the setup 
 class IchimokuCloud(Indicator):
 	channel_keys = {'CONVERSION':0, 'BASE':1, 'SPAN_A':2, 'SPAN_B':3, 'LAG': 4}
 	channel_styles = {'CONVERSION':'bullish', 'BASE':'bearish', 'SPAN_A':'neutral', 'SPAN_B':'neutral', 'LAG': 'keyinfo'}  #consider using a different view with cloud drawn in!
-	candle_sticks = True
+	candle_sticks = True #this is a complex indicator so it depends! 
 	
 	conversion_period = 9 
 	base_period = 26 
 	span_period = 52
-	lag_period = 26
-	lead_period = 26
+	#lag_period = 26
+	#lead_period = 26
 	
-	trim = True #TODO: if true, we trim the cloud so it does not overlap the end of the candle chart
+	#trim = True #TODO: if true, we trim the cloud so it does not overlap the end of the candle chart
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -159,13 +160,14 @@ class IchimokuCloud(Indicator):
 		span_b = (np.nanmax(span_windows[:,:,csf.high,:],axis=2) + np.nanmin(span_windows[:,:,csf.low,:],axis=2)) / 2.0
 		span_a = (conversion + base) / 2.0
 		
-		cloud_a = np.concatenate([np.full((candles.shape[0],self.lag_period),np.nan),span_a],axis=1)
-		cloud_b = np.concatenate([np.full((candles.shape[0],self.lag_period),np.nan),span_b],axis=1)
-		cloud_a = cloud_a[:,:span_a.shape[1]] #trim off front
-		cloud_b = cloud_b[:,:span_b.shape[1]] #trim off front
+		#cloud_a = np.concatenate([np.full((candles.shape[0],self.lag_period),np.nan),span_a],axis=1)
+		#cloud_b = np.concatenate([np.full((candles.shape[0],self.lag_period),np.nan),span_b],axis=1)
+		#cloud_a = cloud_a[:,:span_a.shape[1]] #trim off front
+		#cloud_b = cloud_b[:,:span_b.shape[1]] #trim off front
 		
-		lag = np.concatenate([candles[:,self.lag_period:,csf.close],np.full((candles.shape[0],self.lag_period),np.nan)],axis=1)
-		return np.stack([conversion, base, cloud_a, cloud_b, lag],axis=2)
+		#lag = np.concatenate([candles[:,self.lag_period:,csf.close],np.full((candles.shape[0],self.lag_period),np.nan)],axis=1)
+		lag = candles[:,:,csf.close]
+		return np.stack([conversion, base, span_a, span_b, lag],axis=2)
 
 
 #todo if desired: - this is buggy 
