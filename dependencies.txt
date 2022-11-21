@@ -5,7 +5,7 @@ psycopg2
 plotly
 requests
 requests-html
-statsmodels
+statsmodels   #?
 tensorflow
 feedparser
 nltk
@@ -13,5 +13,6 @@ textblob
 webdriver-manager
 selenium
 tqdm
+deprecation #rm later
 #spacy
 #python -m spacy download en_core_web_lg
