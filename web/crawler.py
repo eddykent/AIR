@@ -21,7 +21,7 @@ import time
 
 import pdb
 
-from utils import Configuration, TimeHandler
+from utils import Configuration
 
 
 #crawler is a special case of scraper that uses selenium to get information. This is required for some websites 
@@ -47,7 +47,7 @@ class SeleniumHandler:
 		if not chrome_options:
 			chrome_options = ChromeOptions()
 		#location = config.get('chrome_driver','location') #handled with ChromeDriverManager
-		downloads_dir = self.config.get('webdriver','downloads')
+		downloads_dir = self.config.get('selenium','downloads')
 		prefs = {
 			"download.default_directory":downloads_dir,
 			"download.prompt_for_download":False,
@@ -106,7 +106,7 @@ class SeleniumHandler:
 		)
 		
 		#headless_settings = { "behavior", "allow" }
-		downloads_dir = self.config.get('webdriver','downloads')
+		downloads_dir = self.config.get('selenium','downloads')
 		#pdb.set_trace()
 		#downloads_dir = 'C:\\Users\\Ed\\Downloads'
 		params = {'cmd': 'Page.setDownloadBehavior', 'params': {'behavior': 'allow', 'downloadPath': downloads_dir}}
@@ -199,7 +199,7 @@ class Crawler:
 		number = 0
 		stringnumber = str(number) if number > 9 else ('0'+str(number))  ##no more than 99 per second as that is just silly :) 
 		timefilename = timestamp+'#'+stringnumber
-		screenshot_dir = self.config.get('webdriver','screenshots')
+		screenshot_dir = self.config.get('selenium','screenshots')
 		self.browser.get_screenshot_as_file(os.path.join(screenshot_dir,timefilename,'.png'))
 		return timefilename
 	
@@ -387,7 +387,10 @@ class XPathNavigator(Crawler):
 
 	#try js or selenium click - perhaps have handler here to do the click in either using js as fallback 
 	def click_on(self,element):
-		self.browser.execute_script("arguments[0].click();", element)
+		try:
+			element.click()
+		except ElementClickInterceptedException as ecie:
+			self.browser.execute_script("arguments[0].click();", element) #js shouldn't raise 
 
 	def press_enter_on(self,element):
 		element.send_keys(Keys.ENTER)
