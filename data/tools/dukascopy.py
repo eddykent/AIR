@@ -444,7 +444,7 @@ class DukascopyData(Crawler): #change to Crawler?
 		max_tries = 3
 		latest_bid = None 
 		latest_ask = None 
-		while tries < max_tries:
+		while tries < max_tries: #try a few times since files might be still open in the browser file handle
 			dir_files = [filename for filename in os.listdir(self.downloads_folder) if suitable_file_name(filename)]
 			bid_files = [filename for filename in dir_files if 'bid' in filename.lower()]
 			ask_files = [filename for filename in dir_files if 'ask' in filename.lower()]
@@ -461,10 +461,11 @@ class DukascopyData(Crawler): #change to Crawler?
 			latest_ask_file_paths = [x[0] for x in latest_ask_file_paths]
 			
 			if not latest_ask_file_paths or not latest_bid_file_paths:
-				time.sleep(1)
+				time.sleep(0.5) #wait half a second (might have to be longer for bigger downloads) 
 				tries += 1
 				if tries == max_tries:
-					raise OSError("Not able to get both files?")
+					#this could be caused when the files were not downloaded or your download directory is not writable
+					raise OSError("Not able to get both files") 
 				continue 
 			
 			latest_ask = latest_ask_file_paths[0]
