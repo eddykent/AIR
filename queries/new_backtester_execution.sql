@@ -555,78 +555,77 @@ typical_exit_price AS exit_price, --should be TP or SL price here
 exit_candle, 
 result_movement,
 (result_movement / entry_price) * 100 AS result_percent,
-result_status,
-NULL AS profit_path
+result_status
 INTO TEMPORARY TABLE trade_results
 FROM results_post;
 
-DROP TABLE IF EXISTS profit_paths; 
-WITH profit_path_prices AS (
-	SELECT tr.signal_id,
-	tr.candle_number,
-	ts.direction,
-	CASE 
-		WHEN ts.direction = 'BUY' THEN tr.high_price 
-		WHEN ts.direction = 'SELL' THEN tr.low_price 
-		ELSE NULL
-	END AS optimistic_price,
-	CASE 
-		WHEN ts.direction = 'BUY' THEN tr.low_price 
-		WHEN ts.direction = 'SELL' THEN tr.high_price 
-		ELSE NULL
-	END AS pessimistic_price,
-	(tr.high_price + tr.low_price + tr.close_price ) / 3.0 AS typical_price
-	FROM trade_reels tr
-	JOIN trade_signals ts ON tr.signal_id = ts.signal_id 
-),
-profit_price_normed AS (
-	SELECT pps.signal_id, 
-	pps.direction,
-	pps.candle_number,
-	CASE 
-		WHEN pps.direction = 'BUY' THEN pps.optimistic_price - ts.entry_price 
-		WHEN pps.direction = 'SELL' THEN ts.entry_price - pps.optimistic_price
-		ELSE NULL 
-	END / tsigs.take_profit_difference AS optimistic,
-	CASE 
-		WHEN pps.direction = 'BUY' THEN pps.pessimistic_price - ts.entry_price 
-		WHEN pps.direction = 'SELL' THEN ts.entry_price - pps.pessimistic_price
-		ELSE NULL 
-	END / tsigs.take_profit_difference AS pessimistic,
-	CASE 
-		WHEN pps.direction = 'BUY' THEN pps.typical_price - ts.entry_price 
-		WHEN pps.direction = 'SELL' THEN ts.entry_price - pps.typical_price
-		ELSE NULL 
-	END / tsigs.take_profit_difference AS typical
-	FROM profit_path_prices pps
-	JOIN trade_starts ts ON pps.signal_id = ts.signal_id 
-	JOIN trade_ends te ON pps.signal_id = te.signal_id 
-	JOIN trade_signals tsigs ON tsigs.signal_id = ts.signal_id
-	WHERE pps.candle_number >= ts.candle_number 
-	AND pps.candle_number <= te.candle_number
-)
-SELECT 
-pps.signal_id,
-ARRAY_AGG(pps.optimistic ORDER BY pps.candle_number ASC) AS optimistic,
-ARRAY_AGG(pps.pessimistic ORDER BY pps.candle_number ASC) AS pessimistic,
-ARRAY_AGG(pps.typical ORDER BY pps.candle_number ASC) AS typical
-INTO TEMPORARY TABLE profit_paths 
-FROM profit_price_normed pps
-JOIN trade_starts ts ON pps.signal_id = ts.signal_id 
-JOIN trade_ends te ON pps.signal_id = te.signal_id 
-WHERE pps.candle_number >= ts.candle_number 
-AND pps.candle_number <= te.candle_number
-GROUP BY pps.signal_id;
+--DROP TABLE IF EXISTS profit_paths; 
+--WITH profit_path_prices AS (
+--	SELECT tr.signal_id,
+--	tr.candle_number,
+--	ts.direction,
+--	CASE 
+--		WHEN ts.direction = 'BUY' THEN tr.high_price 
+--		WHEN ts.direction = 'SELL' THEN tr.low_price 
+--		ELSE NULL
+--	END AS optimistic_price,
+--	CASE 
+--		WHEN ts.direction = 'BUY' THEN tr.low_price 
+--		WHEN ts.direction = 'SELL' THEN tr.high_price 
+--		ELSE NULL
+--	END AS pessimistic_price,
+--	(tr.high_price + tr.low_price + tr.close_price ) / 3.0 AS typical_price
+--	FROM trade_reels tr
+--	JOIN trade_signals ts ON tr.signal_id = ts.signal_id 
+--),
+--profit_price_normed AS (
+--	SELECT pps.signal_id, 
+--	pps.direction,
+--	pps.candle_number,
+--	CASE 
+--		WHEN pps.direction = 'BUY' THEN pps.optimistic_price - ts.entry_price 
+--		WHEN pps.direction = 'SELL' THEN ts.entry_price - pps.optimistic_price
+--		ELSE NULL 
+--	END / tsigs.take_profit_difference AS optimistic,
+--	CASE 
+--		WHEN pps.direction = 'BUY' THEN pps.pessimistic_price - ts.entry_price 
+--		WHEN pps.direction = 'SELL' THEN ts.entry_price - pps.pessimistic_price
+--		ELSE NULL 
+--	END / tsigs.take_profit_difference AS pessimistic,
+--	CASE 
+--		WHEN pps.direction = 'BUY' THEN pps.typical_price - ts.entry_price 
+--		WHEN pps.direction = 'SELL' THEN ts.entry_price - pps.typical_price
+--		ELSE NULL 
+--	END / tsigs.take_profit_difference AS typical
+--	FROM profit_path_prices pps
+--	JOIN trade_starts ts ON pps.signal_id = ts.signal_id 
+--	JOIN trade_ends te ON pps.signal_id = te.signal_id 
+--	JOIN trade_signals tsigs ON tsigs.signal_id = ts.signal_id
+--	WHERE pps.candle_number >= ts.candle_number 
+--	AND pps.candle_number <= te.candle_number
+--)
+--SELECT 
+--pps.signal_id,
+--ARRAY_AGG(pps.optimistic ORDER BY pps.candle_number ASC) AS optimistic,
+--ARRAY_AGG(pps.pessimistic ORDER BY pps.candle_number ASC) AS pessimistic,
+--ARRAY_AGG(pps.typical ORDER BY pps.candle_number ASC) AS typical
+--INTO TEMPORARY TABLE profit_paths 
+--FROM profit_price_normed pps
+--JOIN trade_starts ts ON pps.signal_id = ts.signal_id 
+--JOIN trade_ends te ON pps.signal_id = te.signal_id 
+--WHERE pps.candle_number >= ts.candle_number 
+--AND pps.candle_number <= te.candle_number
+--GROUP BY pps.signal_id;
 
 SELECT 
-to_json(tr) AS trade_result, --json OBJECT 
-json_build_object(
-	'optimistic',pp.optimistic,
-	'pessimistic',pp.pessimistic,
-	'typical',pp.typical
-) AS profit_path
+to_json(tr) AS trade_result--, --json OBJECT 
+--json_build_object(
+--	'optimistic',pp.optimistic,
+--	'pessimistic',pp.pessimistic,
+--	'typical',pp.typical
+--) AS profit_path
 FROM trade_results tr
-LEFT JOIN profit_paths pp ON tr.signal_id = pp.signal_id
+--LEFT JOIN profit_paths pp ON tr.signal_id = pp.signal_id
 
 
 

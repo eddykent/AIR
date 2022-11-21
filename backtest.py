@@ -35,8 +35,8 @@ class TradeResultStatus(Enum):
 	WON_TP = 4 # the trade stopped out at the take profit price 
 	WON_EXTRA = 5 #the trade hit the profit lock activation and continued to the extra profit target 
 
-TradeProfitPath = namedtuple('TradeProfitPath','typical optimistic pessimistic')
-TradeResult = namedtuple('TradeResult','signal_id entry_date entry_price entry_candle exit_date exit_price exit_candle result_movement result_percent result_status profit_path')
+#TradeProfitPath = namedtuple('TradeProfitPath','typical optimistic pessimistic')
+TradeResult = namedtuple('TradeResult','signal_id entry_date entry_price entry_candle exit_date exit_price exit_candle result_movement result_percent result_status')
 
 #activation = price to reach in order to move the stops 
 #adjustment = ratio of the take profit distance to place the stop loss at
@@ -46,13 +46,35 @@ ProfitLockData = namedtuple('ProfitLockData','activation adjustment extra')
 #class for handling the stats? eg for querying 
 # allow for sorting/grouping etc of trade results into separate parts 
 class BackTestStatistics: 
-
+	
+	#- drawdown is min of sum of all negative profit paths 
+	#- win/loss ratio
+	#- winstreak, losestreak
+	#- total trades, wins, loses (result status)
+	#- 
+	#- result profit in %, calc using capital risk factor 1% * capital, capital, lotsize?  (leverage per instrument makes for borrowing capability) 
+	#- (other, volatility? market exposure? sharpe ratio? profit factor? largest win/lose, ave win/lose)
+	
+	ts_data = [] 
 	signals = [] 
 	results = [] 
 	
-	def __init__(self,signals,results):
+	lotsize = 0.01 #microlots 
+	starting_capital = 100 #pounds ofcourse! 
+	capital_risk = 0.02 #1% - might not be needed - use to calc lot size only 
+	
+	UNITSPERLOT = 100000 #warning! might be different for other instruments same for FX though? 
+	
+	
+	def __init__(self,ts_data,signals,results):
+		self.ts_data = ts_data #use for the scope of the backtest (from date, to date, etc) 
 		self.signals = signals
 		self.results = results 
+		
+	
+	def calculate(self,query_params=None):
+		
+		pass #use numpy? 
 		
 	
 	def get_statistics_on(self,stategy_refs=[],instruments=[]):  #anything else?
@@ -203,14 +225,9 @@ class BackTesterDatabase(BackTester):
 		
 		trade_results = []
 		for result in query_result:
-			result_row, path = result #unpack 
+			result_row = result[0] #unpack 
 			result_status = self.trade_result.get(result_row['result_status'].upper(),TradeResultStatus.INVALID)
 			result_row['result_status'] = result_status
-			if path and False:
-				trade_result_paths = TradeProfitPath(**path)
-				result_row['profit_path'] = trade_result_paths
-			else:
-				result_row['profit_path'] = None
 			trade_result = TradeResult(**result_row)
 			trade_results.append(trade_result)
 		return trade_results
@@ -360,11 +377,10 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		result_statuses[~cutoff_mask & depleated_mask & (result_movements > 0)] = TradeResultStatus.WINNING 
 		result_statuses[~cutoff_mask & exit_signal_mask & (result_movements <= 0)] = TradeResultStatus.LOST_EXIT 
 		result_statuses[~cutoff_mask & exit_signal_mask & (result_movements > 0)] = TradeResultStatus.WON_EXIT 
-		
-		fake_profit_paths = np.full(result_statuses.shape[0],None)
+
 		
 		all_results = [] 
-		for result in zip(signal_ids,entry_dates,entry_prices,entry_indexs,exit_dates,exit_prices,exit_indexs,result_movements,result_percents,result_statuses,fake_profit_paths):	
+		for result in zip(signal_ids,entry_dates,entry_prices,entry_indexs,exit_dates,exit_prices,exit_indexs,result_movements,result_percents,result_statuses):	
 			all_results.append(TradeResult._make(result))
 		
 		#pdb.set_trace()
@@ -513,7 +529,16 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		profit_lock_extra = start_prices + (tpd * (1.0 + pl_extra_mult))
 		
 		return profit_lock_activations, profit_lock_adjustments, profit_lock_extra
-		
+	
+	#def get_profit_paths(self, trade_tracks_end, dir_mult, entry_indexs, exit_indexs):
+	#	profit_paths = np.full(dir_mult.shape[0],None)
+	#	pdb.set_trace()
+	#	#optimistic = 
+	#	#pessimistic = 
+	#	#typical =  
+	#	
+	#	#delete where index not between entry and exit indexs by setting to 0 
+	#	return profit_paths 
 	
 	#most used part of the backtesting algorithm so needs to be fast  
 	@staticmethod
