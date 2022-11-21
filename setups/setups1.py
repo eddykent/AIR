@@ -207,7 +207,7 @@ class ADX_EMA_RSI(TradeSetup):
 		#return self.generate_using_atr(candlesticks,available_instruments,start_date,buy_signals,sell_signals,tp_factor=4,sl_factor=4)
 		
 		
-#reports positive W/L on 3/2 TPSL but rare
+#reports positive W/L on 3/2 TPSL but rare & possible divergence bug
 class HA_VWAP_RSI_DIVERGENCE(TradeSetup):
 	
 	grace_period = 50
