@@ -20,6 +20,8 @@ mathematical indicators
 	- fourier noise cancellation 
 	- lag correlation values & n of corr > 0.3 (etc...)
 
+make indicators callable?
+
 trading rush checklist? 
 
 refactor setups 
@@ -29,7 +31,7 @@ refactor setups
 	- init step for putting indicators/patterns onto self
 	- drawing consists of list of TradeSignal and nothing else? 
 		-base yes, higher drawing functions can draw the underlying indicators if on candlesticks
-		-consider drawing any results from self? 
+		-consider drawing any results from self 
 	exit signals
 		- write exit signals for some setups
 		- utilise length property of trade_signal for faster backtesting (exit signals can be slow)
@@ -38,9 +40,6 @@ refactor setups
 additional constraints for chart patterns & speed
 	- harmonics - eg why are there so few? fix the cache method in Harmony (custom_setups)
 	- trend pattern - what additional constraints can be added to get better results? 
-
-
-Create & test full RNN with candles_and_indicators.sql, currency_strengths, correlations etc & get_y_values.sql 
 
 data_pull scripts for getting latest data? 
 	ASYNC all webcalls in the fundmental analysis! Async for AI too? -- probably pretty important for faster trade decisions :)
@@ -74,6 +73,8 @@ publish to AWS or similar
 	- dashboard app in android?
 
 data - hole finder
+data - broker tool for getting all instrument details 
+	broker tool for getting captial, open trades etc 
 
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs
@@ -130,7 +131,7 @@ research more about quantconnect - might have some useful things or even might b
 
 ICT based trading? 
 
-
+BUGS:
 Perhaps using pandas data frames will be more efficient and better for the whole thing? 
 Practice will also land you a high paying datascience role if you move jobs...
 
@@ -158,6 +159,8 @@ fxstreet archive does not read anymore - use search indexer
 
 dailyfx blocked - ask them nicely to unblock ip (use proxies in future!)
 
+not sure setups open trade on current candle or next candle (should always be next candle)
+
 
 ONGOING: - stuff that might not ever have an end to it because it can always be made better
 fundamental stuff needs more testing to get it better 
@@ -178,4 +181,8 @@ add new styles to charts?:
 change charts to use datetime on x axis (removing weekends) - use values and dvalue
 
 grep/find things that should be config settings
+
+backtest profiling - speed up by getting all time indexs & instrument indexs first? 
+	speed up sql too somehow 
+
 
