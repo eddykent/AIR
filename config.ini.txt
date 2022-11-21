@@ -11,5 +11,15 @@ password=[your T212 password]
 demo_url=https://demo.trading212.com/
 live_url=https://live.trading212.com/
 
-[alpha_vantage_keys]
+[alpha_vantage_keys] ;probably no longer needed
 keys=['your api key','another if you have one etc',...]
+
+[selenium]
+downloads=\your\download\dir\downloads\  ;does not work - fix? 
+screenshots=\your\download\dir\screenshots\ ;apologies for windows back slashes
+
+;attempt to download ANY stock/fx/commodity etc and create account here https://www.dukascopy.com/swiss/english/marketwatch/historical/ 
+;then put credentials here
+[dukascopy]
+username=some_email@nowhere.com
+password=password1234

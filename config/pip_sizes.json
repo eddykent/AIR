@@ -1,6 +1,7 @@
 --file for containing every single possible stock/fx/ticker with its associated pip size. 
 --this can be useful when determining TP/SL prices eg "aim for 30 pips".
---consider refactoring this to be "ticker metadata" and allow for stuff to be updated from online too 
+--consider refactoring this to be "ticker metadata" and allow for stuff to be updated from online tool
+--also add leverages and overnight interest rates?
 {
     "AUD/CAD": 0.0001,
 	"AUD/CHF": 0.0001,
