@@ -75,6 +75,11 @@ class ChartPattern(Indicator):
 		When they are arranged in a particular way they form a pattern. 
 		"""
 	
+	def apply_settings(self, xws):
+		self._order = xws.order if xws.order is not None else self._order
+		self._breakout_candles = xws.breakout_candles if xws.breakout_candles is not None else self._breakout_candles
+		self._xtreme_degree = xws.xtreme_degree if xws.xtreme_degree is not None else self._xtreme_degree
+		self._required_candles = xws.required_candles if xws.required_candles is not None else self._required_candles
 	
 	@overrides(Indicator)    
 	def _perform(self,np_candles,mask=None,return_flat=False):   #allow for caching / inserting the extreme points or something so other chart patterns can be initalised with 1 dataset
