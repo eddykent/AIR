@@ -333,7 +333,8 @@ class ChartPattern(Indicator):
 		window_coords, counts = np.unique(duplicate_window_index,return_counts=True)
 		max_extremes = np.max(counts)
 		
-		sort_by_window_then_time = (all_extr_windows_labeled[:,0] * number_windows) + all_extr_windows_labeled[:,3] #check
+		max_window_len = np.max(all_extr_windows_labeled[:,3]) + 1
+		sort_by_window_then_time = (all_extr_windows_labeled[:,0] * max_window_len) + all_extr_windows_labeled[:,3] 
 		all_extr_windows_labeled = all_extr_windows_labeled[sort_by_window_then_time.argsort()] 
 		
 		#adjust time indexs to be of the same as the np_candles time axis  something like this:? 
