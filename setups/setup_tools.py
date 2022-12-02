@@ -9,8 +9,12 @@
 #		anything else
 
 from datetime import datetime,timedelta
+import time
+
 from typing import Optional, List
 import numpy as np
+
+import scipy.signal
 
 from setups.signal import * #anyting signal data related
 
@@ -34,10 +38,10 @@ class SetupTool:
 	def __init__(self,period=5):
 		self.period = period
 
-	def _sliding_windows(self,detected,period=None):
+	def _sliding_windows(self,detected,period=None,filler=0):
 		if period is None:
 			period = self.period
-		np_nones = np.full((detected.shape[0],period-1),False)
+		np_nones = np.full((detected.shape[0],period-1),filler)
 		detected_padded = np.concatenate([np_nones,detected],axis=1)
 		detected_windows = np.lib.stride_tricks.sliding_window_view(detected_padded,window_shape=period,axis=1)
 		return detected_windows 
@@ -80,7 +84,7 @@ class DelayTool(SetupTool):
 
 
 #divergence tool - check this for lookahead bias - use windows instead! #HAS LOOKAHEAD BIAS! USE WINDOWS 
-class MomentumDivergenceTool(SetupTool):
+class BadMomentumDivergenceTool(SetupTool):
 	
 	signal1 = None #usually typical price action
 	signal2 = None #usually RSI or Stochastic etc 
@@ -154,7 +158,110 @@ class MomentumDivergenceTool(SetupTool):
 	#		wheres = (nums2 - self.hill_tolerance >= n) & (nums2 + self.hill_tolerance <= n)
 	#		close2s = nums2[wheres]
 
-class TimeframeIncreaser:
+#find peaks/lows in a momentum result and in the price action and determine if divergence is happening 
+class DivTool(SetupTool):
+	
+	momentum = None
+	price_action = None
+	div_window = 30
+	order = 8
+	peak_diff = 8 #same as order? 
+	grace_period = 3
+	
+	
+	def __init__(self,momentum,price_action):
+		self.momentum = momentum
+		self.price_action = price_action 
+	
+	def markup(self):
+		#data = np.concatenate([self.momentum,self.priceaction],axis=2)
+		#maxminimas 
+		price_action_windows = self._sliding_windows(self.price_action,self.div_window,np.nan)
+		momentum_windows = self._sliding_windows(self.momentum,self.div_window,np.nan)		
+		
+		#tic = time.time() 
+		price_peaks = self.get_extremes(price_action_windows,self.order,scipy.signal.argrelmax)
+		momentum_peaks = self.get_extremes(momentum_windows,self.order,scipy.signal.argrelmax)
+		
+		price_pits = self.get_extremes(price_action_windows,self.order,scipy.signal.argrelmin)
+		momentum_pits = self.get_extremes(momentum_windows,self.order,scipy.signal.argrelmin)
+		#tok = time.time() - tic 
+		
+		#print('time to get extremes = '+str(tok))
+		#pdb.set_trace()
+		
+		#oob check? 
+		
+		price_higher_highs = price_peaks[:,:,-1,1] > price_peaks[:,:,-2,1]
+		momentum_lower_highs = momentum_peaks[:,:,-1,1] < momentum_peaks[:,:,-2,1]
+		
+		price_lower_lows = price_pits[:,:,-1,1] < price_pits[:,:,-2,1]
+		momentum_higher_lows = momentum_pits[:,:,-1,1] > momentum_pits[:,:,-2,1]
+		
+		#check proximity to the current time of the window 
+		price_peaks_proxi = price_peaks[:,:,-1,0] > (self.div_window - self.order)
+		price_pits_proxi = price_pits[:,:,-1,0] > (self.div_window - self.order)
+		
+		#pdb.set_trace()
+		
+		bullish = price_lower_lows & momentum_higher_lows & price_pits_proxi
+		bearish = price_higher_highs & momentum_lower_highs & price_peaks_proxi 
+		
+		return bullish, bearish 
+		
+	#turn a set of windows into a list of max peaks per window 
+	@staticmethod
+	def get_extremes(value_windows,order,scipy_func):
+		
+		indexer = scipy_func(value_windows,axis=2,order=order)
+		values = value_windows[indexer]
+		values = values[:,np.newaxis]
+		
+		locators = np.stack(list(indexer),axis=1)
+		points = np.concatenate([locators,values],axis=1)
+		
+		number_windows = value_windows.shape[1] #n per channel! 
+		window_numbers = (number_windows * points[:,0]) + points[:,1]
+		window_numbers = window_numbers[:,np.newaxis]
+		
+		points_labelled = np.concatenate([window_numbers,points],axis=1)
+		
+		sort_by_window = points_labelled[:,0]
+		points_labelled = points_labelled[sort_by_window.argsort()]
+		
+		duplicate_window_index = points_labelled[:,0].astype(np.int)
+		window_coords, counts = np.unique(duplicate_window_index,return_counts=True)
+		max_extremes = np.max(counts)
+		
+		max_window_len = np.max(points_labelled[:,3]) + 1
+		sort_by_window_then_time = (points_labelled[:,0] * max_window_len) + points_labelled[:,3] 
+		points_labelled = points_labelled[sort_by_window_then_time.argsort()] 
+		
+		window_map_top = np.repeat(np.arange(value_windows.shape[0]),number_windows)
+		window_map_bottom = np.concatenate([np.arange(number_windows)]*value_windows.shape[0])
+		window_map = np.stack([window_map_top,window_map_bottom],axis=0)
+		
+		cum_counts = np.concatenate([np.array([0]), np.cumsum(counts)[:-1]])
+		neg_array = np.repeat(cum_counts,counts)
+		buffers = np.repeat(np.max(counts) - counts,counts) #buffers push the xtremes forwards so nan values are first
+		xtreme_index = np.arange(points_labelled.shape[0]) - neg_array + buffers
+		
+		xtreme_windows = np.full((value_windows.shape[0] * value_windows.shape[1], np.max(counts) ,2),np.nan)  #each extreme point is a (timeval,priceval,type)
+		xtreme_windows[(duplicate_window_index,xtreme_index)] = points_labelled[:,3:]
+		
+		rebuilt = np.full(list(value_windows.shape[0:2]) + list(xtreme_windows.shape[1:]),np.nan)
+		rebuilt[window_map[0],window_map[1]] = xtreme_windows
+		
+		#pdb.set_trace()
+		return rebuilt #print('now what?')
+	
+	
+	@staticmethod
+	def to_n_maxs(value_windows,order,n=2):
+		#similar to to_two_mins
+		pass
+
+class TimeframeHike:
 	pass
 
 #trade stop tools -- eg from ATR, std (something for harmonics) etc 

@@ -11,7 +11,7 @@ from setups.setups1 import BB_KC_RSI, ADX_EMA_RSI, HA_VWAP_RSI_DIVERGENCE
 from setups.collected_setups import Harmony 
 from setups.simple_setups import *
 from utils import ListFileReader, Database
-from backtest import BackTesterDatabase
+from backtest import BackTesterDatabase, BackTestStatistics
 from filters.simple_filters import LambdaSelectFilter
 
 lfr = ListFileReader()
@@ -45,7 +45,7 @@ with open('./data/pickles/setup_test_candles.pkl','rb') as fh:
 	tsd = pickle.load(fh)
 
 
-fxss = BollingerBandsRSISetup() 
+fxss = MediumScalpDaviddAnthony() 
 #signals = mrffx.get_setups(start_date,end_date) #+ axemrsi.get_setups(start_date,end_date)
 #msda = HA_VWAP_RSI_DIVERGENCE()
 #msda.stop_calculator = PipStop(take_profit_pips=30,stop_loss_pips=20)
@@ -94,14 +94,31 @@ random.shuffle(signals)
 cursor = Database(cache=False,commit=False)
 btd = BackTesterDatabase(cursor)
 
+
+
  #remove when wanting to do stress tests
 dbf.stopwatch('backtesting')
 result = btd.perform(signals) #,profit_lock=(0.75,0.5,0)
 #backteststats = BacktestStatistics(...) 
 dbf.stopwatch('backtesting')
 
+
+bts = BackTestStatistics(tsd, signals, result)
+#bts.get_stats() #pass query params
+
+
 statuses = [r.result_status for r in result]
 cc = Counter(statuses)
 
 print(cc)
 #print(result)
+
+
+
+
+
+
+
+
+
+
