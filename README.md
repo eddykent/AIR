@@ -1,3 +1,5 @@
+NOTE: this readme is severly outdated
+
 ==Autoregressions, Indicators and Recursive NNs==
 
 This is a new implementation of the previous methods combined with an ARIMA model 
