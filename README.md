@@ -1,26 +1,5 @@
-NOTE: this readme is severly outdated
+# Forex Trading Bot Testing Framework (In Python) 
+This project is a completely stand alone forex trading framework. The main purpose of this project is to try ideas that are perhaps novel and not common in the CFD trading market and use science and statistics to optimise the best CFD short-term portfolios. This includes getting and procuring data, facilitating the writing of "setup" scripts, creating filters to prevent "bad" trades and backtesting to gauge & execute strategies that get the best results. The framework uses a combination of well-known indicators, mathematical and statistical methods like correlations and ARIMA models and uses AI to predict demands, price action and ANNs/XGBoost/reinforcment learning to attempt to trade the FX market. 
 
-==Autoregressions, Indicators and Recursive NNs==
+The framework relies heavily on numpy, a linear algebra numerical library and scipy, a scientific computation framework for calculating and backtesting. This makes it very fast for computing maxima/minima, statistics, price-pattern shapes, indicator values and more (https://numpy.org/doc/stable/). 
 
-This is a new implementation of the previous methods combined with an ARIMA model 
-and a bunch of indicators. The whole thing was re-implemented to try and avoid bugs
-and to cater for the new data table. (exchange_value_tick) 
-
-
-IDEAS:
-1) Combine ARIMA / VARMA result with the NN to see if that aids its decision making
-
-2) Use only the currency strength metrics, predict future strengths and then build 
-trading strat from that instead? The NN will be significantly smaller and also 
-ARIMA might work well with currency strengths instead of prices  - VARMA too slow :( 
-
-
-Classes: 
-HistData - gets data from DB and processes it into subsequences
-	- methods are exposed to process anything into subsequences
-
-TradeSchedule - Gets a trade schedule and then tests it using the database
-
-Predictor - Gets data and builds a model to create trade schedules
-
-test
