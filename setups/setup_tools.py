@@ -63,17 +63,17 @@ class SmudgeTool(SetupTool):
 		return np.any(detected_windows,axis=2)
 	
 #strategy tools? 
-#tool used for when we only want to get signals when a detection has gone from 0 to 1 (eg crossovers) 
-class Zero2OneTool(SetupTool):
-	
-	@staticmethod   #might be able to make this without loops ?
-	def markup(detected):	
-		result = np.full(detected.shape,False) 
-		for i,ins_detected in enumerate(detected):
-			for j, (b, a) in enumerate(zip(ins_detected[:-1],ins_detected[1:])):
-				if b == 0 and a == 1:
-					result[i,j+1] = True 
-		return result 
+#tool used for when we only want to get signals when a detection has gone from 0 to 1 to remove duplicates & get earliest 
+#class Zero2OneTool(SetupTool):
+#	
+#	@staticmethod   #might be able to make this without loops ?
+#	def markup(detected):	
+#		result = np.full(detected.shape,False) 
+#		for i,ins_detected in enumerate(detected):
+#			for j, (b, a) in enumerate(zip(ins_detected[:-1],ins_detected[1:])):
+#				if b == 0 and a == 1:
+#					result[i,j+1] = True 
+#		return result 
 
 #tool used for getting something that prev happened to be now (eg, previous close) 
 class DelayTool(SetupTool):
@@ -81,6 +81,17 @@ class DelayTool(SetupTool):
 	delay_length = 1 
 	def markup(self,detected):
 		return np.concatenate([np.full((detected.shape[0],self.delay_length),False),detected[:,:-self.delay_length]],axis=1)
+
+#class ExpireTool #if an underlying signal (one used within a trigger) has been showing too long, expire after x candles 
+
+#tool used for when we only want to get signals when a detection has gone from 0 to 1 to remove duplicates & get earliest 
+class Zero2OneTool(SetupTool):
+	
+	@staticmethod 
+	def markup(detected):
+		dt = DelayTool() 
+		prev = dt.markup(detected)
+		return (prev)
 
 
 #divergence tool - check this for lookahead bias - use windows instead! #HAS LOOKAHEAD BIAS! USE WINDOWS 
@@ -167,11 +178,13 @@ class DivTool(SetupTool):
 	order = 8
 	peak_diff = 8 #same as order? 
 	grace_period = 3
+	hidden = False #if true, use hidden divergence detection method instead 
+	zero_cross = True #TODO if false, mark all divs that cross over the 0 line as false (undetect) (rsi will require scaling) 
 	
 	
 	def __init__(self,momentum,price_action):
-		self.momentum = momentum
-		self.price_action = price_action 
+		self.momentum = momentum if len(momentum.shape) == 2 else momentum[:,:,0]
+		self.price_action = price_action if len(price_action.shape) == 2 else price_action[:,:,0]
 	
 	def markup(self):
 		#data = np.concatenate([self.momentum,self.priceaction],axis=2)
@@ -192,11 +205,11 @@ class DivTool(SetupTool):
 		
 		#oob check? 
 		
-		price_higher_highs = price_peaks[:,:,-1,1] > price_peaks[:,:,-2,1]
-		momentum_lower_highs = momentum_peaks[:,:,-1,1] < momentum_peaks[:,:,-2,1]
+		price_highs = price_peaks[:,:,-1,1] < price_peaks[:,:,-2,1] if self.hidden else price_peaks[:,:,-1,1] > price_peaks[:,:,-2,1]
+		momentum_highs = momentum_peaks[:,:,-1,1] > momentum_peaks[:,:,-2,1] if self.hidden else momentum_peaks[:,:,-1,1] < momentum_peaks[:,:,-2,1]
 		
-		price_lower_lows = price_pits[:,:,-1,1] < price_pits[:,:,-2,1]
-		momentum_higher_lows = momentum_pits[:,:,-1,1] > momentum_pits[:,:,-2,1]
+		price_lows = price_pits[:,:,-1,1] > price_pits[:,:,-2,1] if self.hidden else price_pits[:,:,-1,1] < price_pits[:,:,-2,1]
+		momentum_lows = momentum_pits[:,:,-1,1] < momentum_pits[:,:,-2,1] if self.hidden else momentum_pits[:,:,-1,1] > momentum_pits[:,:,-2,1]
 		
 		#check proximity to the current time of the window 
 		price_peaks_proxi = price_peaks[:,:,-1,0] > (self.div_window - self.order)
@@ -204,8 +217,8 @@ class DivTool(SetupTool):
 		
 		#pdb.set_trace()
 		
-		bullish = price_lower_lows & momentum_higher_lows & price_pits_proxi
-		bearish = price_higher_highs & momentum_lower_highs & price_peaks_proxi 
+		bullish = price_lows & momentum_lows & price_pits_proxi
+		bearish = price_highs & momentum_highs & price_peaks_proxi 
 		
 		return bullish, bearish 
 		
@@ -254,12 +267,16 @@ class DivTool(SetupTool):
 		
 		#pdb.set_trace()
 		return rebuilt #print('now what?')
-	
+
+#eg get macd and signal line, get their diff (macd - signal) then this.markup(diff) gives bullish and bearish crossovers 
+class CrossTool:
 	
 	@staticmethod
-	def to_n_maxs(value_windows,order,n=2):
-		#similar to to_two_mins
-		pass
+	def markup(posneg):	
+		prev = np.concatenate([np.full((posneg.shape[0],1), np.nan),posneg[:,:-1]],axis=1)
+		bullish = (prev < 0) & (posneg > 0)
+		bearish = (prev > 0) & (posneg < 0)
+		return bullish, bearish
 
 class TimeframeHike:
 	pass

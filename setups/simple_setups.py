@@ -2,7 +2,7 @@ import pdb
 import numpy as np
 
 from setups.trade_setup import TradeSetup
-from setups.setup_tools import StopTool, SmudgeTool, DelayTool
+from setups.setup_tools import StopTool, SmudgeTool, DelayTool, DivTool, Zero2OneTool
 
 from indicators.moving_average import EMA 
 from indicators.indicator import CandleSticks, RunningHigh, RunningLow
@@ -208,18 +208,20 @@ class MeanReversionFFXS(TradeSetup):
 class ForexSignalsCandles(TradeSetup):
 	
 	def detect(self,trade_signalling_data):
-		candlesticks = trade_signalling_data.candlesticks 
-		ema200 = EMA() 
-		ema200.period = 200 
-		ema200_result = ema200.calculate_multiple(candlesticks)[:,:,0]
+		#candlesticks = trade_signalling_data.candlesticks #full arrays with datetimes 
+		np_candles = trade_signalling_data.np_candles #numpy version without dates 
 		
-		close_values = candlesticks[:,:,csf.close]
+		ema200 = EMA() #exponential moving average
+		ema200.period = 200 
+		ema200_result = ema200(np_candles)[:,:,0]
+		
+		close_values = np_candles[:,:,csf.close]
 		
 		pinbars = PinBar()
 		engulfers = Engulfing()
 		
-		pinbar_results = pinbars.calculate_multiple(candlesticks)
-		engulf_results = engulfers.calculate_multiple(candlesticks)
+		pinbar_results = pinbars(np_candles) #pinbar candlesticks where there is a long shadow above/below the main body 
+		engulf_results = engulfers(np_candles) #engulfers where the next candlestick body is larger than the previous 
 		
 		candle_results = (pinbar_results + engulf_results)[:,:,0]
 		
@@ -341,7 +343,8 @@ class MediumScalpDaviddAnthony(TradeSetup):
 		bbmacd = BollingerBands() #use bb on macd[2] (deviation) to get low and high bars  
 		bbmacd.candle_channel = 0
 		
-		candlesticks = trade_signalling_data.candlesticks 
+		candlesticks = trade_signalling_data.candlesticks
+		closes = trade_signalling_data.np_candles[:,:,csf.close]
 		
 		ema200_result = ema200.calculate_multiple(candlesticks)[:,:,0]
 		ema55_result = ema55.calculate_multiple(candlesticks)[:,:,0]
@@ -356,7 +359,7 @@ class MediumScalpDaviddAnthony(TradeSetup):
 		
 		adx26_result = adx26.calculate_multiple(candlesticks)[:,:,0]
 		
-		#pdb.set_trace()
+	
 		
 		#for long, ema9 > ema55 > ema200, rsi > 52 and macd_dev < bb_macd_low
 		bullish_signal = (ema9_result > ema55_result) & (ema200_result > ema55_result) & \
@@ -376,7 +379,7 @@ class MediumScalpDaviddAnthony(TradeSetup):
 
 
 
-#youtube.com/watch?v=cnHZIxHFtXo&list=RDCMUC9aJvG8qRKxN4MgrYIX4IrQ&start_radio=1&rv=cnHZIxHFtXo&t=0
+#youtube.com/watch?v=cnHZIxHFtXo
 #class IchimokuCloudSetup(TradeSetup);
 class IchimokuCloudBreakoutSetup(TradeSetup): #superichi?
 	

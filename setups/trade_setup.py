@@ -77,8 +77,8 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 	def get_entry_cuts(self, trade_signalling_data, extra=None):	
 		return blank_result(trade_signalling_data)
 	
-	def get_name(self):
-		return self.__class__.__name__ if self.setup_name is None else self.setup_name 
+	def get_name(self): #get full qualified name for backtesting purposes 
+		return self.__class__.__module__ + '.' + self.__class__.__name__ if self.setup_name is None else self.setup_name 
 	
 	def get_setups(self, trade_signalling_data : TradeSignallingData) -> List[TradeSignal]:
 		"""

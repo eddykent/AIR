@@ -72,7 +72,7 @@ class ForexSignalsEngulferPinbar(TradeSetup):
 #macd crossover + 200ema - try with htf filters of the 200ema too 
 
 
-
+#https://www.youtube.com/watch?v=oc866aQoYcM - ema 50 100, volume higher than last 3 bars, pinbar within 50 and 100 ema 
 
 
 
@@ -89,7 +89,7 @@ class ForexSignalsEngulferPinbar(TradeSetup):
 
 
 
-
+#use match & momenutum divergence & more to make pullback ensemble 
 
 
 
