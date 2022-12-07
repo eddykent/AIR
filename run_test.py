@@ -33,7 +33,7 @@ LogSetup() #think of how to rmeove this line
 
 #
 #from tests.heikinashi_test  import *
-from tests.setup_test import *
+#from tests.setup_test import *
 #from tests.chart_pattern_collection_test import *
 #from tests.logging_test import *
 #from tests.data_compose_test import *
@@ -88,11 +88,12 @@ from tests.setup_test import *
 #import debugging.charts as dbc
 
 #from tests.maths_indicator_test import *
+#from tests.background_test import *
 
 
 #from debug.charts import *
 
-
+from tests.all_trade_pro_test import *
 
 
 

@@ -164,7 +164,69 @@ class ClientSentiment(VolumeIndicator):
 
 
 
+class ChaikinMoneyFlow(VolumeIndicator):
+	
+	channel_keys = {'CMF':0}
+	channel_styles = {'CMF':'bullish'}
+	candle_sticks = False
+	
+	period = 21
+	
+	@overrides(Indicator)
+	def _perform(self,np_candles):	
+		volume = np_candles[:,:,csf.bid_volume] + np_candles[:,:,csf.ask_volume]
+		open = np_candles[:,:,csf.open]
+		high = np_candles[:,:,csf.high]
+		low = np_candles[:,:,csf.low]
+		close = np_candles[:,:,csf.close]
+		
+		mfm = ((close - low) - (high - close)) / (high - low)
+		mfmv = volume * mfm 
+		
+		sma = SMA() 
+		sma.period = self.period 
+		sma.candle_channel = 0
+		
+		mfmva = sma(mfmv[:,:,np.newaxis])[:,:,0]
+		va = sma(volume[:,:,np.newaxis])[:,:,0]
+		
+		return mfmva / va
+		
+	
 
+#our RSI is between 0 and 1 for easier use with NNs  - bug - missing a value...
+class MoneyFlowIndex(Indicator):
+	channel_keys = {'RSI':0, 'OVERBOUGHT':1, 'OVERSOLD':2} 
+	channel_styles = {'RSI':'bearish', 'OVERBOUGHT':'neutral', 'OVERSOLD':'neutral'}
+	candle_sticks = False
+	
+	overbought = 0.8
+	oversold = 0.2 
+	
+	period = 14
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		
+		volume = candles[:,:,csf.bid_volume] + candles[:,:,csf.ask_volume]
+		
+		diff = Diff()
+		diff.diff = 1
+		differences = diff._perform(candles)
+		rate_of_change = (differences[:,:,csf.close] + differences[:,:,csf.high] + differences[:,:,csf.low]) / 3.0
+		
+		rate_of_change = rate_of_change * volume
+		
+		up_moves = np.maximum(rate_of_change,0)
+		down_moves = np.abs(np.minimum(rate_of_change,0))
+		ema = EMA()
+		ema.period = self.period
+		ema.candle_channel = 0 
+		ave_up_move = ema._perform(up_moves[:,:,np.newaxis])
+		ave_down_move = ema._perform(down_moves[:,:,np.newaxis])
+		rsi = 1.0 - (1.0 / (1.0 + (ave_up_move / ave_down_move)))
+		rsi[np.isnan(rsi)] = 1.0
+		return np.concatenate([rsi,np.full(rsi.shape,self.overbought),np.full(rsi.shape,self.oversold)],axis=2)
 
 
 

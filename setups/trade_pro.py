@@ -28,7 +28,7 @@ from indicators.volume import ChaikinMoneyFlow, MoneyFlowIndex
 from utils import overrides
 
 
-#few signals
+#few signals but high quality
 class MACD_MFT(TradeSetup):
 
 	@overrides(TradeSetup)

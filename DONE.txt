@@ -133,6 +133,8 @@ correlation filter needs to use partial candles (inherit from PartialIndicatorFi
 
 backtesting in sql now uses bid and ask prices 
 
+div tool using windows
+
 BUGS:
 (FIXED)
 Currency strength from sentiment indicator! see:

@@ -8,6 +8,7 @@ refactor currency strength nn to be of the same form as DataProvider etc
 refactor fundamental stuff 
 	- keywords/tags for every story in DB for easier lookup! (direct & indirect tags)
 
+
 journaling  
 	- make trade_journal.py
 	- capture any website data in capture/snapshot/tracking from forex factory, forex client sentiment etc (json blobs)
@@ -24,6 +25,8 @@ make indicators callable?
 
 trading rush checklist? 
 
+XGBoost - for better AI prediction results (for any indicator or price action) 
+
 refactor setups 
 	#done?- core signals func - -1, 0 and 1s 
 	#done?- stop tools (atr/std etc) - take list of signals and hints to produce full signals 
@@ -36,6 +39,8 @@ refactor setups
 		- write exit signals for some setups
 		- utilise length property of trade_signal for faster backtesting (exit signals can be slow)
 			- or use exit_per_entry = true! :) 
+
+	rename detect to trigger
 
 additional constraints for chart patterns & speed
 	- harmonics - eg why are there so few? fix the cache method in Harmony (custom_setups)
@@ -111,6 +116,17 @@ parameter tuning - try shit loads of calculating using regression
 social trading concepts - follow the whales - filter?
 	- forex factory
 	- etoro
+
+just a thought, get long term trends then find from short term when stuff went in the wrong way for a short period of time 
+therefore, finding reversals in the same direction as the trends that were underlying 
+long term trends - correlation, client sentiment, currency strength, 
+	-	combine with short term 
+		- fourier 
+		- match patterns 
+		- anything else 
+	
+	
+
 
 
 ADVANCED: 
