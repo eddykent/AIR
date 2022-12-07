@@ -196,7 +196,9 @@ class Indicator:
 		assert len(candle_streams) > 0, "There are no candle streams"
 		np_candle_streams = np.array(candle_streams)
 		datetime_values = np_candle_streams[:,:,-1].T
-		timeline = datetime_values[:,0:1]		
+		timeline = datetime_values[:,0:1]
+		if not np.all(datetime_values == np.broadcast_to(timeline, datetime_values.shape)):
+			pdb.set_trace()
 		assert np.all(datetime_values == np.broadcast_to(timeline, datetime_values.shape)), "timelines are out of sync - try calculate_multiple" 
 		candle_dim = self.candle_type_dimension_map[self.candle_type]
 		np_candles = np_candle_streams[:,:,:candle_dim].astype(np.float64)
@@ -214,9 +216,9 @@ class Indicator:
 			period = self.period
 		np_candles = self._pad_start(np_candles,period)
 		return np.lib.stride_tricks.sliding_window_view(np_candles,window_shape=period,axis=1)	
-		
-
 	
+	def __call__(self,*args,**kwargs): #absorb args
+		return self._perform(*args,**kwargs)
 
 #some very simple indicator like objects for the basics 
 class Typical(Indicator):
