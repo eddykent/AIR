@@ -121,6 +121,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		entry_expire = TradeSignal.entry_expire
 		
 		for (instrument_index,timeline_index) in buy_coords:
+			timeline_index += 1 #push forward by 1 candle to prevent look ahead bias 
 			if signal_data_extra.timeline[timeline_index] < signal_data_extra.start_date:
 				continue
 			instrument = signal_data_extra.instruments[instrument_index]
@@ -134,6 +135,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 			trade_signals.append(ts)
 		
 		for (instrument_index,timeline_index) in sell_coords:
+			timeline_index += 1 #push forward by 1 candle to prevent look ahead bias 
 			if signal_data_extra.timeline[timeline_index] < signal_data_extra.start_date:
 				continue
 			instrument = signal_data_extra.instruments[instrument_index]

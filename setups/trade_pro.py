@@ -28,7 +28,6 @@ from indicators.volume import ChaikinMoneyFlow, MoneyFlowIndex
 from utils import overrides
 
 
-#few signals but high quality
 class MACD_MFT(TradeSetup):
 
 	@overrides(TradeSetup)
@@ -62,7 +61,7 @@ class MACD_MFT(TradeSetup):
 		
 		div_tool1 = DivTool(macd_result, np_closes)
 		div_tool1.order = 3 
-		div_tool1.div_window = 15
+		div_tool1.div_window = 20
 		div_tool1.zero_cross = False
 		
 		div_tool2 = DivTool(macd_result, np_closes)
@@ -82,7 +81,6 @@ class MACD_MFT(TradeSetup):
 		bearish = cross_bear * ema_bear * bear_div  
 		
 		return Zero2OneTool.markup(bullish), Zero2OneTool.markup(bearish)
-		
 		
 
 class RSIS_EMA_X(TradeSetup):

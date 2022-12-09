@@ -54,6 +54,7 @@ class TradeSignal:
 	stop_loss_distance = 0 #the value to exit the trade at when it loses 
 	length = 1440 #1440 minutes in 24 hours
 	
+	#timeframe? 
 	
 	signal_notes = '' #anything that can be used later for reporting (eg filter results) 
 	
@@ -108,6 +109,22 @@ class TradeSignal:
 			'take_profit_distance':self.take_profit_distance,
 			'stop_loss_distance':self.stop_loss_distance,
 			'length':self.length
+		}
+	
+	def to_dict(self):
+		return {
+			'signal_id':self.signal_id,
+			'the_date':self.the_date,
+			'instrument':self.instrument,
+			'direction':self.direction,
+			'strategy_ref':self.strategy_ref,
+			'entry':self.entry,
+			'entry_cut':self.entry_cut,
+			'entry_expire':self.entry_expire,
+			'take_profit_distance':self.take_profit_distance,
+			'stop_loss_distance':self.stop_loss_distance,
+			'length':self.length,
+			'signal_notes':self.signal_notes
 		}
 
 
