@@ -18,7 +18,7 @@ journaling
 	- keep all trades (demo & live) in a table called trade_journal 
 
 mathematical indicators 
-	- fourier noise cancellation 
+	- fourier noise cancellation - done
 	- lag correlation values & n of corr > 0.3 (etc...)
 
 make indicators callable?
@@ -41,6 +41,7 @@ refactor setups
 			- or use exit_per_entry = true! :) 
 
 	rename detect to trigger
+	detect has lookahead bias
 
 additional constraints for chart patterns & speed
 	- harmonics - eg why are there so few? fix the cache method in Harmony (custom_setups)
