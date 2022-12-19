@@ -72,7 +72,9 @@ class Stochastic(Indicator):
 		ema.period = self.d_period
 		percent_d = ema._perform(slow_k)
 		
-		return np.concatenate([percent_k,slow_k,percent_d],axis=2)
+		overbought = np.full(percent_k.shape,self.overbought)
+		oversold = np.full(percent_k.shape,self.oversold)
+		return np.concatenate([percent_k,slow_k,percent_d,overbought,oversold],axis=2)
 
 
 class StochasticRSI(Indicator):
