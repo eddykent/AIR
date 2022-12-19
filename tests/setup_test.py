@@ -48,7 +48,7 @@ dbf.stopwatch('fetch candles')
 #	tsd = pickle.load(fh) #15m candles
 
 
-fxss = SIMPLE_MONEY() 
+fxss = ENGULFING() 
 #signals = mrffx.get_setups(start_date,end_date) #+ axemrsi.get_setups(start_date,end_date)
 #msda = HA_VWAP_RSI_DIVERGENCE()
 #msda.stop_calculator = PipStop(take_profit_pips=30,stop_loss_pips=20)

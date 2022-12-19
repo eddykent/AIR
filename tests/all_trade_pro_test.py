@@ -5,7 +5,7 @@ from collections import Counter
 import pickle
 
 # test the setup object and also test its trade signals 
-from setups.setup_tools import CandleDataTool, PipStop, ATRStop
+from setups.setup_tools import CandleDataTool, PipStop, ATRStop, RollingExtremeStop
 #from setups.custom_setups import Harmony
 from setups.trade_pro import *
 from utils import ListFileReader, Database
@@ -22,14 +22,15 @@ currencies = lfr.read('fx_pairs/currencies.txt')
 
 
 
-setups = [SIMPLE_MONEY, MACD_MFT, RSIS_EMA_X, RSIS_EMA_1, CMF_MACD_ATR, ENGULFING]
+setups = [MACD_MFT, RSIS_EMA_X, RSIS_EMA_1, CMF_MACD_ATR, ENGULFING, SIMPLE_MONEY]
+#setups = [MACD_MFT] #[RSIS_EMA_X, ENGULFING, CMF_MACD_ATR] #highest winrate ones
 
 datatool = CandleDataTool() 
 datatool.start_date = datetime.datetime(2022,5,4)
 datatool.end_date = datetime.datetime(2022,9,4)
 datatool.instruments = lfr.read('fx_pairs/fx_mains.txt')
 datatool.volumes = True
-datatool.chart_resolution = 15
+datatool.chart_resolution = 15 #15
 dbf.stopwatch('fetch candles')
 datatool.read_data_from_currencies(currencies)
 tsd = datatool.get_trade_signalling_data()
@@ -40,11 +41,13 @@ signals = []
 
 for setup in setups:  
 	setup = setup()
-	setup.stop_calculator = PipStop(take_profit_pips=30,stop_loss_pips=20)
-	try:
-		signals += setup.get_setups(tsd)
-	except:
-		pdb.set_trace()
+	#setup.stop_calculator = PipStop(take_profit_pips=30,stop_loss_pips=20)
+	setup.stop_calculator = RollingExtremeStop()
+	#try:
+	signals += setup.get_setups(tsd)
+	#except Exception as e:
+		#pdb.set_trace()
+		#raise e
 
 #pdb.set_trace()
 
@@ -87,6 +90,8 @@ random.shuffle(signals)
 cursor = Database(cache=False,commit=False)
 btd = BackTesterDatabase(cursor)
 
+#use this instead? 
+#btp = BackTesterCandles()
 
 
  #remove when wanting to do stress tests
@@ -96,9 +101,11 @@ result = btd.perform(signals) #,profit_lock=(0.75,0.5,0)
 #backteststats = BacktestStatistics(...) 
 dbf.stopwatch('backtesting')
 
+with open('data/pickles/backtestdata.pkl','wb') as f:
+	pickle.dump((tsd,signals,result),f)
 
 bts = BackTestStatistics(tsd, signals, result)
-#bts.get_stats() #pass query params
+some_result = bts.calculate() #todo! pass query params
 
 
 statuses = [r.result_status for r in result]
