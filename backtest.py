@@ -6,6 +6,7 @@ from typing import Optional,List
 
 from psycopg2.extensions import AsIs as Inject
 import numpy as np 
+import pandas as pd
 
 from enum import Enum
 
@@ -35,6 +36,9 @@ class TradeResultStatus(Enum):
 	WON_TP = 4 # the trade stopped out at the take profit price 
 	WON_EXTRA = 5 #the trade hit the profit lock activation and continued to the extra profit target 
 
+win_statuses = [TradeResultStatus.WINNING, TradeResultStatus.WON_PL, TradeResultStatus.WON_EXIT, TradeResultStatus.WON_TP, TradeResultStatus.WON_EXTRA]
+lose_statuses = [TradeResultStatus.LOST_SL, TradeResultStatus.LOST_EXIT, TradeResultStatus.LOSING]
+
 #TradeProfitPath = namedtuple('TradeProfitPath','typical optimistic pessimistic')
 TradeResult = namedtuple('TradeResult','signal_id entry_date entry_price entry_candle exit_date exit_price exit_candle result_movement result_percent result_status')
 
@@ -55,7 +59,7 @@ class BackTestStatistics:
 	#- result profit in %, calc using capital risk factor 1% * capital, capital, lotsize?  (leverage per instrument makes for borrowing capability) 
 	#- (other, volatility? market exposure? sharpe ratio? profit factor? largest win/lose, ave win/lose)
 	
-	ts_data = [] 
+	signalling_data = [] 
 	signals = [] 
 	results = [] 
 	
@@ -65,47 +69,83 @@ class BackTestStatistics:
 	
 	UNITSPERLOT = 100000 #warning! might be different for other instruments same for FX though? 
 	
+	mainframe = None
 	
 	def __init__(self,ts_data,signals,results):
-		self.ts_data = ts_data #use for the scope of the backtest (from date, to date, etc) 
+		self.signalling_data = ts_data #use for the scope of the backtest (from date, to date, etc) and for calculating drawdowns 
 		self.signals = signals
 		self.results = results 
-		
+		self.mainframe = self.get_df()
 	
+	#for use with optimisation when testing lots of strats together
+	#def fast_objective(self,)
+	
+	def get_df(self):
+		dfr = pd.DataFrame(self.results,columns=TradeResult._fields)
+		dfs = pd.DataFrame.from_records(s.to_dict() for s in self.signals)
+		return dfs.merge( dfr,on='signal_id')
+	
+	#calc individual strategy ref performances 
 	def calculate(self,query_params=None):
-		
-		pass #use numpy? 
+		df = self.mainframe
+		scores = self.evaluate_result(df)
+		print('formulate')
+	
+	def definitive_win_lose(self,wlframe):
+		wlframe = wlframe.replace()
+	
+	#given a dataframe, get all the info eg winstreaks, drawdowns etc 
+	def evaluate_result(self,resultframe):
+		pdb.set_trace()
+		sorted_frame = resultframe.sort_values(['entry_date'])
+		wl_result = sorted_frame[['entry_date','result_status']]
+		#wl_result[]
+		#db.set_trace()
+		print('dataframe stuff')
 		
 	
-	def get_statistics_on(self,stategy_refs=[],instruments=[]):  #anything else?
-		subset_signals = [s for s in self.signals if (s.instrument in instruments or not instruments) and (s.strategy_ref in strategy_refs or not strategy_refs)]
+	#def calc_equity_curves() #unsure how this will work yet  
+	
+	
+	#dumb version for getting more info from results 
+	def _get_statistics_on(self,subset_signals):  #anything else
 		subset_signals = sorted(subset_signals,key=lambda s:s.the_date)
 		#lose means finish down or lost
 		win_streaks = []
 		lose_streaks = [] 
 		accum_wins = [] 
 		accum_loses = [] 
-		wins = 0
-		loses = 0
+		rolling_wins = 0
+		rolling_loses = 0
+		global_wins = len([s for s in subset_signals if s.result_status in win_statuses])
+		global_loses = len([s for s in subset_signals if s.result_status in lose_statuses])
 		accumwin = 0
 		accumloss = 0
+		max_win = max(s.result_percent for s in subset_signals)
+		max_loss = min(s.result_percent for s in subset_signals)
+		
+		#streak calc
 		for s in subset_signals:
-			wins = (wins+1) if s.result_status in [TradeResultStatus.WON,TradeResultStatus.WINNIG] else 0
-			loses = (loses+1) if s.result_status in [TradeResultStatus.LOST,TradeResultStatus.LOSING] else 0
-			win_streaks.append(wins)
-			lose_streaks.append(loses)
+			rolling_wins = (rolling_wins+1) if s.result_status in win_statuses else 0
+			rolling_loses = (rolling_loses+1) if s.result_status in lose_statuses else 0
+			win_streaks.append(rolling_wins)
+			lose_streaks.append(rolling_loses)
+		
+		
 		return {
 			'total':len(subset_signals),
 			'stagnated':len([s for s in subset_signals if s.result_status == TradeResultStatus.STAGNATED]),
 			'unfinished':len([s for s in subset_signals if s.result_status not in [TradeResultStatus.WON,TradeResultStatus.LOST]]),
 			'void':len([s for s in subset_signals if s.result_status == TradeResultStatus.VOID]),
 			'invalid':len([s for s in subset_signals if s.result_status == TradeResultStatus.INVALID]),
-			'wins':len([s for s in subset_signals if s.result_status == TradeResultStatus.WON]),
-			'loses':len([s for s in subset_signals if s.result_status == TradeResultStatus.LOST]),
+			'wins':len([s for s in subset_signals if s.result_status in win_statuses]),
+			'loses':len([s for s in subset_signals if s.result_status in lose_statuses]),
 			'ups':len([s for s in subset_signals if s.result_status == TradeResultStatus.WINNING]),
 			'downs':len([s for s in subset_signals if s.result_status == TradeResultStatus.LOSING]),
 			'win_streak':max(win_streaks),
-			'lose_streak':max(lose_streaks)
+			'lose_streak':max(lose_streaks),
+			'max_win':max_win,
+			'max_loss':max_loss
 			#'growth':max(...)
 			#'drawdown':max(...)
 		}
@@ -236,6 +276,7 @@ class BackTesterDatabase(BackTester):
 
 #pass streams candles (labelled with their instrument name) to this class and then perfrom backtesting using this data
 #this class might be exposable to an AI loss function. 
+#TODO - this is broken - fix it
 class BackTesterCandles(BackTester): #allows for fuzzing the data 
 	
 	signalling_data = None
@@ -431,6 +472,8 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		
 		#st = time.time()
 		exit_indexs = np.full(len(trade_signals),-1)
+		if not exit_signals:
+			return exit_indexs
 		
 		#looks mad but this works well and is faster than iterating in loops (test!)
 		#firstly, turn every comparat to np arrays
@@ -448,6 +491,7 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		exit_directions = np.array([es.direction for es in exit_signals])
 		
 		#next, calculate the truthy matrices for every conditional 
+		#pdb.set_trace()
 		match_strategy_refs = entry_strategy_refs[:,np.newaxis] == exit_strategy_refs[np.newaxis,:]
 		match_instruments = entry_instruments[:,np.newaxis] == exit_instruments[np.newaxis,:]
 		match_directions = entry_directions[:,np.newaxis] == exit_directions[np.newaxis,:]
@@ -468,16 +512,16 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		
 		#st = time.time()
 		#test with regular python
-		exit_signal_dates_py = [None] * len(trade_signals)
-		for i,ts in enumerate(trade_signals):
-			for es in exit_signals:
-				if (ts.strategy_ref, ts.direction, ts.instrument) == (es.strategy_ref, es.direction, es.instrument):
-					if es.the_date >= ts.the_date and es.the_date <= ts.the_date + datetime.timedelta(minutes=ts.length):
-						if exit_signal_dates_py[i] is None or exit_signal_dates_py[i] > es.the_date:
-							exit_signal_dates_py[i] = es.the_date
-		
-		#finally, use the earliest exit signal datetimes to get the timeline indexs 
-		exit_indexs2 = [-1 if the_date is None else self.signalling_data.closest_time_index(the_date) for the_date in exit_signal_dates_py]
+		#exit_signal_dates_py = [None] * len(trade_signals)
+		#for i,ts in enumerate(trade_signals):
+		#	for es in exit_signals:
+		#		if (ts.strategy_ref, ts.direction, ts.instrument) == (es.strategy_ref, es.direction, es.instrument):
+		#			if es.the_date >= ts.the_date and es.the_date <= ts.the_date + datetime.timedelta(minutes=ts.length):
+		#				if exit_signal_dates_py[i] is None or exit_signal_dates_py[i] > es.the_date:
+		#					exit_signal_dates_py[i] = es.the_date
+		#
+		##finally, use the earliest exit signal datetimes to get the timeline indexs 
+		#exit_indexs2 = [-1 if the_date is None else self.signalling_data.closest_time_index(the_date) for the_date in exit_signal_dates_py]
 		#print("time took with py = "+str(time.time() - st))
 		#pdb.set_trace()
 		
