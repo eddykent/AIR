@@ -94,6 +94,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		list(TradeSignal) 
 			A bunch of trade signals that were found in the date range 
 		"""
+		#pdb.set_trace()
 		trade_signalling_data.name = self.get_name()
 		trade_signalling_data.bullish.signals, trade_signalling_data.bearish.signals = self.detect(trade_signalling_data)
 		trade_signalling_data.bullish.entries, trade_signalling_data.bearish.entries = self.get_entries(trade_signalling_data)
@@ -122,7 +123,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		
 		for (instrument_index,timeline_index) in buy_coords:
 			timeline_index += 1 #push forward by 1 candle to prevent look ahead bias 
-			if signal_data_extra.timeline[timeline_index] < signal_data_extra.start_date:
+			if timeline_index >= len(signal_data_extra.timeline) or signal_data_extra.timeline[timeline_index] < signal_data_extra.start_date:
 				continue
 			instrument = signal_data_extra.instruments[instrument_index]
 			the_date = signal_data_extra.timeline[timeline_index]
@@ -136,7 +137,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		
 		for (instrument_index,timeline_index) in sell_coords:
 			timeline_index += 1 #push forward by 1 candle to prevent look ahead bias 
-			if signal_data_extra.timeline[timeline_index] < signal_data_extra.start_date:
+			if timeline_index >= len(signal_data_extra.timeline) or signal_data_extra.timeline[timeline_index] < signal_data_extra.start_date:
 				continue
 			instrument = signal_data_extra.instruments[instrument_index]
 			the_date = signal_data_extra.timeline[timeline_index]
