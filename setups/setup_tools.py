@@ -82,6 +82,19 @@ class DelayTool(SetupTool):
 	def markup(self,detected):
 		return np.concatenate([np.full((detected.shape[0],self.delay_length),False),detected[:,:-self.delay_length]],axis=1)
 
+class CandleLagTool(SetupTool):
+	
+	lag_length = 1
+	def markup(self,candles):
+		return np.concatenate([np.full((candles.shape[0],self.lag_length,candles.shape[2]),np.nan),candles[:,:-self.lag_length,:]],axis=1)
+		
+class ValueLagTool(SetupTool):
+	
+	lag_length = 1
+	def markup(self,values):
+		return np.concatenate([np.full((values.shape[0],self.lag_length),np.nan),values[:,:-self.lag_length]],axis=1)
+		
+
 #class ExpireTool #if an underlying signal (one used within a trigger) has been showing too long, expire after x candles 
 
 #tool used for when we only want to get signals when a detection has gone from 0 to 1 to remove duplicates & get earliest 
@@ -169,59 +182,27 @@ class BadMomentumDivergenceTool(SetupTool):
 	#		wheres = (nums2 - self.hill_tolerance >= n) & (nums2 + self.hill_tolerance <= n)
 	#		close2s = nums2[wheres]
 
-#find peaks/lows in a momentum result and in the price action and determine if divergence is happening 
-class DivTool(SetupTool):
+
+class ExtremesTool(SetupTool): 
 	
-	momentum = None
-	price_action = None
-	div_window = 30
-	order = 8
-	peak_diff = 8 #same as order? 
-	grace_period = 3
-	hidden = False #if true, use hidden divergence detection method instead 
-	zero_cross = True #TODO if false, mark all divs that cross over the 0 line as false (undetect) (rsi will require scaling) 
+	required_values = 20
+	order = 3
 	
+	direction_dict = {
+		'max':scipy.signal.argrelmax,
+		'min':scipy.signal.argrelmin
+	}
 	
-	def __init__(self,momentum,price_action):
-		self.momentum = momentum if len(momentum.shape) == 2 else momentum[:,:,0]
-		self.price_action = price_action if len(price_action.shape) == 2 else price_action[:,:,0]
-	
-	def markup(self):
+	def markup(self, values, direction='max'):
 		#data = np.concatenate([self.momentum,self.priceaction],axis=2)
 		#maxminimas 
-		price_action_windows = self._sliding_windows(self.price_action,self.div_window,np.nan)
-		momentum_windows = self._sliding_windows(self.momentum,self.div_window,np.nan)		
-		
-		#tic = time.time() 
-		price_peaks = self.get_extremes(price_action_windows,self.order,scipy.signal.argrelmax)
-		momentum_peaks = self.get_extremes(momentum_windows,self.order,scipy.signal.argrelmax)
-		
-		price_pits = self.get_extremes(price_action_windows,self.order,scipy.signal.argrelmin)
-		momentum_pits = self.get_extremes(momentum_windows,self.order,scipy.signal.argrelmin)
-		#tok = time.time() - tic 
-		
-		#print('time to get extremes = '+str(tok))
-		#pdb.set_trace()
-		
-		#oob check? 
-		
-		price_highs = price_peaks[:,:,-1,1] < price_peaks[:,:,-2,1] if self.hidden else price_peaks[:,:,-1,1] > price_peaks[:,:,-2,1]
-		momentum_highs = momentum_peaks[:,:,-1,1] > momentum_peaks[:,:,-2,1] if self.hidden else momentum_peaks[:,:,-1,1] < momentum_peaks[:,:,-2,1]
-		
-		price_lows = price_pits[:,:,-1,1] > price_pits[:,:,-2,1] if self.hidden else price_pits[:,:,-1,1] < price_pits[:,:,-2,1]
-		momentum_lows = momentum_pits[:,:,-1,1] < momentum_pits[:,:,-2,1] if self.hidden else momentum_pits[:,:,-1,1] > momentum_pits[:,:,-2,1]
-		
-		#check proximity to the current time of the window 
-		price_peaks_proxi = price_peaks[:,:,-1,0] > (self.div_window - self.order)
-		price_pits_proxi = price_pits[:,:,-1,0] > (self.div_window - self.order)
-		
-		#pdb.set_trace()
-		
-		bullish = price_lows & momentum_lows & price_pits_proxi
-		bearish = price_highs & momentum_highs & price_peaks_proxi 
-		
-		return bullish, bearish 
-		
+		value_windows = self._sliding_windows(values,self.required_values,np.nan)
+		scipyf = self.direction_dict.get(direction.lower())
+		if scipyf is None:
+			raise ValueError(f'Unknown direction "{direction.lower()}". Must be "min" or "max"')
+		value_extremes = self.get_extremes(value_windows,self.order,scipyf)
+		return value_extremes 
+	
 	#turn a set of windows into a list of max peaks per window 
 	@staticmethod
 	def get_extremes(value_windows,order,scipy_func):
@@ -267,6 +248,59 @@ class DivTool(SetupTool):
 		
 		#pdb.set_trace()
 		return rebuilt #print('now what?')
+	
+#find peaks/lows in a momentum result and in the price action and determine if divergence is happening 
+class DivTool(ExtremesTool):
+	
+	momentum = None
+	price_action = None
+	div_window = 30
+	order = 8
+	hidden = False #if true, use hidden divergence detection method instead 
+	zero_cross = True #TODO if false, mark all divs that cross over the 0 line as false (undetect) (rsi will require scaling) 
+	
+	
+	def __init__(self,momentum,price_action):
+		self.momentum = momentum if len(momentum.shape) == 2 else momentum[:,:,0]
+		self.price_action = price_action if len(price_action.shape) == 2 else price_action[:,:,0]
+	
+	def markup(self):
+		#data = np.concatenate([self.momentum,self.priceaction],axis=2)
+		#maxminimas 
+		price_action_windows = self._sliding_windows(self.price_action,self.div_window,np.nan)
+		momentum_windows = self._sliding_windows(self.momentum,self.div_window,np.nan)		
+		
+		#tic = time.time() 
+		price_peaks = self.get_extremes(price_action_windows,self.order,scipy.signal.argrelmax)
+		momentum_peaks = self.get_extremes(momentum_windows,self.order,scipy.signal.argrelmax)
+		
+		price_pits = self.get_extremes(price_action_windows,self.order,scipy.signal.argrelmin)
+		momentum_pits = self.get_extremes(momentum_windows,self.order,scipy.signal.argrelmin)
+		#tok = time.time() - tic 
+		
+		#print('time to get extremes = '+str(tok))
+		#pdb.set_trace()
+		
+		#oob check? 
+		
+		price_highs = price_peaks[:,:,-1,1] < price_peaks[:,:,-2,1] if self.hidden else price_peaks[:,:,-1,1] > price_peaks[:,:,-2,1]
+		momentum_highs = momentum_peaks[:,:,-1,1] > momentum_peaks[:,:,-2,1] if self.hidden else momentum_peaks[:,:,-1,1] < momentum_peaks[:,:,-2,1]
+		
+		price_lows = price_pits[:,:,-1,1] > price_pits[:,:,-2,1] if self.hidden else price_pits[:,:,-1,1] < price_pits[:,:,-2,1]
+		momentum_lows = momentum_pits[:,:,-1,1] < momentum_pits[:,:,-2,1] if self.hidden else momentum_pits[:,:,-1,1] > momentum_pits[:,:,-2,1]
+		
+		#check proximity to the current time of the window 
+		price_peaks_proxi = price_peaks[:,:,-1,0] > (self.div_window - self.order)
+		price_pits_proxi = price_pits[:,:,-1,0] > (self.div_window - self.order)
+		
+		#pdb.set_trace()
+		
+		bullish = price_lows & momentum_lows & price_pits_proxi
+		bearish = price_highs & momentum_highs & price_peaks_proxi 
+		
+		return bullish, bearish 
+		
+	
 
 #eg get macd and signal line, get their diff (macd - signal) then this.markup(diff) gives bullish and bearish crossovers 
 class CrossTool:
@@ -335,7 +369,7 @@ class PipStop(StopTool):
 		
 		return (pip_distances * self.tpp, pip_distances * self.tpp), (pip_distances * self.slp, pip_distances * self.slp)  
 
-class RollingExtremeStops(StopTool):
+class RollingExtremeStop(StopTool):
 	
 	period = 5 #last 5 candles 
 	
@@ -348,8 +382,8 @@ class RollingExtremeStops(StopTool):
 		
 		np_candles = trade_signalling_data.np_candles
 		current_close = np_candles[:,:,csf.close]
-		high_r = window_h._perform(np_candles)
-		lows_r = window_l._perform(np_candles)
+		high_r = window_h._perform(np_candles)[:,:,0]
+		lows_r = window_l._perform(np_candles)[:,:,0]
 		
 		bull_sl = np.abs(lows_r - current_close)
 		bear_sl = np.abs(high_r - current_close)
