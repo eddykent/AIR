@@ -275,7 +275,8 @@ class Harami(CandleStickPattern):	#or whatever it is called! :)
 		return return_block
 
 
-
+#two inside
+#two outside
 
 
 
