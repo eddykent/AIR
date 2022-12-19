@@ -3,7 +3,7 @@
 import numpy as np
 
 from utils import overrides
-from indicators.indicator import Indicator
+from indicators.indicator import Indicator,  Diff
 from charting import candle_stick_functions as csf
 
 import pdb
@@ -116,7 +116,25 @@ class TEMA(Indicator):
 		tema = (ma1 * 3)  - (ma2 * 3) + ma3
 		return tema
 
-
+class ZLMA(Indicator):
+	channel_keys = {'ZLMA':0}
+	channel_styles = {'ZLMA':'neutral'}
+	candle_sticks = True
+	
+	MA = EMA
+	
+	@overrides(Indicator)
+	def _perform(self,candles):
+		lag = (self.period - 1) // 2
+		ma = self.MA()
+		ma.period = self.period
+		ma.candle_channel = 0
+		diff = Diff() 
+		diff.diff = lag
+		diffed = diff._perform(candles)
+		emadata = candles[:,:,self.candle_channel] + diffed[:,:,self.candle_channel]
+		return ma._perform(emadata[:,:,np.newaxis])
+		
 
 # - park for now
 #trianglar moving average  -?? 
