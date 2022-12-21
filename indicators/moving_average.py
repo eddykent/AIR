@@ -13,16 +13,28 @@ class SMA(Indicator):
 	channel_styles = {'SMA':'bearish'}
 	candle_sticks = True
 
+	def __init__(self,period=20,*args,**kwargs):
+		self.period = period 
+		super().__init__(*args,**kwargs)
+	
 	@overrides(Indicator)
 	def _perform(self,candles):
 		windows = self._sliding_windows(candles)[:,:,self.candle_channel,:] #select the correct candle channel
 		return np.nanmean(windows,axis=2)[:,:,np.newaxis]
-		
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period}, {self._channel_str} ) "
+	
 
 class EMA(Indicator):
 	channel_keys = {'EMA':0}
 	channel_styles = {'EMA':'keyinfo'}
 	candle_sticks = True
+	
+	def __init__(self,period=20,*args,**kwargs):
+		self.period = period 
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -38,6 +50,10 @@ class EMA(Indicator):
 			current_value = new_value
 		return np.stack(emas,axis=1)[:,:,np.newaxis]
 
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period}, {self._channel_str} ) "
+
 
 class MultiMovingAverage(Indicator):
 	channel_keys = {'MMA':0}
@@ -45,11 +61,16 @@ class MultiMovingAverage(Indicator):
 	candle_sticks = True
 	MA = SMA #ema
 	repeats = 3 #triple simple moving average by default 
-	
+		
+	def __init__(self,ma=SMA,period=20,repeats=3,*args,**kwargs):
+		self.MA = ma
+		self.period = period 
+		self.repeats = repeats 
+		super().__init__(*args,**kwargs)
+
 	@overrides(Indicator)
 	def _perform(self,candles):
-		ma = self.MA()
-		ma.period = self.period
+		ma = self.MA(self.period)
 		ma.candle_channel = self.candle_channel
 		
 		result = ma._perform(candles)
@@ -60,6 +81,10 @@ class MultiMovingAverage(Indicator):
 		for i in range(self.repeats-1):
 			result = ma._perform(result)
 		return result 
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.MA.__class__.__name__} ( {self.period}, {self._channel_str} ), {self.repeats} ) "
 
 
 #ensure it is known that the start values will not be accurate (nan+nan+..+7*x1 + 8*x2) not (1*x1 + 2*x2 ...) 
@@ -67,6 +92,10 @@ class WMA(Indicator):
 	channel_keys = {'WMA':0}
 	channel_styles = {'WMA':'neutral'}
 	candle_sticks = True
+	
+	def __init__(self,period=20,*args,**kwargs):
+		self.period = period 
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -76,7 +105,10 @@ class WMA(Indicator):
 		weights = np.broadcast_to(weights_singular,shape=windows.shape)
 		result = np.sum(windows*weights,axis=2)  / np.sum(weights,axis=2)
 		return result[:,:,np.newaxis]
-
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period}, {self._channel_str} ) "
 
 #double moving average
 class DEMA(Indicator):
@@ -85,6 +117,11 @@ class DEMA(Indicator):
 	candle_sticks = True
 	
 	MA = EMA #so we can change it to sma if we want
+	
+	def __init__(self,period=20,ma=EMA,*args,**kwargs):
+		self.period = period 
+		self.MA = EMA
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -95,7 +132,10 @@ class DEMA(Indicator):
 		ma2 = ma._perform(ma1)
 		dema = (ma1 * 2)  - ma2
 		return dema
-
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.MA.__name__} ( {self.period}, {self._channel_str} ) )"
 
 #triple moving average
 class TEMA(Indicator):
@@ -104,6 +144,11 @@ class TEMA(Indicator):
 	candle_sticks = True
 	
 	MA = EMA
+	
+	def __init__(self,period=20,ma=EMA,*args,**kwargs):
+		self.period = period 
+		self.MA = EMA
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -116,12 +161,22 @@ class TEMA(Indicator):
 		tema = (ma1 * 3)  - (ma2 * 3) + ma3
 		return tema
 
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.MA.__name__} ( {self.period}, {self._channel_str} ) )"
+	
+	
 class ZLMA(Indicator):
 	channel_keys = {'ZLMA':0}
 	channel_styles = {'ZLMA':'neutral'}
 	candle_sticks = True
 	
 	MA = EMA
+	
+	def __init__(self, period=20,ma=EMA,*args,**kwargs):
+		self.period = period 
+		self.MA = EMA
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -135,6 +190,9 @@ class ZLMA(Indicator):
 		emadata = candles[:,:,self.candle_channel] + diffed[:,:,self.candle_channel]
 		return ma._perform(emadata[:,:,np.newaxis])
 		
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.MA.__name__} ( {self.period}, {self._channel_str} ) )"
 
 # - park for now
 #trianglar moving average  -?? 

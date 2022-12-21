@@ -28,10 +28,14 @@ class VWAP(VolumeIndicator):
 	channel_styles = {'VWAP':'keyinfo'}
 	candle_sticks = True
 	
+	def __init__(self,period=14,*args,**kwargs):
+		self.period = period 
+		super().__init__(*args,**kwargs)
+	
 	@overrides(VolumeIndicator)
 	def _perform(self,candles):	
 		volumes = candles[:,:,csf.bid_volume] + candles[:,:,csf.ask_volume]
-		closes = candles[:,:,csf.close,np.newaxis]  #typical! 
+		closes = candles[:,:,self.candle_channel,np.newaxis]  #typical! 
 		close_windows = self._sliding_windows(closes) 
 		volume_windows = self._sliding_windows(volumes[:,:,np.newaxis])
 		#check - might be easier to do element-wise mutiplication
@@ -39,12 +43,20 @@ class VWAP(VolumeIndicator):
 		vwap = np.sum(volume_windows * close_windows, axis=3) / np.sum(volume_windows,axis=3)
 		
 		return vwap
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period}, {self._channel_str} ) "
 
 		
 class VWAPDaily(VolumeIndicator): #similar to VWAP but reset each day
 	channel_keys = {'VWAP':0}
 	channel_styles = {'VWAP':'keyinfo'}
 	candle_sticks = True
+	
+	def __init__(self,period=14,*args,**kwargs):
+		self.period = period 
+		super().__init__(*args,**kwargs)
 	
 	@overrides(VolumeIndicator)
 	def _perform(self,candles):	
@@ -68,13 +80,18 @@ class VWAPDaily(VolumeIndicator): #similar to VWAP but reset each day
 		#pdb.set_trace() #check dims 
 		return vwap_daily
 	
-	
-		
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period}, {self._channel_str} ) "
 
 class BidAskVWAP(VolumeIndicator):
 	channel_keys = {'BID_VWAP':0,'ASK_VWAP':1}
 	channel_styles = {'BID_VWAP':'bearish','ASK_VWAP':'bullish'}
 	candle_sticks = True
+	
+	def __init__(self,period=14,*args,**kwargs):
+		self.period = period 
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):	
@@ -89,6 +106,10 @@ class BidAskVWAP(VolumeIndicator):
 		bid_vwap = np.sum(bid_volume_windows * close_windows, axis=3) / np.sum(bid_volume_windows,axis=3)
 		ask_vwap = np.sum(ask_volume_windows * close_windows, axis=3) / np.sum(ask_volume_windows,axis=3)
 		return np.concatenate([bid_vwap,ask_vwap],axis=2)
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period}, {self._channel_str} ) "
 
 class MVWAP(VolumeIndicator): #(VWAP?)
 	pass 
@@ -110,6 +131,10 @@ class ClientSentimentRatio(VolumeIndicator):
 	
 	diff = 0 #default
 	
+	def __init__(self,period=14,*args,**kwargs):
+		self.period = period 
+		super().__init__(*args,**kwargs)
+	
 	@overrides(Indicator)
 	def _perform(self,volumes):	
 		later = volumes[:,self.diff:,:]
@@ -125,7 +150,10 @@ class ClientSentimentRatio(VolumeIndicator):
 		result = np.stack([bid_ratio,ask_ratio], axis=2)
 		
 		return np.concatenate([np.zeros(padshape), result],axis=1) 
-		
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.diff} ) "
 
 #class VolumeInterest(VolumeIndicator): ?
 #	pass
@@ -145,6 +173,12 @@ class ClientSentiment(VolumeIndicator):
 	period = 6
 	normalisation_window = 50 #arbitrary
 	
+	def __init__(self,period=14, diff=0, window=50, *args,**kwargs):
+		self.period = period 
+		self.diff = diff
+		self.normalisation_window = window
+		super().__init__(*args,**kwargs)
+	
 	@overrides(Indicator)
 	def _perform(self,volumes):
 		csr = ClientSentimentRatio()
@@ -162,7 +196,9 @@ class ClientSentiment(VolumeIndicator):
 		short_bound_ema = ema._perform(short_bound)
 		return np.concatenate([long_bound_ema,short_bound_ema],axis=2)
 
-
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period}, {self.diff}, {self.normalisation_window} ) "
 
 class ChaikinMoneyFlow(VolumeIndicator):
 	
@@ -171,6 +207,10 @@ class ChaikinMoneyFlow(VolumeIndicator):
 	candle_sticks = False
 	
 	period = 21
+	
+	def __init__(self,period=21, *args,**kwargs):
+		self.period = period 
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,np_candles):	
@@ -192,18 +232,26 @@ class ChaikinMoneyFlow(VolumeIndicator):
 		
 		return mfmva / va
 		
-	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period} ) "
 
 #our RSI is between 0 and 1 for easier use with NNs  - bug - missing a value...
 class MoneyFlowIndex(Indicator):
-	channel_keys = {'RSI':0, 'OVERBOUGHT':1, 'OVERSOLD':2} 
-	channel_styles = {'RSI':'bearish', 'OVERBOUGHT':'neutral', 'OVERSOLD':'neutral'}
+	channel_keys = {'MFI':0, 'OVERBOUGHT':1, 'OVERSOLD':2} 
+	channel_styles = {'MFI':'bearish', 'OVERBOUGHT':'neutral', 'OVERSOLD':'neutral'}
 	candle_sticks = False
 	
 	overbought = 0.8
 	oversold = 0.2 
 	
 	period = 14
+	
+	def __init__(self,period=14, overbought=0.8, oversold=0.2, *args,**kwargs):
+		self.period = period 
+		self.overbought = overbought
+		self.oversold = oversold 
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -228,7 +276,9 @@ class MoneyFlowIndex(Indicator):
 		rsi[np.isnan(rsi)] = 1.0
 		return np.concatenate([rsi,np.full(rsi.shape,self.overbought),np.full(rsi.shape,self.oversold)],axis=2)
 
-
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period}, {self.overbought}, {self.oversold} ) "
 
 
 

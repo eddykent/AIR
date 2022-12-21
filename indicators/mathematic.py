@@ -10,7 +10,7 @@ from indicators.indicator import Indicator
 from charting import candle_stick_functions as csf
 
 
-#import pdb 
+import pdb 
 
 #convert the signals into a fourier series, then chop off high frequencies and inadequate frequencies and convert back to get 
 #a smoothed curve whose gradient might indicate price movement 
@@ -24,11 +24,18 @@ class FourierGradient(Indicator):
 	period = 200
 	end_zeros = 50 #how many terms to chop off at the end 
 	std_multiplier = 2#how many std the freq needs to  be above the mean to remain part of the fft price
-
+	
+	def __init__(self,period=200,zeros=50,std_multiplier=2,*args,**kwargs):
+		self.period = period 
+		self.end_zeros = zeros
+		self.std_multiplier = std_multiplier
+		super().__init__(*args,**kwargs)
+	
+	
 	@overrides(Indicator)
 	def _perform(self,np_candles):
 		windows = self._sliding_windows(np_candles)
-		window_closes = windows[:,:,csf.close,:]
+		window_closes = windows[:,:,self.candle_channel,:]
 		fft_result = np.fft.fft(window_closes,self.period,axis=2)
 		psd = fft_result * np.conj(fft_result) / self.period #power spectrum density - kind of does abs and removes img part
 		psd_real = np.real(psd)
@@ -52,8 +59,34 @@ class FourierGradient(Indicator):
 		
 		return np.stack([end_gradients,price_difference],axis=2)
 	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period}, {self.end_zeros}, {self.std_multiplier}, {self._channel_str} ) "
 
 
 
-#nested correlation? eg how much stuff correlates at this point 
+#nested correlation? eg how much stuff correlates at this point & what the correls say
+#class CorrelationAnalysis(Indicator):
+#	
+#	channel_keys = {'INFLUENCE':0, 'AVG_COR':1, 'N_HITS':2} #fft_price - price (bullish if positive)
+#	channel_styles = {'INFLUENCE':'neutral', 'AVG_COR': 'neutral', 'N_HITS':'neutral'}
+#	
+#	candle_sticks = False
+#	
+#	period = 30
+#
+#	candle_channel = csf.close
+#
+#	@overrides(Indicator)
+#	def _perform(self,np_candles):
+
+
+
+
+
+
+
+
+
+
 

@@ -13,10 +13,20 @@ class STDDEV(SMA):
 	channel_styles = {'STDDEV':'keyinfo'}
 	candle_sticks = False
 	
+	period = 10
+	
+	def __init__(self,period=10,*args,**kwargs):
+		self.period = period 
+		super().__init__(*args,**kwargs)
+	
 	@overrides(Indicator)
 	def _perform(self,candles):
 		windows = self._sliding_windows(candles)[:,:,self.candle_channel,:]
 		return np.nanstd(windows,axis=2)[:,:,np.newaxis]
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period}, {self._channel_str} ) "
 
 
 class BollingerBands(Indicator):
@@ -28,6 +38,11 @@ class BollingerBands(Indicator):
 	
 	period = 20
 	k = 2
+	
+	def __init__(self,period=20,k=2,*args,**kwargs):
+		self.period = period 
+		self.k = k
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -45,13 +60,22 @@ class BollingerBands(Indicator):
 		lower = smas - (self.k * stds)
 		
 		return np.concatenate([smas,upper,lower],axis=2)
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period}, {self.k}, {self._channel_str} ) "
 
 
 class ATR(Indicator):
 	channel_keys = {'ATR':0} 
 	channel_styles = {'ATR':'keyinfo'}
 	candle_sticks = False
+	
 	period = 14
+	
+	def __init__(self,period=10,*args,**kwargs):
+		self.period = period 
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -69,21 +93,28 @@ class ATR(Indicator):
 		sma.candle_channel = 0 
 		average_true_range = sma._perform(true_range)
 		return average_true_range
-
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period} ) "
 
 class KeltnerChannel(Indicator):
 	channel_keys = {'MIDDLE':0, 'UPPER':1, 'LOWER':2} 
 	channel_styles = {'MIDDLE':'keyinfo', 'UPPER':'neutral', 'LOWER':'neutral'}
 	candle_sticks = True
+	
 	period = 20
 	k = 2
 	atr_period = 10
+	
+	def __init__(self,period=20,k=2,atr_period=10,*args,**kwargs):
+		self.period = period 
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
 		atr = ATR() 
 		atr.period = self.atr_period
-		atr.candle_channel = 0
 		average_true_range = atr._perform(candles)
 		ema = EMA()
 		ema.period = self.period
@@ -92,13 +123,21 @@ class KeltnerChannel(Indicator):
 		upper = middle + (self.k * average_true_range)
 		lower = middle - (self.k * average_true_range)
 		return np.concatenate([middle,upper,lower],axis=2)
-
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period}, {self.k}, {self.atr_period} ) "
 
 class DonchianChannel(Indicator):
 	channel_keys = {'MIDDLE':0,'UPPER':1,'LOWER':2}
 	channel_styles = {'MIDDLE':'bearish','UPPER':'neutral','LOWER':'neutral'}
 	candle_sticks = True
+	
 	period  = 20
+	
+	def __init__(self,period=10,*args,**kwargs):
+		self.period = period 
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -107,7 +146,10 @@ class DonchianChannel(Indicator):
 		lower = np.nanmin(windows[:,:,csf.low,:],axis=2)
 		middle = (upper + lower) / 2.0
 		return np.stack([middle,upper,lower],axis=2)
-
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period} ) "
 
 class ChoppinessIndex(Indicator):
 	channel_keys = {'CHOP':0, 'TREND':1, 'CONSOLIDATION':2}

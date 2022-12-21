@@ -17,7 +17,11 @@ class ParabolicSAR(Indicator):
 	
 	acceleration_step = 0.02
 	acceleration_max = 0.2
-	period = 5
+	
+	def __init__(self, acceleration_step=0.02,acceleration_max=0.2,**kwargs):
+		self.acceleration_step = acceleration_step
+		self.acceleration_max = acceleration_max
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -133,7 +137,10 @@ class ParabolicSAR(Indicator):
 		downtrends[trend==1] = np.nan
 		downtrends[trend==0] = np.nan
 		return np.stack([uptrends,downtrends],axis=2)
-			
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.acceleration_step}, {self.acceleration_max} ) "
 
 #WARNING: we do not move anything on the timeline dimension on this indicator -that is the job of the setup 
 class IchimokuCloud(Indicator):
@@ -148,6 +155,12 @@ class IchimokuCloud(Indicator):
 	#lead_period = 26
 	
 	#trim = True #TODO: if true, we trim the cloud so it does not overlap the end of the candle chart
+	
+	def __init__(self, conversion=9, base=26, span=52, *args, **kwargs):
+		self.conversion_period = conversion
+		self.base_period = base
+		self.span_period = span
+		super().__init__(*args,**kwargs)	
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -168,17 +181,26 @@ class IchimokuCloud(Indicator):
 		#lag = np.concatenate([candles[:,self.lag_period:,csf.close],np.full((candles.shape[0],self.lag_period),np.nan)],axis=1)
 		lag = candles[:,:,csf.close]
 		return np.stack([conversion, base, span_a, span_b, lag],axis=2)
-
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.conversion_period}, {self.base_period}, {self.span_period} ) "
 
 #todo if desired: - this is buggy 
 class SuperTrend(Indicator):
-	channel_keys = {'LOWER':0}#,'UPPER':1}
-	channel_styles = {'LOWER':'bullish'}#,'UPPER':'bearish'}
+	channel_keys = {'SUPER':0}#,'UPPER':1}
+	channel_styles = {'SUPER':'bullish'}#,'UPPER':'bearish'}
 	candle_sticks = True
 	
 	period = 10 
 	atr_period = 14
 	multiplier = 2
+	
+	def __init__(self, period=10, atr=14, multiplier=2, *args, **kwargs):
+		self.period = period
+		self.atr_period = atr
+		self.multiplier = multiplier
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -249,6 +271,10 @@ class SuperTrend(Indicator):
 		#return np.stack([final_upper,final_lower],axis=2)
 		return super_trend[:,:,np.newaxis]
 	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period}, {self.multiplier} ) "
+
 
 class Aroon(Indicator):
 	channel_keys = {'AROON':0,'AROON_UP':1,'AROON_DOWN':2}
@@ -256,6 +282,10 @@ class Aroon(Indicator):
 	candle_sticks = False
 	
 	period = 25
+	
+	def __init__(self, period=25,  *args, **kwargs):
+		self.period = period
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -265,6 +295,11 @@ class Aroon(Indicator):
 		aroon = aroon_up - aroon_down
 		aroon = (aroon / 2.0) + 0.5  #scale
 		return np.stack([aroon,aroon_up,aroon_down],axis=2)
+		
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period} ) "
+
 
 
 class CCI(Indicator):
@@ -273,6 +308,10 @@ class CCI(Indicator):
 	candle_sticks = False
 	
 	period = 5
+	
+	def __init__(self,period=5,*args,**kwargs):
+		self.period = period
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -286,6 +325,10 @@ class CCI(Indicator):
 		mean_deviation = sma._perform(deviation)
 		cci = (typical - ma) / (1.5 * mean_deviation)  #use closer to 1.0 than 100 
 		return cci
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period} ) "
 
 
 #this is buggy - ADX should not range to 100 and pdi and ndi should not go below 0 
@@ -295,12 +338,18 @@ class ADX(Indicator):
 	candle_sticks = False
 	
 	period = 14
+	atr_period = 14
+	
+	def __init__(self,period=14,atr=14, *args,**kwargs):
+		self.period = period
+		self.atr_period = atr
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
 		atr = ATR()
 		ema = EMA()
-		atr.period = self.period
+		atr.period = self.atr_period
 		ema.period = self.period
 		ema.candle_channel = 0
 		
@@ -333,7 +382,9 @@ class ADX(Indicator):
 		adx = ema._perform(di) * 100
 		return np.concatenate([adx,pdi,ndi],axis=2)
 
-
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period}, {self.atr_period} ) "
 
 
 

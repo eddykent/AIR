@@ -17,6 +17,12 @@ class MACD(Indicator):
 	fast_period = 12
 	signal_period = 9
 	
+	def __init__(self,fast=12,slow=26,signal=9,*args,**kwargs):
+		self.slow_period = slow
+		self.fast_period = fast
+		self.signal_period = signal
+		super().__init__(*args,**kwargs)
+	
 	@overrides(Indicator)
 	def _perform(self,candles):
 		slow = EMA()
@@ -42,6 +48,10 @@ class MACD(Indicator):
 		pad_0s = np.zeros((direction.shape[0],1,1))
 		direction = np.concatenate([pad_0s,direction],axis=1) #add 0 at start
 		return np.concatenate([macd,signal_line,deviation,direction],axis=2)
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.fast_period}, {self.slow_period}, {self.signal_period}, {self._channel_str} ) "
 		
 
 class Awesome(Indicator):
@@ -51,6 +61,11 @@ class Awesome(Indicator):
 	
 	fast_period = 5
 	slow_period = 24
+	
+	def __init__(self,fast=5,slow=24,*args,**kwargs):
+		self.slow_period = slow
+		self.fast_period = fast
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -63,7 +78,10 @@ class Awesome(Indicator):
 		sma.period = self.slow_period
 		slow_sma = sma._perform(medians)
 		return fast_sma - slow_sma
-
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.fast_period}, {self.slow_period}, {self._channel_str} ) "
 
 class Accelerator(Indicator):
 	channel_keys = {'ACCELERATOR':0}
@@ -73,6 +91,12 @@ class Accelerator(Indicator):
 	fast_period = 5
 	slow_period = 24
 	period = 5
+	
+	def __init__(self,fast=5,slow=24,period=5,*args,**kwargs):
+		self.slow_period = slow
+		self.fast_period = fast
+		self.period = period
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -85,7 +109,11 @@ class Accelerator(Indicator):
 		
 		ao = awesome._perform(candles)
 		return ao - sma._perform(ao)
-
+	
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.fast_period}, {self.slow_period}, {self.period}, {self._channel_str} ) "
 
 class Momentum(Indicator):
 	channel_keys = {'MOMENTUM':0}
@@ -94,15 +122,22 @@ class Momentum(Indicator):
 	
 	period = 12
 	
+	def __init__(self,period=12,*args,**kwargs):
+		self.period
+		super().__init__(*args,**kwargs)
+	
 	@overrides(Indicator)
 	def _perform(self,candles):
 		
-		momentum = candles[:,self.period:,csf.close] / candles[:,:-self.period,csf.close]
+		momentum = candles[:,self.period:,self.candle_channel] / candles[:,:-self.period,self.candle_channel]
 		#pad with ones 
 		pad = np.ones((candles.shape[0],self.period))
 		momentum = np.concatenate([pad,momentum],axis=1)
 		return momentum[:,:,np.newaxis]
-
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period}, {self._channel_str} ) "
 
 #same as macd with subtle difference - macd / long period
 class PPO(Indicator):
@@ -113,6 +148,12 @@ class PPO(Indicator):
 	slow_period = 26
 	fast_period = 12
 	signal_period = 9
+	
+	def __init__(self,fast=12,slow=26,signal=9,*args,**kwargs):
+		self.slow_period = slow
+		self.fast_period = fast
+		self.signal_period = signal
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -140,7 +181,9 @@ class PPO(Indicator):
 		direction = np.concatenate([pad_0s,direction],axis=1) #add 0 at start
 		return np.concatenate([macd,signal_line,deviation,direction],axis=2)
 		
-
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.fast_period}, {self.slow_period}, {self.signal_period}, {self._channel_str} ) "
 	
 #https://www.investopedia.com/terms/r/relative_vigor_index.asp
 class RVI(Indicator):
@@ -149,6 +192,10 @@ class RVI(Indicator):
 	candle_sticks = False
 	
 	period  = 14
+	
+	def __init__(self,period=14,*args,**kwargs):
+		self.period = period
+		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
 	def _perform(self,candles):
@@ -181,7 +228,15 @@ class RVI(Indicator):
 		signal = (rvi + (2.0 * i) + (2.0 * j) + k) / 6.0
 		return np.stack([rvi,signal],axis=2)
 		
-	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period} ) "
 		
+	
+
+
+
+
+
 
 

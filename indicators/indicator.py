@@ -39,6 +39,7 @@ class Indicator:
 	instrument_names = []
 	period = 20
 	candle_channel = csf.close
+	_channel_str = 'close'
 	candle_sticks = False
 	candle_type = CandleType.CANDLE 
 	time_viewing_index = -1 
@@ -49,6 +50,30 @@ class Indicator:
 		CandleType.CANDLE_VOLUME : 6,
 		CandleType.FULL_CANDLE: 10
 	}
+	_candle_channels = {
+		'open':csf.open,
+		'high':csf.high,
+		'low':csf.low,
+		'close':csf.close
+	}
+	
+	def __init__(self, channel='close', candle_type=CandleType.CANDLE_VOLUME): 
+		self.candle_type = candle_type
+		self._set_candle_channel(channel)
+	
+	def _set_candle_channel(self,channel):
+		if type(channel) == str:
+			channel = channel.lower().strip()
+			if channel not in self._candle_channels:
+				raise ValueError(f"{channel} is not a recognised candle channel")
+			self.candle_channel = self._candle_channels[channel]
+			self._channel_str = channel 
+		elif type(channel) == int:
+			self.candle_channel = channel 
+			self._channel_str = 'col'+str(channel)
+		else:
+			raise ValueError(f"{channel} not a suitable candle channel")
+	
 	
 	def pass_instrument_names(self,_instrument_names):
 		self.instrument_names = _instrument_names
@@ -219,6 +244,12 @@ class Indicator:
 	
 	def __call__(self,*args,**kwargs): #absorb args
 		return self._perform(*args,**kwargs)
+	
+	#TODO: doc. 
+	#of format RSI(period=14,overbought=0.8,oversold=0.2) 
+	def title(self):
+		raise NotImplementedError('This method must be overridden')
+		return f"Indicator( error? )"
 
 #some very simple indicator like objects for the basics 
 class Typical(Indicator):
@@ -227,9 +258,15 @@ class Typical(Indicator):
 	channel_styles = {'TYPICAL':'neutral'}
 	candle_sticks = True
 	
+	@overrides(Indicator)
 	def _perform(self,candles):
 		typical = (candles[:,:,csf.high] + candles[:,:,csf.low] + candles[:,:,csf.close]) / 3.0
 		return typical[:,:,np.newaxis]
+	
+	@overrides(Indicator)
+	def title(self):
+		return "{self.__class__.__name__} "
+	
 
 
 class Diff(Indicator):	
@@ -238,13 +275,22 @@ class Diff(Indicator):
 	channel_styles = {'OPEN':'neutral','HIGH':'neutral','LOW':'neutral','CLOSE':'neutral'}
 	candle_sticks = False
 	
-	diff = 1
+	diff = 1 #delta?
 	
+	def __init__(self, diff=1, *args, **kwargs):
+		self.diff = diff
+		super().__init__(*args, **kwargs)
+	
+	@overrides(Indicator)
 	def _perform(self,candles):	
 		later = candles[:,self.diff:,:]
 		earlier = candles[:,:-self.diff,:]
 		padshape = (later.shape[0],self.diff,later.shape[2])
 		return np.concatenate([np.zeros(padshape), later - earlier],axis=1)
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.diff} ) "
 
 class Change(Indicator):
 	channel_keys = {'OPEN':0,'HIGH':1,'LOW':2,'CLOSE':3} 
@@ -253,13 +299,22 @@ class Change(Indicator):
 	
 	diff = 1
 	
+	def __init__(self, diff=1, *args, **kwargs):#?
+		self.diff = diff
+		super().__init__(*args, **kwargs)
+	
+	@overrides(Indicator)
 	def _perform(self,candles):	
 		later = candles[:,self.diff:,:]
 		earlier = candles[:,:-self.diff,:]
 		padshape = (later.shape[0],self.diff,later.shape[2])
 		return np.concatenate([np.zeros(padshape), (later - earlier) / np.abs(earlier)],axis=1)
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.diff} )"
 
-#these are actually provided in a toolkit with keras? 
+#these are actually provided in a toolkit with keras? - consider candle bounded 
 class Bounded(Indicator):
 	
 	channel_keys = {'NORMED':0,'HIGHEST':1,'LOWEST':2} 
@@ -268,6 +323,11 @@ class Bounded(Indicator):
 
 	period = 50
 	
+	def __init__(self, period=50, *args, **kwargs):#?
+		self.period = period
+		super().__init__(*args, **kwargs)
+	
+	@overrides(Indicator)
 	def _perform(self,candles):
 		values = candles[:,:,self.candle_channel,np.newaxis]
 		windows = self._sliding_windows(values)
@@ -276,7 +336,10 @@ class Bounded(Indicator):
 		normed = (values - mins) / (maxs - mins)
 		normed[np.isnan(normed)] = 0
 		return np.concatenate([normed,maxs,mins],axis=2)
-		
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__}( {self.period}, {self._channel_str}) "
 	
 #class Standardisation(Indicator): 
 
@@ -286,8 +349,7 @@ class HeikinAshi(Indicator):  #more of a translator than indicator!
 	channel_styles = None 
 	candle_sticks = True #Damn straight! they ARE candlesticks. 
 	
-	period = None #doesnt make sense 
-	
+	@overrides(Indicator)
 	def _perform(self,np_candles):
 		closes = np.mean(np_candles[:,:,:],axis=2)
 		#opens = np.concatenate([np.full((np_candles.shape[0],1),np.nan),np.mean(np_candles[:,:-1,[csf.open,csf.close]],axis=2)],axis=1) #WRONG
@@ -300,10 +362,16 @@ class HeikinAshi(Indicator):  #more of a translator than indicator!
 		lows = np.nanmin(np.stack([np_candles[:,:,csf.low],opens,closes],axis=2),axis=2)
 		times = np.array([self.timeline[:,0]] * np_candles.shape[0])
 		return np.stack([opens,highs,lows,closes,times],axis=2)
-		
+	
+	@overrides(Indicator)
 	def draw_snapshot(self,candle_stream,snapshot_index,instrument_index):
 		raise NotImplementedError("Use ChartView.draw_candlesticks()") #to prevent 2 sets of candles being drawn on the same chart
-
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} "
+	
+	
 #blank indicator returning the candlesticks 
 class CandleSticks(Indicator):
 
@@ -311,14 +379,18 @@ class CandleSticks(Indicator):
 	channel_styles = None 
 	candle_sticks = True #Damn straight! they ARE candlesticks. 
 	
-	period = None #doesnt make sense 
-	
+	@overrides(Indicator)
 	def _perform(self,np_candles):
 		return np_candles 
-
+	
+	@overrides(Indicator)
 	def draw_snapshot(self,candle_stream,snapshot_index,instrument_index):
 		raise NotImplementedError("Use ChartView.draw_candlesticks()") #to prevent 2 sets of candles being drawn on the same chart
-
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} "
+	
 class RunningHigh(Indicator):
 	
 	channel_keys = {'HIGH':0}	#this data will override the candle stick data!
@@ -327,14 +399,20 @@ class RunningHigh(Indicator):
 	
 	period = 14
 	
+	def __init__(self, period=14, channel='high', *args, **kwargs):#?
+		self.period = period
+		super().__init__(*args, **kwargs)
+	
 	@overrides(Indicator)
 	def _perform(self,np_candles):
-		highs = np_candles[:,:,csf.high,np.newaxis]
+		highs = np_candles[:,:,self.candle_channel,np.newaxis]
 		windows = self._sliding_windows(highs)
 		running_highs = np.nanmax(windows,axis=3)
 		return running_highs
 		
-
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period}, {self._channel_str} )"
 
 class RunningLow(Indicator):
 	
@@ -344,13 +422,21 @@ class RunningLow(Indicator):
 	
 	period = 14
 	
+	def __init__(self, period=14, channel='low', *args, **kwargs):#?
+		self.period = period
+		super().__init__(*args, **kwargs)
+	
+	
 	@overrides(Indicator)
 	def _perform(self,np_candles):
-		lows = np_candles[:,:,csf.low,np.newaxis]
+		lows = np_candles[:,:,self.candle_channel,np.newaxis]
 		windows = self._sliding_windows(lows)
 		running_lows = np.nanmin(windows,axis=3)
 		return running_lows
-		
+	
+	@overrides(Indicator)
+	def title(self):
+		return f"{self.__class__.__name__} ( {self.period}, {self._channel_str} )"
 
 
 

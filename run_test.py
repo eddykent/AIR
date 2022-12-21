@@ -93,7 +93,8 @@ LogSetup() #think of how to rmeove this line
 
 #from debug.charts import *
 
-from tests.all_trade_pro_test import *
+#from tests.all_trade_pro_test import *
+from tests.all_trader_dna_test import *
 
 
 
