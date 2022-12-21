@@ -84,7 +84,7 @@ class MultiMovingAverage(Indicator):
 	
 	@overrides(Indicator)
 	def title(self):
-		return f"{self.__class__.__name__} ( {self.MA.__class__.__name__} ( {self.period}, {self._channel_str} ), {self.repeats} ) "
+		return f"{self.__class__.__name__} ( {self.MA.__name__} ( {self.period}, {self._channel_str} ), {self.repeats} ) "
 
 
 #ensure it is known that the start values will not be accurate (nan+nan+..+7*x1 + 8*x2) not (1*x1 + 2*x2 ...) 
