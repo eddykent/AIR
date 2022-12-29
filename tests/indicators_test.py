@@ -33,7 +33,7 @@ with Database(commit=False, cache=False) as cursor:
 #OurIndicator = MultiMovingAverage
 #OurIndicator = MACD #needs special draw_snapshot()
 #OurIndicator = RSI #needs special draw_snapshot
-#OurIndicator = ADX
+OurIndicator = ADX
 #OurIndicator = Accelerator
 #OurIndicator = Momentum
 #OurIndicator = Aroon
@@ -51,12 +51,13 @@ with Database(commit=False, cache=False) as cursor:
 indicator = OurIndicator()
 
 candle_streams = [candles[fx] for fx in fx_pairs]
-results = indicator.calculate_multiple(candle_streams)
+#results = indicator.calculate_multiple(candle_streams)
 
 
 #pdb.set_trace()
 this_view = chv.ChartView()
 this_view.draw_candles(candle_streams[0])
+indicator.candle_type = CandleType.CANDLE
 indicator_view = indicator.draw_snapshot(candle_streams[0])
 this_view += indicator_view
 

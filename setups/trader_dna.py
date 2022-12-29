@@ -38,18 +38,22 @@ class TripleRSIADX(TradeSetup):
 	conservative = False 
 	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
-		rsi07 = RSI() 
-		rsi14 = RSI()
-		rsi21 = RSI()
-		ema50 = EMA() 
-		adx14 = ADX()
-		
-		rsi07.period = 7
-		rsi14.period = 14
-		rsi21.period = 21
-		ema50.period = 50
-		adx14.period = 14
+	def indicators(self):
+		self.indicator_bag = {
+			'rsi07':RSI(7),
+			'rsi14':RSI(14),
+			'rsi21':RSI(21),
+			'ema50':EMA(50),
+			'adx14':ADX(14)
+		}
+	
+	@overrides(TradeSetup)
+	def trigger(self,trade_signalling_data):
+		rsi07 = self.indicator_bag['rsi07'] 
+		rsi14 = self.indicator_bag['rsi14'] 
+		rsi21 = self.indicator_bag['rsi21'] 
+		ema50 = self.indicator_bag['ema50']  
+		adx14 = self.indicator_bag['adx14'] 
 		
 		np_candles = trade_signalling_data.np_candles 
 		rsi07_result = rsi07(np_candles)[:,:,0]
@@ -65,7 +69,7 @@ class TripleRSIADX(TradeSetup):
 		ema_bullish = ema_touch & (np_candles[:,:,csf.close] > ema50_result) #& (np_candles[:,:,csf.close] > np_candles[:,:,csf.open])
 		ema_bearish = ema_touch & (np_candles[:,:,csf.close] < ema50_result) #& (np_candles[:,:,csf.close] < np_candles[:,:,csf.open])
 		
-		adx_ok = adx14_result > 0.2
+		adx_ok = adx14_result > 25
 		
 		bullish = adx_ok & ema_bullish & rsi_bullish 
 		bearish = adx_ok & ema_bearish & rsi_bearish
@@ -92,13 +96,18 @@ class DoubleCCICross(TradeSetup):
 	#anything else? 
 	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
-		cci25 = CCI() 
-		cci50 = CCI() 
-		ema34 = EMA() 
-		cci25.period = 25
-		cci50.period = 50
-		ema34.period = 34
+	def indicators(self):
+		self.indicator_bag = {
+			'cci25':CCI(25),
+			'cci50':CCI(50),
+			'ema34':EMA(34)
+		}
+		
+	@overrides(TradeSetup)
+	def trigger(self,trade_signalling_data):
+		cci25 = self.indicator_bag['cci25']
+		cci50 = self.indicator_bag['cci50']
+		ema34 = self.indicator_bag['ema34']
 		
 		np_candles = trade_signalling_data.np_candles 
 		cci25_result = cci25(np_candles)[:,:,0]
@@ -134,11 +143,18 @@ class RSI_MACD_STOCH(TradeSetup):
 	#macd crosses up above signal then 
 	#ensure stoch now not overbought
 	
+	def indicators(self):
+		self.indicator_bag = {
+			'stoch':Stochastic(),
+			'rsi':RSI(),
+			'macd':MACD()
+		}
+	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
-		stoch = Stochastic()
-		rsi = RSI() 
-		macd = MACD() 
+	def trigger(self,trade_signalling_data):
+		stoch = self.indicator_bag['stoch']
+		rsi = self.indicator_bag['rsi']
+		macd = self.indicator_bag['macd']
 		
 		#2 triggers - either macd cross, or rsi goes above 0.5 - stoch always lags anyway 
 		np_candles = trade_signalling_data.np_candles
@@ -189,15 +205,20 @@ class MACD123(TradeSetup):
 	first_crosses_only = False 
 	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
-		ema08 = EMA()
-		ema13 = EMA()
-		ema21 = EMA()
-		macd = MACD()
-		
-		ema08.period = 8
-		ema13.period = 13
-		ema21.period = 21
+	def indicators(self):
+		self.indicator_bag = {
+			'ema08': EMA(8),
+			'ema13': EMA(13),
+			'ema21': EMA(21), 
+			'macd': MACD()
+		}
+	
+	@overrides(TradeSetup)
+	def trigger(self,trade_signalling_data):
+		ema08 = self.indicator_bag['ema08']
+		ema13 = self.indicator_bag['ema13']
+		ema21 = self.indicator_bag['ema21']
+		macd = self.indicator_bag['macd']
 		
 		np_candles = trade_signalling_data.np_candles
 		ema08_result = ema08(np_candles)[:,:,0]
@@ -241,13 +262,20 @@ class ZeroLagEMA(TradeSetup):
 	#21 closed above 21nlma
 	
 	@overrides(TradeSetup)
-	def detect(self, trade_signalling_data):
+	def indicators(self):
+		self.indicator_bag = {
+			'nlma021': ZLMA(21), 
+			'nlma240': ZLMA(240)
+		}
+	
+	##TOOLS!
+	
+	
+	@overrides(TradeSetup)
+	def trigger(self, trade_signalling_data):
 		
-		nlma021 = ZLMA() 
-		nlma240 = ZLMA()
-		
-		nlma021.period = 21
-		nlma240.period = 240
+		nlma021 = self.indicator_bag['nlma021']
+		nlma240 = self.indicator_bag['nlma240']
 		
 		np_candles = trade_signalling_data.np_candles
 		nlma021_result = nlma021(np_candles)[:,:,0]
@@ -298,9 +326,17 @@ class MACD_DOUBLE_DIV(TradeSetup):
 	#trigger on macd cross? configurable
 	
 	@overrides(TradeSetup)
-	def detect(self, trade_signalling_data):
+	def indicators(self):
+		self.indicator_bag = {
+			'macd':MACD()
+		}
+	
+	#TOOLS!
+	
+	@overrides(TradeSetup)
+	def trigger(self, trade_signalling_data):
 		
-		macd = MACD() 
+		macd = self.indicator_bag['macd']
 		np_candles = trade_signalling_data.np_candles
 		macd_result = macd(np_candles)
 		

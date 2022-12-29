@@ -57,7 +57,7 @@ class Indicator:
 		'close':csf.close
 	}
 	
-	def __init__(self, channel='close', candle_type=CandleType.CANDLE_VOLUME): 
+	def __init__(self, channel='close', candle_type=CandleType.CANDLE): 
 		self.candle_type = candle_type
 		self._set_candle_channel(channel)
 	
@@ -226,6 +226,7 @@ class Indicator:
 			pdb.set_trace()
 		assert np.all(datetime_values == np.broadcast_to(timeline, datetime_values.shape)), "timelines are out of sync - try calculate_multiple" 
 		candle_dim = self.candle_type_dimension_map[self.candle_type]
+		#pdb.set_trace()
 		np_candles = np_candle_streams[:,:,:candle_dim].astype(np.float64)
 		return np_candles, timeline 
 	

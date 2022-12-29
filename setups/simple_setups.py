@@ -18,7 +18,6 @@ from utils import overrides
 from charting.chart_pattern import SupportAndResistance
 
 
-
 class ForexSignalsAnchorBarStop(StopTool):
 	
 	rrratio = 1.5
@@ -70,16 +69,21 @@ class ForexSignalsAnchorBar(TradeSetup):
 	stop_tool = ForexSignalsAnchorBarStop()
 	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
+	def indicators(self):
+		self.indicator_bag = {
+			'ema08':EMA(8),
+			'ema13':EMA(13),
+			'ema21':EMA(21)
+		}
+	
+	@overrides(TradeSetup)
+	def trigger(self,trade_signalling_data):
 		
 		candles_pre = CandleSticks()
-		ema8 = EMA()
-		ema13 = EMA() 
-		ema21 = EMA() 
+		ema8 = self.indicator_bag['ema08']
+		ema13 = self.indicator_bag['ema13']
+		ema21 = self.indicator_bag['ema21']
 		
-		ema8.period = 8 
-		ema13.period = 13
-		ema21.period = 21 
 		
 		candlesticks = trade_signalling_data.candlesticks
 		
@@ -102,7 +106,7 @@ class ForexSignalsAnchorBar(TradeSetup):
 		return bullish_signals, bearish_signals
 	
 	@overrides(TradeSetup)
-	def get_entries(self,trade_signalling_data):
+	def entry(self,trade_signalling_data):
 		high5s = RunningHigh()  
 		high5s.period = 5
 		
@@ -118,11 +122,10 @@ class ForexSignalsAnchorBar(TradeSetup):
 		
 		
 	@overrides(TradeSetup)
-	def get_entry_cuts(self,trade_signalling_data):
+	def cancel(self,trade_signalling_data):
 		
 		candlesticks = trade_signalling_data.candlesticks 
-		ema21 = EMA() 
-		ema21.period = 21 
+		ema21 = self.indicator_bag['ema21']
 		ema21_result = ema21.calculate_multiple(candlesticks)[:,:,0]
 		
 		high5s = RunningHigh()  
@@ -195,24 +198,33 @@ class MeanReversionFFXS(TradeSetup):
 	grace_period = 50
 	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
-		bullish, bearish = ForexSignalsAnchorBar.detect(self,trade_signalling_data)
+	def indicators(self):
+		ForexSignalsAnchorBar.indicators(self) 
+	
+	@overrides(TradeSetup)
+	def trigger(self,trade_signalling_data):
+		bullish, bearish = ForexSignalsAnchorBar.trigger(self,trade_signalling_data)
 		return bearish, bullish 
 	
 	@overrides(TradeSetup)
-	def get_entries(self,trade_signalling_data):
+	def entry(self,trade_signalling_data):
 		bullish, bearish =  ForexSignalsAnchorBar.get_entries(self,trade_signalling_data) 
 		return bearish, bullish 
 
 #test for pinbars and engulfers above/below the moving average line (pullback strat?)
 class ForexSignalsCandles(TradeSetup):
 	
-	def detect(self,trade_signalling_data):
+	def indicators(self):
+		self.indicator_bag = {
+			'ema200':EMA(200)
+		}
+	
+	@overrides(TradeSetup)
+	def trigger(self,trade_signalling_data):
 		#candlesticks = trade_signalling_data.candlesticks #full arrays with datetimes 
 		np_candles = trade_signalling_data.np_candles #numpy version without dates 
 		
-		ema200 = EMA() #exponential moving average
-		ema200.period = 200 
+		ema200 = self.indicator_bag['ema200'] #exponential moving average
 		ema200_result = ema200(np_candles)[:,:,0]
 		
 		close_values = np_candles[:,:,csf.close]
@@ -240,16 +252,22 @@ class MACD_EMA_SR(TradeSetup):
 	grace_period = 50
 	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
+	def indicators(self):
+		self.indicator_bag = {
+			'ema200':EMA(200),
+			'macd':MACD()
+		}
+	
+	@overrides(TradeSetup)
+	def trigger(self,trade_signalling_data):
 		
-		ema200 = EMA() 
-		macd_ind = MACD()#default settings 
+		ema200 = self.indicator_bag['ema200'] 
+		macd_ind = self.indicator_bag['macd']#default settings 
 		
 		candlesticks = trade_signalling_data.candlesticks 
 		candles_pre = CandleSticks()
 		
-		ema200.period = 200
-		
+		#how to draw this? 
 		snr = SupportAndResistance()#default settings? raise to 200?
 		
 		candle_closes = candles_pre.calculate_multiple(candlesticks)[:,:,csf.close]
@@ -279,31 +297,35 @@ class FastRSI(TradeSetup):
 	grace_period = 50
 	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
+	def indicators(self):
+		self.indicator_bag = {
+			'ema200':EMA(200),
+			'ema020':EMA(20),
+			'rsi3':RSI(3)
+		}
+	
+	@overrides(TradeSetup)
+	def trigger(self,trade_signalling_data):
 		
-		ema200 = EMA() 
-		ema5 = EMA() 
-		
-		rsi = RSI() 
+		ema200 = self.indicator_bag['ema200']
+		ema20 = self.indicator_bag['ema020']
+		rsi = self.indicator_bag['rsi3']
 		
 		candlesticks = trade_signalling_data.candlesticks
 		candles_pre = CandleSticks()
 		
-		ema200.period = 200
-		ema5.period = 20
-		rsi.period = 3
 		
 		
 		candle_closes = candles_pre.calculate_multiple(candlesticks)[:,:,csf.close]
 		ema200_result = ema200.calculate_multiple(candlesticks)[:,:,0]
-		ema5_result = ema5.calculate_multiple(candlesticks)[:,:,0]
+		ema20_result = ema20.calculate_multiple(candlesticks)[:,:,0]
 		rsi_result = rsi.calculate_multiple(candlesticks)[:,:,0]
 		
 		bullish_ema1 = candle_closes > ema200_result
 		bearish_ema1 = candle_closes < ema200_result
 		
-		bullish_ema2 = candle_closes < ema5_result
-		bearish_ema2 = candle_closes > ema5_result
+		bullish_ema2 = candle_closes < ema20_result
+		bearish_ema2 = candle_closes > ema20_result
 		
 		bullish_rsi = rsi_result < 0.05
 		bearish_rsi = rsi_result > 0.05
@@ -324,21 +346,29 @@ class MediumScalpDaviddAnthony(TradeSetup):
 	grace_period = 50
 	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
+	def indicators(self):
+		self.indicator_bag = {
+			'ema9':EMA(9),
+			'ema55':EMA(55),
+			'ema200':EMA(200),
+			'rsi14':RSI(),
+			'macd1':MACD(),
+			'adx26':ADX(26)
+		}
+	
+	@overrides(TradeSetup)
+	def trigger(self,trade_signalling_data):
 		
-		ema9 = EMA() 
-		ema55 = EMA() 
-		ema200 = EMA()
+		ema9 = self.indicator_bag['ema9']
+		ema55 = self.indicator_bag['ema55']
+		ema200 = self.indicator_bag['ema200']
 		
-		rsi14 = RSI() 
-		macd1 = MACD() 
+		rsi14 = self.indicator_bag['rsi14']
+		macd1 = self.indicator_bag['macd1']
 		
 		#improvements 
-		adx26 = ADX() 
+		adx26 = self.indicator_bag['adx26'] 
 		
-		ema9.period = 9
-		ema55.period = 55
-		ema200.period = 200 
 		
 		bbmacd = BollingerBands() #use bb on macd[2] (deviation) to get low and high bars  
 		bbmacd.candle_channel = 0
@@ -406,7 +436,7 @@ class IchimokuCloudBreakoutSetup(TradeSetup): #superichi?
 	#other switches?
 	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
+	def trigger(self,trade_signalling_data):
 		
 		ichi = IchimokuCloud() 
 		
@@ -498,7 +528,7 @@ class BollingerBandsRSISetup(TradeSetup):
 	grace_period = 50
 	#365 > 180 ema = sell trend, + rsi overbought, + above bb, + next candle bearish (consider candle stick pattern eg 2 outside) 
 	
-	def detect(self,trade_signalling_data):
+	def trigger(self,trade_signalling_data):
 		
 		bbands_op = BollingerBands()
 		rsi_op = RSI()

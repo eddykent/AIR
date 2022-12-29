@@ -6,15 +6,16 @@ import pickle
 
 # test the setup object and also test its trade signals 
 from setups.setup_tools import CandleDataTool, PipStop, ATRStop
-from setups.setups1 import BB_KC_RSI, ADX_EMA_RSI, HA_VWAP_RSI_DIVERGENCE
+#from setups.setups1 import BB_KC_RSI, ADX_EMA_RSI, HA_VWAP_RSI_DIVERGENCE
 #from setups.custom_setups import Harmony
-from setups.collected_setups import Harmony 
-from setups.simple_setups import *
+#from setups.collected_setups import Harmony 
+#from setups.simple_setups import *
 from setups.trade_pro import *
 from utils import ListFileReader, Database
 from backtest import BackTesterDatabase, BackTestStatistics
 from filters.simple_filters import LambdaSelectFilter
 
+from charting.chart_viewer import PlotlyChartPainter
 lfr = ListFileReader()
 
 
@@ -47,18 +48,26 @@ dbf.stopwatch('fetch candles')
 #with open('./data/pickles/setup_test_candles.pkl','rb') as fh:
 #	tsd = pickle.load(fh) #15m candles
 
+#pdb.set_trace()
 
-fxss = ENGULFING() 
+fxss = RSIS_EMA_X() 
 #signals = mrffx.get_setups(start_date,end_date) #+ axemrsi.get_setups(start_date,end_date)
 #msda = HA_VWAP_RSI_DIVERGENCE()
 #msda.stop_calculator = PipStop(take_profit_pips=30,stop_loss_pips=20)
 #fxss.stop_calculator = ATRStop()
 fxss.stop_calculator = PipStop(take_profit_pips=30,stop_loss_pips=20)
 
+
+#from indicators.momentum import MACD 
+#macd = MACD(11,12,3)
+#tt = macd.title()
 #pdb.set_trace()
+
 signals = fxss.get_setups(tsd)
 
-#pdb.set_trace()
+trade_setup_view = fxss.draw(tsd,instrument='EUR/USD')
+trade_setup_view.signals(signals)
+
 
 #bbckrsi = BB_KC_RSI() 
 #axemrsi = ADX_EMA_RSI()
@@ -106,6 +115,13 @@ dbf.stopwatch('backtesting')
 result = btd.perform(signals) #,profit_lock=(0.75,0.5,0)
 #backteststats = BacktestStatistics(...) 
 dbf.stopwatch('backtesting')
+
+#pdb.set_trace()
+#trade_setup_view.backtest(signals, result)
+
+pcp = PlotlyChartPainter()
+pcp.paint(trade_setup_view.charts['candlesticks'])
+pcp.show()
 
 
 bts = BackTestStatistics(tsd, signals, result)

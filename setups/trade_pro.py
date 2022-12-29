@@ -29,9 +29,18 @@ from utils import overrides
 
 
 class MACD_MFT(TradeSetup):
-
+	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
+	def indicators(self):
+		self.indicator_bag = {
+			'ema200':EMA(200),
+			'ema50':EMA(50),
+			'macd':MACD()
+		}
+		
+	
+	@overrides(TradeSetup)
+	def trigger(self,trade_signalling_data):
 		#HTF filters? 
 		#hourly 50 EMA = 200ema
 		#15m 50 EMA
@@ -42,12 +51,9 @@ class MACD_MFT(TradeSetup):
 		#risk: above 5 high + 2 pip 
 		#reward = risk * 2
 		
-		ema200 = EMA() #=hourly 50 ema 
-		ema200.period = 200
-		ema50 = EMA()
-		ema50.period = 50
-		
-		macd = MACD()
+		ema200 = self.indicator_bag['ema200']
+		ema50 = self.indicator_bag['ema50']
+		macd = self.indicator_bag['macd']
 		
 		np_candles = trade_signalling_data.np_candles
 		ema200_result = ema200(np_candles)[:,:,0]
@@ -85,13 +91,23 @@ class MACD_MFT(TradeSetup):
 
 class RSIS_EMA_X(TradeSetup):
 	
+	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
+	def indicators(self):
+		self.indicator_bag = {
+			'ema200':EMA(200),
+			'rsi14':RSI(),
+			'stochastic':Stochastic()
+		}
+	
+	
+	@overrides(TradeSetup)
+	def trigger(self,trade_signalling_data):
 		
 		np_candles = trade_signalling_data.np_candles
 		#EMA 200 long above/ short below
-		ema200 = EMA()
-		ema200.period = 200 
+		ema200 = self.indicator_bag['ema200']
+		
 		
 		ema200_result = ema200(np_candles)[:,:,0]
 		np_closes = np_candles[:,:,csf.close]
@@ -99,7 +115,7 @@ class RSIS_EMA_X(TradeSetup):
 		ema_bear = np_closes < ema200_result
 		
 		#RSI divergence  
-		rsi = RSI() 
+		rsi = self.indicator_bag['rsi14'] 
 		rsi_result = rsi(np_candles)[:,:,0]
 		
 		div_tool1 = DivTool(rsi_result, np_closes)
@@ -114,7 +130,7 @@ class RSIS_EMA_X(TradeSetup):
 		bear_div = bear_div1 | bear_div2 
 				
 		#stoch cross (n candles after div)
-		stochastic = Stochastic()
+		stochastic = self.indicator_bag['stochastic'] 
 		stochastic_result = stochastic(np_candles)
 		
 		stochastic_dev = stochastic_result[:,:,1] - stochastic_result[:,:,2]
@@ -128,14 +144,22 @@ class RSIS_EMA_X(TradeSetup):
 #lost of signals 
 class RSIS_EMA_1(TradeSetup): #check
 	
+	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
+	def indicators(self):
+		self.indicator_bag = {
+			'ema200':EMA(200),
+			'ema50':EMA(50),
+			'rsi14':RSI()
+		}
+	
+	
+	@overrides(TradeSetup)
+	def trigger(self,trade_signalling_data):
 		#price below 50 and 200 ema
-		ema50 = EMA() 
-		ema200 = EMA() 
-		ema50.period = 50
-		ema200.period = 200 
-		
+		ema50 = self.indicator_bag['ema50']
+		ema200 = self.indicator_bag['ema200']
+
 		np_candles = trade_signalling_data.np_candles
 		
 		np_closes = np_candles[:,:,csf.close]
@@ -146,7 +170,7 @@ class RSIS_EMA_1(TradeSetup): #check
 		bear_ema = (np_closes < ema50_result) & (ema50_result < ema200_result)
 		
 		#rsi divergence hidden!  
-		rsi = RSI()
+		rsi = self.indicator_bag['rsi14']
 		rsi_result = rsi(np_candles)[:,:,0]
 		
 		div_tool1 = DivTool(rsi_result, np_closes)
@@ -171,7 +195,7 @@ class RSIS_EMA_1(TradeSetup): #check
 class HISTOGRAM(TradeSetup):
 	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
+	def trigger(self,trade_signalling_data):
 		#absolute histogram indicator - gman trading
 		#hist blue = buy, red = sell (2 lines) 
 		#200 ema above/below
@@ -180,19 +204,27 @@ class HISTOGRAM(TradeSetup):
 
 class CMF_MACD_ATR(TradeSetup):
 	
+	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
+	def indicators(self):
+		self.indicator_bag = {
+			'macd':MACD(),
+			'cmf':ChaikinMoneyFlow()
+		}
+	
+	@overrides(TradeSetup)
+	def trigger(self,trade_signalling_data):
 		
 		np_candles = trade_signalling_data.np_candles
 		#macd #macd cross signal/macd & need to be > 0 for long & < 0 for short
 		
-		macd = MACD()
+		macd = self.indicator_bag['macd']
 		macd_result = macd(np_candles)
 		
 		macd_bull = macd_result[:,:,0] > 0
 		macd_bear = macd_result[:,:,0] < 0
 		
-		cmf = ChaikinMoneyFlow()
+		cmf = self.indicator_bag['cmf']
 		cmf_result = cmf(np_candles)
 		
 		cmf_bull = cmf_result > 0
@@ -209,20 +241,27 @@ class CMF_MACD_ATR(TradeSetup):
 class ENGULFING(TradeSetup):
 	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
+	def indicators(self):
+		self.indicator_bag = {
+			'rsi14':RSI(14),
+			'ema200':EMA(200)
+			#'engulfer':Engulfing() #draw here? (tool?)
+		}
+	
+	@overrides(TradeSetup)
+	def trigger(self,trade_signalling_data):
 		#rsi mid line > .5 buy  < .5 sell 
 		np_candles = trade_signalling_data.np_candles
 		np_closes = np_candles[:,:,csf.close]
 		
-		rsi = RSI() 
+		rsi = self.indicator_bag['rsi14']
 		rsi_result = rsi(np_candles)[:,:,0]
 		
 		rsi_bull = rsi_result > 0.5
 		rsi_bear = rsi_result < 0.5		
 		
 		#ema 200 above/below
-		ema200 = EMA()
-		ema200.period = 200
+		ema200 = self.indicator_bag['ema200']
 		ema_result = ema200(np_candles)[:,:,0]
 		
 		ema_bull = ema_result < np_closes 
@@ -245,21 +284,29 @@ class ENGULFING(TradeSetup):
 
 class SIMPLE_MONEY(TradeSetup):
 	
+	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
+	def indicators(self):
+		self.indicator_bag = {
+			'ema200':EMA(200),
+			'mfi14':MoneyFlowIndex()
+			#'engulfer':Engulfing() #draw here? (tool?)
+		}
+	
+	@overrides(TradeSetup)
+	def trigger(self,trade_signalling_data):
 		np_candles = trade_signalling_data.np_candles
 		np_closes = np_candles[:,:,csf.close]
 		
 		#200 ema above/below
-		ema200 = EMA() 
-		ema200.period = 200
+		ema200 = self.indicator_bag['ema200']
 		ema_result = ema200(np_candles)[:,:,0]
 		
 		ema_bull = np_closes > ema_result 
 		ema_bear = np_closes < ema_result 
 		
 		#money flow index > .8 => sell 
-		mfi = MoneyFlowIndex()
+		mfi = self.indicator_bag['mfi14']
 		mfi_result = mfi(np_candles)[:,:,0]
 		
 		mfi_bear = mfi_result > 0.8 
