@@ -90,14 +90,28 @@ random.shuffle(signals)
 cursor = Database(cache=False,commit=False)
 btd = BackTesterDatabase(cursor)
 
+
+datatool2 = CandleDataTool() 
+datatool2.start_date = datetime.datetime(2022,5,4)
+datatool2.end_date = datetime.datetime(2022,9,4)
+datatool2.instruments = lfr.read('fx_pairs/fx_mains.txt')
+datatool2.volumes = True
+datatool2.backtesting = True
+datatool2.chart_resolution = 15 #15
+dbf.stopwatch('fetch backtesting data')
+datatool2.read_data_from_currencies(currencies)
+bsd = datatool2.get_trade_signalling_data()
+dbf.stopwatch('fetch backtesting data')
+
 #use this instead? 
-#btp = BackTesterCandles()
+btc = BackTesterCandles(bsd)
+
 
 
  #remove when wanting to do stress tests
 #pdb.set_trace()
 dbf.stopwatch('backtesting')
-result = btd.perform(signals) #,profit_lock=(0.75,0.5,0)
+result = btc.perform(signals) #,profit_lock=(0.75,0.5,0)
 #backteststats = BacktestStatistics(...) 
 dbf.stopwatch('backtesting')
 

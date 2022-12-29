@@ -22,8 +22,8 @@ currencies = lfr.read('fx_pairs/currencies.txt')
 
 
 
-#setups = [TripleRSIADX, DoubleCCICross, RSI_MACD_STOCH, MACD123, ZeroLagEMA, MACD_DOUBLE_DIV]
-setups = [MACD_DOUBLE_DIV] 
+setups = [TripleRSIADX, DoubleCCICross, RSI_MACD_STOCH, MACD123, ZeroLagEMA, MACD_DOUBLE_DIV]
+#setups = [TripleRSIADX] 
 
 datatool = CandleDataTool() 
 datatool.start_date = datetime.datetime(2022,5,4)
@@ -73,7 +73,6 @@ import random
 
 
 random.shuffle(signals)
-
 
 
 #harmony = Harmony(instruments)
