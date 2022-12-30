@@ -628,8 +628,8 @@ class PlotlyChartPainter(ChartPainter):
 		self.__paint_plotly_lines(chart_layer,'trends',2)
 	
 	def _paint_trades(self, chart_layer):
-		self.__paint_plotly_boxes(chart_layer,'trades',0) #no border
-		self.__paint_plotly_lines(chart_layer,'trades',1)
+		self.__paint_plotly_boxes(chart_layer,'trades',1) #no border
+		self.__paint_plotly_lines(chart_layer,'trades',2)
 		self.__paint_plotly_points(chart_layer,'trades',6)
 		
 	

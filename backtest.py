@@ -7,6 +7,7 @@ from typing import Optional,List
 from psycopg2.extensions import AsIs as Inject
 import numpy as np 
 import pandas as pd
+import dateutil.parser
 
 from enum import Enum
 
@@ -16,11 +17,13 @@ from utils import CurrencyPair, ListFileReader, overrides
 from setups.signal import TradeDirection, TradeSignal, TradeExitSignal
 from charting import candle_stick_functions as csf
 
+import debugging.functs as dbf 
+
 #use pandas
 ##classes that take a set of trade signals and then test if they won/lost. Also report statistics (win streaks, percent loss, drawdowns??) 
 
 #stagnated = started but didnt stop, unfit = didnt start as out of bounds? eg already hit tp/sl straight away. or the tp/sl targets dont make sense 
-BackTestStatistic = namedtuple('BackTestStatistic','total stagnated unfinished invalid  wins losses ups downs winstreak losestreak') #growth, drawdown  drawdown')#allows for multiple tests at once
+BackTestStatistic = namedtuple('BackTestStatistic','total stagnated unfinished invalid wins losses ups downs winstreak losestreak') #growth, drawdown  drawdown')#allows for multiple tests at once
 
 class TradeResultStatus(Enum):
 	#CUT = -5 #the signal is cut if there was an expire_cut price that was hit before the entry price. 
@@ -47,6 +50,78 @@ TradeResult = namedtuple('TradeResult','signal_id entry_date entry_price entry_c
 #extra_ = ratio of the take profit distance of extra profit to strive for 
 ProfitLockData = namedtuple('ProfitLockData','activation adjustment extra')
 
+#tool for finding conversion rates between currencies for when trading anything on eg the US the stock market, or for trading forex 
+class ExchangeRateTool:
+	
+	instruments = None
+	timeline = None 
+	np_conversions = []
+	base_currency = 'GBP' 
+	_instrument_map = {} 
+	
+	@classmethod
+	def from_trade_signalling_data(cls, tsd, base_currency):
+		ert = ExchangeRateTool() 
+		ert.base_currency = base_currency.upper()
+		ert.timeline = tsd.timeline
+		np_candles = tsd.np_candles
+		np_typical = cls.get_np_typical(np_candles)
+		instrument_indexs = [i for i,inst in enumerate(tsd.instruments) if cls.has_base(base_currency,inst)] 
+		
+		instheads = np.array(tsd.instruments)[instrument_indexs]
+		np_typicals1 = np_typical[instrument_indexs]
+		instflips = np.array([cls.swap_curr_rate(inst) for inst in instheads])
+		np_typicals2 = 1.0 / np_typicals1
+		timelinelen = len(ert.timeline) 
+		ident = np.ones((1,timelinelen))
+		instid = np.array([f"{base_currency}/{base_currency}"])
+		ert.np_conversions = np.concatenate([np_typicals1,ident,np_typicals2],axis=0)
+		TradeSignallingData.set_instruments(ert, np.concatenate([instheads,instid,instflips],axis=0))
+		
+		pdb.set_trace()
+		print('set exchange rates somehow') 
+		
+		return ert
+		
+	#usual functions for later
+	def closest_time_index(self, the_date):
+		return TradeSignallingData.closest_time_index(self,the_date)
+	
+	def instrument_index(self, instrument):
+		return TradeSignallingData.instrument_index(self,instrument)
+	
+	@staticmethod
+	def has_base(base_currency,instrument):
+		instrument = instrument.upper() 
+		try:
+			if len(instrument) == 7: ###/###
+				if instrument[0:3] == base_currency:
+					return True 
+				if instrument[-3:] == base_currency:
+					return True
+			return False 
+		except:
+			return False 
+	
+	#so we dont have to care if it is 
+	@staticmethod
+	def get_np_typical(np_candles):
+		if len(np_candles.shape) == 4:	
+			return np.mean(np.mean(np_candles[:,:,:,1:4],axis=3),axis=2)
+			
+		if len(np_candles.shape) == 3:
+			return np.mean(np_candles[:,:,1:4],axis=2)
+		raise ValueError(f"Unknown np_candles with shape of {np_candles.shape}")
+		return None 
+	
+	@staticmethod
+	def swap_curr_rate(instrument):
+		try:
+			c1,c2 = instrument.split('/')[:2]
+			return f"{c2}/{c1}"
+		except Exception as e:
+			return instrument
+	
 #class for handling the stats? eg for querying 
 # allow for sorting/grouping etc of trade results into separate parts 
 class BackTestStatistics: 
@@ -60,6 +135,7 @@ class BackTestStatistics:
 	#- (other, volatility? market exposure? sharpe ratio? profit factor? largest win/lose, ave win/lose)
 	
 	signalling_data = [] 
+	exchange_rates = [] 
 	signals = [] 
 	results = [] 
 	
@@ -70,6 +146,8 @@ class BackTestStatistics:
 	UNITSPERLOT = 100000 #warning! might be different for other instruments same for FX though? 
 	
 	mainframe = None
+	base_currency = 'GBP' #usually always gbp but can be USD if we are using a different broker
+	
 	
 	def __init__(self,ts_data,signals,results):
 		self.signalling_data = ts_data #use for the scope of the backtest (from date, to date, etc) and for calculating drawdowns 
@@ -77,34 +155,157 @@ class BackTestStatistics:
 		self.results = results 
 		self.mainframe = self.get_df()
 	
+	def set_exchange_rate_tool(self,exchange_rates=None):
+		if exchange_rates == None:
+			self.exchange_rates = ExchangeRateTool.from_trade_signalling_data(self.signalling_data, self.base_currency)
+		else:
+			self.exchange_rates = exchange_rates
+	
 	#for use with optimisation when testing lots of strats together
 	#def fast_objective(self,)
 	
 	def get_df(self):
+		#get all time to index data wrt backtest data (only do this once as expensive)
+		dft = pd.DataFrame.from_records([{
+			'signal_id':s.signal_id, 
+			'start_index':self.signalling_data.closest_time_index(s.the_date),
+			'instrument_index':self.signalling_data.instrument_index(s.instrument)
+		} for s in self.signals]) 
+		dft2 = pd.DataFrame.from_records([{
+			'signal_id':r.signal_id, 
+			'entry_index': self.signalling_data.closest_time_index(r.entry_date),
+			'exit_index': self.signalling_data.closest_time_index(r.exit_date),
+		} for r in self.results])
+		dft = dft.merge(dft2,on='signal_id')
 		dfr = pd.DataFrame(self.results,columns=TradeResult._fields)
 		dfs = pd.DataFrame.from_records(s.to_dict() for s in self.signals)
-		return dfs.merge( dfr,on='signal_id')
+		#pdb.set_trace() #append the start indexs here 
+		dfs = dfs.merge(dft,on='signal_id')
+		dfs = dfs.merge(dfr,on='signal_id')
+		dfs = dfs.sort_values(['entry_date']) #sort all trades in order ready for later
+		dfs['win'] = dfs['result_status'].isin(win_statuses) #wack every win/lose in a separate column for later too 
+		dfs['lose'] = dfs['result_status'].isin(lose_statuses)
+		return dfs
 	
 	#calc individual strategy ref performances 
 	def calculate(self,query_params=None):
 		df = self.mainframe
-		scores = self.evaluate_result(df)
-		print('formulate')
-	
-	def definitive_win_lose(self,wlframe):
-		wlframe = wlframe.replace()
-	
-	#given a dataframe, get all the info eg winstreaks, drawdowns etc 
-	def evaluate_result(self,resultframe):
+		#scores = self.strategy_result(df)
+		obj_result = self.objective_result_per_instrument(df)
+		
 		pdb.set_trace()
-		sorted_frame = resultframe.sort_values(['entry_date'])
-		wl_result = sorted_frame[['entry_date','result_status']]
-		#wl_result[]
-		#db.set_trace()
-		print('dataframe stuff')
+		dbf.stopwatch('calculate percentage tracks')
+		typical, worst = self._select_percent_tracks(df) 
+		dbf.stopwatch('calculate percentage tracks')		
+		
+		pdb.set_trace()
+		strat = df[(df['strategy_ref']=='setups.trade_pro.RSIS_EMA_X') & (df['instrument'] == 'GBP/USD')]
+		strat_result = self.strategy_result(strat)
+		
+		pdb.set_trace()
+		print('formulate')
+		return obj_result
+	
+	def objective_result_per_instrument(self,df=None,objective_function=None):
+		if df is None:
+			df = self.mainframe
+		if objective_function is None:
+			objective_function = self.objective_result
+		instruments = self.signalling_data.instruments  #df['instrument'].unique() #perhaps can use this if insturments is not known 
+		result = [] 
+		for instrument in instruments:
+			df_i = df[df['instrument'] == instrument]
+			objective = objective_function(df_i)
+			objective['instrument'] = instrument 
+			result.append(objective)
+		return pd.DataFrame.from_records(result)
+			
+	#objective result is used in search algorithms to find best strategies on what instruments. some instruments might respond better than others
+	#to the different strategies we are testing
+	def objective_result(self,df=None): #from dataframe, build a simple result list (win/lose ratio, max wins in row, max losses in row etc)
+		if df is None:
+			df = self.mainframe
+		
+		#calc streaks 
+		df = df.sort_values(['entry_date'])
+		win_grouper = (df['win'] != df['win'].shift()).cumsum()
+		df['win_streak'] = df['win'].groupby(win_grouper).cumsum()
+		
+		lose_grouper = (df['lose'] != df['lose'].shift()).cumsum()
+		df['lose_streak'] = df['lose'].groupby(lose_grouper).cumsum()
+		
+		dict_result = {
+			'wins':df['win'].sum(),
+			'loses':df['lose'].sum(), 
+			'win_streak':df['win_streak'].max(), 
+			'lose_streak':df['lose_streak'].max(), 
+			'max_win':df['result_percent'].max(),
+			'max_loss':df['result_percent'].min(),
+			'len':len(df)
+		}
+		dict_result['ratio'] = dict_result['wins'] / (dict_result['wins'] + dict_result['loses'])
+		return dict_result
+		
 		
 	
-	#def calc_equity_curves() #unsure how this will work yet  
+	#given a dataframe of a particular strat (instrument and strategy_ref), get all the info eg winstreaks, drawdowns etc 
+	#the dif with this and objective_result is this also gets everything in terms of money, including drawdown 
+	def strategy_result(self,df):
+		base_result = self.objective_result(df)
+		print('calc strategy result')
+		#first get typical percentages and worst percentages 
+		#for percent only runs, combine 
+		typical, worst = self._select_percent_tracks(df) 
+		
+		
+		#mult by trade size per trade 
+		#convert back to GBP 
+		#combine 
+	
+	#todo: handle if the signalling data is backtest or plain (bid AND ask or just bid) 
+	def _select_percent_tracks(self,df):
+		#pdb.set_trace()
+		maxlen = max(df['exit_index'] - df['entry_index']) + 1
+		trades_df = df[['signal_id','instrument_index','entry_index','exit_index','entry_price','exit_price','direction','result_percent']]
+		typical_dest = np.zeros((len(df),maxlen))
+		worst_dest =  np.zeros((len(df),maxlen))
+		trade_directions_end = (trades_df['direction'] == TradeDirection.SELL).astype(np.int) 
+		#trade_directions_start = 1 - trade_directions_end
+		np_candles = self.signalling_data.np_candles
+		np_typical = np.mean(np_candles[:,:,0,1:4],axis=2)
+		#todo - can this be optimised with fancy indexing?
+		for i, (trade_index, trade_row) in enumerate(trades_df.iterrows()):
+			candles_len = (trade_row['exit_index'] - trade_row['entry_index']) + 1 
+			
+			typical_prices = np_typical[trade_row['instrument_index'],trade_row['entry_index']:trade_row['exit_index']+1]			
+			typical_moves = ((typical_prices - trade_row['entry_price']) / trade_row['entry_price'])
+			typical_percents = typical_moves * 100 * (-1.0 if trade_row['direction'] == TradeDirection.SELL else 1.0)
+			
+			
+			worstlastind = csf.low if trade_row['direction'] == TradeDirection.BUY else csf.high
+			worst_prices = np_candles[trade_row['instrument_index'],trade_row['entry_index']:trade_row['exit_index']+1,worstlastind]
+			worst_moves = ((worst_prices - trade_row['entry_price']) / trade_row['entry_price'])
+			worst_percents = worst_moves * 100 * (-1.0 if trade_row['direction'] == TradeDirection.SELL else 1.0)
+			
+			
+			#apply bounds - can not go below or higher than result percent
+			if trade_row['result_percent'] < 0: 
+				typical_percents[typical_percents < trade_row['result_percent']] = trade_row['result_percent']
+				worst_percents[worst_percents < trade_row['result_percent']] = trade_row['result_percent']
+			
+			if trade_row['result_percent'] > 0: 
+				typical_percents[typical_percents > trade_row['result_percent']] = trade_row['result_percent']
+				#best could go here 
+				
+			typical_dest[i,:candles_len] = typical_percents
+			typical_dest[i,candles_len:] = trade_row['result_percent']
+			worst_dest[i,:candles_len] = worst_percents
+			worst_dest[i,candles_len:] = trade_row['result_percent']
+			
+		#pdb.set_trace()
+		return typical_dest, worst_dest
+		
+	#def calc_equity_curve() #unsure how this will work yet  
 	
 	
 	#dumb version for getting more info from results 
@@ -268,6 +469,8 @@ class BackTesterDatabase(BackTester):
 			result_row = result[0] #unpack 
 			result_status = self.trade_result.get(result_row['result_status'].upper(),TradeResultStatus.INVALID)
 			result_row['result_status'] = result_status
+			result_row['entry_date'] = dateutil.parser.parse(result_row['entry_date'])
+			result_row['exit_date'] = dateutil.parser.parse(result_row['exit_date'])
 			trade_result = TradeResult(**result_row)
 			trade_results.append(trade_result)
 		return trade_results
@@ -439,7 +642,7 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		trade_lengths = [] 
 		timeline_indexs = [] 
 		
-		for ts in trade_signals:
+		for ts in trade_signals: #TODO: see if this can be optimised further 
 			ii = self.signalling_data.instrument_index(ts.instrument)
 			ti = self.signalling_data.closest_time_index(ts.the_date)
 			timeline_indexs.append(ti)
