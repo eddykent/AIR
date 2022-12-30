@@ -409,16 +409,22 @@ class ChartPainter:
 			'bearish':{'stroke':'rgb(255,0,0)'},
 			'keyinfo':{'stroke':'rgb(0,255,255)'}
 		},
+		'trades':{
+			'neutral':{'stroke':'rgba(0,0,200,1.0)','fill':'rgba(0,0,200,0.2)'},
+			'bullish':{'stroke':'rgba(0,255,0,0.9)','fill':'rgba(0,255,0,0.2)'},
+			'bearish':{'stroke':'rgba(255,0,0,0.9)','fill':'rgba(255,0,0,0.2)'},
+			'keyinfo':{'stroke':'rgba(0,100,255,0.5)','fill':'rgba(0,100,255,0.1)'}
+		},
 		#'level': #support and resistance lines
 		#'level_hit_point' #breakouts at support/resistance and also touch points on trend lines 
 		#'follow_line' #eg to draw a line over the candles to show the price action for a rising triangle
 		#'arrow':? #not sure yet but might be useful for pointing at someting :) 
 		
 		'debugs':{
-			'bullish':{'stroke':'rgba(0,255,255,1)','fill':'rgba(0,255,255,0.4'},
-			'bearish':{'stroke':'rgba(255,0,255,1)','fill':'rgba(255,0,255,0.4'},
-			'neutral':{'stroke':'rgba(0,0,255,1)','fill':'rgba(0,0,255,0.4'},
-			'keyinfo':{'stroke':'rgba(255,255,255,1)','fill':'rgba(255,255,255,0.4'}
+			'bullish':{'stroke':'rgba(0,255,255,1)','fill':'rgba(0,255,255,0.4)'},
+			'bearish':{'stroke':'rgba(255,0,255,1)','fill':'rgba(255,0,255,0.4)'},
+			'neutral':{'stroke':'rgba(0,0,255,1)','fill':'rgba(0,0,255,0.4)'},
+			'keyinfo':{'stroke':'rgba(255,255,255,1)','fill':'rgba(255,255,255,0.4)'}
 		}
 		#'sketch': #for anything not defined yet 
 	}
@@ -621,6 +627,12 @@ class PlotlyChartPainter(ChartPainter):
 	def _paint_trends(self, chart_layer):
 		self.__paint_plotly_lines(chart_layer,'trends',2)
 	
+	def _paint_trades(self, chart_layer):
+		self.__paint_plotly_boxes(chart_layer,'trades',0) #no border
+		self.__paint_plotly_lines(chart_layer,'trades',1)
+		self.__paint_plotly_points(chart_layer,'trades',6)
+		
+	
 	def _paint_debugs(self,chart_layer):
 		self.__paint_plotly_lines(chart_layer,'debugs',3)
 		self.__paint_plotly_boxes(chart_layer,'debugs',1)
@@ -645,6 +657,7 @@ class PlotlyChartPainter(ChartPainter):
 	#override
 	def show(self):
 		self.fig.data = self.fig_data #force the data to be drawn in the right order - makes no difference... 
+		self.fig.update_yaxes(fixedrange=False,autorange=True)
 		self.fig.show(config=self.__get_config())
 	
 	
