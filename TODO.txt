@@ -7,6 +7,7 @@ refactor currency strength nn to be of the same form as DataProvider etc
 
 refactor fundamental stuff 
 	- keywords/tags for every story in DB for easier lookup! (direct & indirect tags)
+	- dont get blocked by news websites! (consider vpn or tor) 
 
 
 journaling  
@@ -42,6 +43,19 @@ refactor setups
 
 	rename detect to trigger
 	detect has lookahead bias
+	indicator init functions - for setting period and other params on indicators in one line 
+
+- proper backtesting stats! 
+	- add profit path to bactesting np
+	- drawdown is min of sum of all negative profit paths 
+	- win/loss ratio
+	- winstreak, losestreak
+	- result profit in %, calc using capital risk factor 1% * capital, capital, lotsize?  (leverage per instrument makes for borrowing capability) 
+	- (other, volatility? market exposure? sharpe ratio? profit factor? largest win/loss trade, average win/loss trade) 
+- backtesting 
+	- fuzz - add 5% uniform error to all data for better backtesting using monte-carlo based 
+	- optimise trade tracks & backtest statistics percent tracks selectors using fancy indexing
+
 
 additional constraints for chart patterns & speed
 	- harmonics - eg why are there so few? fix the cache method in Harmony (custom_setups)
@@ -55,6 +69,9 @@ Write testing framework (to run a bunch of tests sequentially) and store the res
 report % wins, streaks etc   --go for similar behaviour to ProQuant?
 strategy search - keep 3 lists of different indicators/setups and do some kinda iteration/search through them to find 
 best combination. 
+ - strategy iterator for finding setups based on all the tools we have developed 
+	- use "collected" group_setups.py setups (eg haromny, shapes, ...) 
+	- compatability test (eg dont put an RSI with MACD or whatever)
 
 Partial RNN - use correlation matrix for grouping pairs together before running through an RNN
 
@@ -81,6 +98,11 @@ publish to AWS or similar
 data - hole finder
 data - broker tool for getting all instrument details 
 	broker tool for getting captial, open trades etc 
+data - ensure not to get blocked from news  (refactor news stuff to have instrument keys per story etc)
+
+
+
+
 
 IDEAS: 
 Try a smaller network (4 pairs) and train it with loads of random pairs
@@ -96,7 +118,13 @@ out which ones to train together with.
 Fundamental analysis/signals - use RSS feeds and a feed reader to get 
 sentiment for currencies and for currency pairs  - Twitter and Reddit, https://www.fx.co/en
 
-AI to read news and learn trends - 60k news articles to learn from! 
+AI to read news and learn trends - 60k news articles to learn from!  
+
+AI to verify signals (using candles and/or using news) 
+	- eg Take list of candles, tp and sl value and then predict if it hits tp or sl first (or neither). 
+	- This is ofc very subjective (unless normalised first?) 
+	- check confusion matrix for tp and sl values on test results!
+
 
 AI to learn fitness values of chart patterns 
 
@@ -105,8 +133,6 @@ AI to forcast buying/selling pressure of currencies
 test chart patterns and practice drawing them - gradient descent for finding params? 
 shape based and trending are pretty broken and need fixing up 
 
-backtesting 
-	- fuzz - add 5% uniform error to all data for better backtesting?
 
 parameter tuning - try shit loads of calculating using regression
 	- record params each time 
