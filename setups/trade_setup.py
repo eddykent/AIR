@@ -6,8 +6,10 @@ from typing import Optional, List
 import numpy as np
 import scipy.signal
 import scipy.optimize
+import string
 
 import pdb
+
 
 from utils import ListFileReader, Database, DataComposer, PipHandler
 from utils import overrides, deprecated
@@ -98,9 +100,9 @@ class TradeSetupView:
 					sl_line += signal.stop_loss_distance
 				
 				#swap for boxes?
-				chart.draw("caret bullish lines",chv.Line(ti,tp_line,ti+2,tp_line)) #trades
-				chart.draw("caret neutral lines",chv.Line(ti,entry_line,ti+2,entry_line))
-				chart.draw("caret bearish lines",chv.Line(ti,sl_line,ti+2,sl_line))
+				chart.draw("trades bullish points",chv.Point(ti,tp_line)) #trades
+				chart.draw("trades neutral points",chv.Point(ti,entry_line))
+				chart.draw("trades bearish points",chv.Point(ti,sl_line))
 			
 	
 	def filter(self,signals,filtered): 
@@ -166,22 +168,21 @@ class TradeSetupView:
 					bullbear = 'bullish'
 			
 			if bullbear != 'NONE':
-				x1 = br.entry_candle + start_ind
-				x2 = br.exit_candle + start_ind
+				x1 = self.trade_signalling_data.closest_time_index(br.entry_date) -0.5 
+				x2 = self.trade_signalling_data.closest_time_index(br.exit_date) + 0.5
 				y1 = br.entry_price
 				y2 = br.exit_price
 				#tp_line  #green box 
 				#sl_line  #red box 
 				#use bullbear for outcome box 
-				chart.draw("debug bullish boxes",chv.Box(x1,y1,x2,tp_line)) #tp region 
-				chart.draw("debug bearish boxes",chv.Box(x1,y1,x2,sl_line)) #sl region 
-				chart.draw(f"debug {bullbear} boxes",chv.Box(x1,y1,x2,y2))
+				chart.draw("trades bullish boxes",chv.Box(x1,y1,x2,tp_line)) #tp region 
+				chart.draw("trades bearish boxes",chv.Box(x1,y1,x2,sl_line)) #sl region 
+				chart.draw(f"trades {bullbear} boxes",chv.Box(x1,y1,x2,y2))
 				
 	
 	#FROM HERE ON THESE SHOULD BE HANDLED USING TradeSetup CLASS! 
 	#these depend on the trade_setup which might be overridden? also they are drawn on other charts than candlesticks 
 	def indicators(self,trade_setup, signals=[]):
-		candlechart = self.charts['candlesticks']
 		instrument_ind, start_ind, end_ind = self._np_params()
 		
 		np_candles = self.trade_signalling_data.np_candles
@@ -193,14 +194,16 @@ class TradeSetupView:
 			if indicator.candle_sticks:
 				#means draw on main candlestick chart
 				#self.charts['candlesticks'] += indficator.draw(np_candles)?
-				pdb.set_trace()
+				#pdb.set_trace()
 				chv_result = indicator.draw_snapshot(chart_candles)
 				self.charts['candlesticks'] += chv_result
 			
-			#else put on different chart
+			else:
+				chart_key = ind_key.rstrip(string.digits).upper() 
+				if self.charts.get(chart_key) is None:
+					self.charts[chart_key] = chv.ChartView()
+				self.charts[chart_key] += indicator.draw_snapshot(chart_candles)
 			
-
-	
 	#these are harder to draw - eg how to draw divergence?
 	def tools(self,trade_setup, signals=[]): #only need to draw per signal 
 		pass
