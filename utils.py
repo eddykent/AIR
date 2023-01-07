@@ -379,13 +379,18 @@ class ListFileReader:
 		return '\n'.join(lines)
 	
 	def read_csv(self,filename):
+		def read_value(v):	
+			try:
+				return float(v)
+			except ValueError as e: #the value was not a number 
+				return v 
 		lines = self.read(filename)
 		if self.not_found_none and lines is None:
 			return None 
-		heads = lines[0].split(',')
+		heads = [l.strip() for l in lines[0].split(',')]
 		result_dicts = []
 		for line in lines[1:]:
-			result_dicts.append({k:v for k,v in zip(heads,line.split(','))})
+			result_dicts.append({k:read_value(v) for k,v in zip(heads,[l.strip() for l in line.split(',')])})
 		return result_dicts
 	
 	def read_json(self,filename):
@@ -1224,7 +1229,19 @@ class PipHandler:
 	pips2move = pips_to_movement
 	move2pips = movement_to_pips
 
-		
+
+#use this class for accessing instrument details such as leverage, base currency, exchange, interest etc 
+#see if there is a way to automatically make instrument_details.csv from the broker
+class InstrumentDetails:
+	
+	instrument_map = {} 
+	
+	def __init__(self,instrument_file='data/csvs/instrument_details.csv'):
+		lfr = ListFileReader()
+		instrument_details = lfr.read_csv(instrument_file)
+		self.instrument_map = {idetail['instrument']:idetail for idetail in instrument_details} 
+	
+
 #class to handle splitting our data up into training and testing sets
 #also select the actual data we want to use in the neural net (instruments and keys)
 class SplitAndPrepare:
