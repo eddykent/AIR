@@ -46,6 +46,7 @@ class TradeSignal:
 	the_date = None   #datetime - the time the signal was created 
 	strategy_ref = '' #the strategy that this came from usually the class name of the trade_setup 
 	instrument = None  #the instrument that is being traded
+	currency = None #the currency the instrument is traded in 
 	direction = TradeDirection.VOID  # a buy or sell (void means to be ignored/deleted)
 	entry = None #the entry price to start the trade at. If null, start immediately
 	entry_cut = None #cut the signal if the price goes in opposite direction and hits this value 
@@ -73,10 +74,11 @@ class TradeSignal:
 		
 	
 	@staticmethod
-	def from_full(the_date,instrument,strategy_ref,direction,entry,entry_cut,entry_expire,take_profit_distance,stop_loss_distance,length=1440,notes=''):
+	def from_full(the_date,instrument,strategy_ref,direction,entry,entry_cut,entry_expire,take_profit_distance,stop_loss_distance,currency=None,length=1440,notes=''):
 		this_signal = TradeSignal()
 		this_signal.the_date = the_date 
 		this_signal.instrument = instrument
+		this_signal.currency = currency
 		this_signal.strategy_ref = strategy_ref
 		this_signal.direction = direction
 		this_signal.entry = entry
@@ -116,6 +118,7 @@ class TradeSignal:
 			'signal_id':self.signal_id,
 			'the_date':self.the_date,
 			'instrument':self.instrument,
+			'currency':self.curreny if self.currency is not None else self.instrument[0:3],
 			'direction':self.direction,
 			'strategy_ref':self.strategy_ref,
 			'entry':self.entry,
