@@ -13,11 +13,12 @@ from enum import Enum
 
 import pdb 
 
-from utils import CurrencyPair, ListFileReader, overrides
-from setups.signal import TradeDirection, TradeSignal, TradeExitSignal
+from utils import CurrencyPair, ListFileReader, overrides, InstrumentDetails
+from setups.signal import TradeDirection, TradeSignal, TradeExitSignal, TradeSignallingData
 from charting import candle_stick_functions as csf
 
 import debugging.functs as dbf 
+import debugging.charts as dbc
 
 #use pandas
 ##classes that take a set of trade signals and then test if they won/lost. Also report statistics (win streaks, percent loss, drawdowns??) 
@@ -42,6 +43,10 @@ class TradeResultStatus(Enum):
 win_statuses = [TradeResultStatus.WINNING, TradeResultStatus.WON_PL, TradeResultStatus.WON_EXIT, TradeResultStatus.WON_TP, TradeResultStatus.WON_EXTRA]
 lose_statuses = [TradeResultStatus.LOST_SL, TradeResultStatus.LOST_EXIT, TradeResultStatus.LOSING]
 
+#lot = 100000 #(for currencies) 
+mini_lot = 0.1
+micro_lot = 0.01
+
 #TradeProfitPath = namedtuple('TradeProfitPath','typical optimistic pessimistic')
 TradeResult = namedtuple('TradeResult','signal_id entry_date entry_price entry_candle exit_date exit_price exit_candle result_movement result_percent result_status')
 
@@ -49,6 +54,11 @@ TradeResult = namedtuple('TradeResult','signal_id entry_date entry_price entry_c
 #adjustment = ratio of the take profit distance to place the stop loss at
 #extra_ = ratio of the take profit distance of extra profit to strive for 
 ProfitLockData = namedtuple('ProfitLockData','activation adjustment extra')
+
+class PercentPathType(Enum):
+	PESSIMISTIC = -1
+	TYPICAL = 0
+	OPTIMISTIC = 1
 
 #tool for finding conversion rates between currencies for when trading anything on eg the US the stock market, or for trading forex 
 class ExchangeRateTool:
@@ -59,6 +69,7 @@ class ExchangeRateTool:
 	base_currency = 'GBP' 
 	_instrument_map = {} 
 	
+	#by default always make the tool from an underlying trade_signalling_data object
 	@classmethod
 	def from_trade_signalling_data(cls, tsd, base_currency):
 		ert = ExchangeRateTool() 
@@ -67,7 +78,6 @@ class ExchangeRateTool:
 		np_candles = tsd.np_candles
 		np_typical = cls.get_np_typical(np_candles)
 		instrument_indexs = [i for i,inst in enumerate(tsd.instruments) if cls.has_base(base_currency,inst)] 
-		
 		instheads = np.array(tsd.instruments)[instrument_indexs]
 		np_typicals1 = np_typical[instrument_indexs]
 		instflips = np.array([cls.swap_curr_rate(inst) for inst in instheads])
@@ -76,11 +86,7 @@ class ExchangeRateTool:
 		ident = np.ones((1,timelinelen))
 		instid = np.array([f"{base_currency}/{base_currency}"])
 		ert.np_conversions = np.concatenate([np_typicals1,ident,np_typicals2],axis=0)
-		TradeSignallingData.set_instruments(ert, np.concatenate([instheads,instid,instflips],axis=0))
-		
-		pdb.set_trace()
-		print('set exchange rates somehow') 
-		
+		TradeSignallingData.set_instruments(ert, np.concatenate([instheads,instid,instflips],axis=0))		
 		return ert
 		
 	#usual functions for later
@@ -90,6 +96,22 @@ class ExchangeRateTool:
 	def instrument_index(self, instrument):
 		return TradeSignallingData.instrument_index(self,instrument)
 	
+	def produce_exchange_rates(self,entry_indexs, exit_indexs, exchanges):
+		N = len(entry_indexs)
+		lens = exit_indexs - entry_indexs + 1
+		maxlen = max(lens)
+		exchanges_dest = np.full((N,maxlen),np.nan)
+		instrument_indexs = np.repeat(exchanges,lens)
+		df_indexs = np.repeat(np.arange(N),lens)
+		
+		offsets = np.cumsum(lens)
+		offsets = np.concatenate([[0],offsets[:-1]],axis=0)
+		exchange_indexs = np.arange(df_indexs.shape[0]) - np.repeat(offsets,lens)
+		
+		conversion_indexs = exchange_indexs + np.repeat(entry_indexs,lens)
+		exchanges_dest[df_indexs,exchange_indexs] = self.np_conversions[instrument_indexs,conversion_indexs]
+		return exchanges_dest
+		
 	@staticmethod
 	def has_base(base_currency,instrument):
 		instrument = instrument.upper() 
@@ -135,7 +157,7 @@ class BackTestStatistics:
 	#- (other, volatility? market exposure? sharpe ratio? profit factor? largest win/lose, ave win/lose)
 	
 	signalling_data = [] 
-	exchange_rates = [] 
+	exchange_rates = [] #this must be same format as the underlying signalling data to get an accurate exchange rate and the best PnL 
 	signals = [] 
 	results = [] 
 	
@@ -143,10 +165,13 @@ class BackTestStatistics:
 	starting_capital = 100 #pounds ofcourse! 
 	capital_risk = 0.02 #1% - might not be needed - use to calc lot size only 
 	
-	UNITSPERLOT = 100000 #warning! might be different for other instruments same for FX though? 
+	#UNITSPERLOT = 100000 #warning! might be different for other instruments same for FX though? 
 	
 	mainframe = None
-	base_currency = 'GBP' #usually always gbp but can be USD if we are using a different broker
+	
+	#usually always gbp but can be USD if we are using a different broker
+	#set to None to ignore making profit loss and drawdown metrics
+	base_currency = 'GBP' 
 	
 	
 	def __init__(self,ts_data,signals,results):
@@ -160,6 +185,7 @@ class BackTestStatistics:
 			self.exchange_rates = ExchangeRateTool.from_trade_signalling_data(self.signalling_data, self.base_currency)
 		else:
 			self.exchange_rates = exchange_rates
+		assert np.all(self.exchange_rates.timeline == self.signalling_data.timeline), "exchange rate timelines do not match"
 	
 	#for use with optimisation when testing lots of strats together
 	#def fast_objective(self,)
@@ -191,22 +217,35 @@ class BackTestStatistics:
 	def calculate(self,query_params=None):
 		df = self.mainframe
 		#scores = self.strategy_result(df)
-		obj_result = self.objective_result_per_instrument(df)
+		obj_result = self.per_instrument(df,self.objective_result)
 		
-		pdb.set_trace()
+		#pdb.set_trace()
+		
 		dbf.stopwatch('calculate percentage tracks')
-		typical, worst = self._select_percent_tracks(df) 
+		typical = self.select_percent_tracks(df) 
 		dbf.stopwatch('calculate percentage tracks')		
+		 
+		print('setup exchange') 
+		self.set_exchange_rate_tool()
+		#dbf.stopwatch('calcualte pnl line')
+		#percent_line = self.merge_to_chart(typical,df['entry_index'],df['exit_index'],accumulate=False)
+		#dbf.stopwatch('calcualte pnl line')
 		
-		pdb.set_trace()
-		strat = df[(df['strategy_ref']=='setups.trade_pro.RSIS_EMA_X') & (df['instrument'] == 'GBP/USD')]
-		strat_result = self.strategy_result(strat)
+		#dbc.draw_numbers(percent_line)
+		
+		#pdb.set_trace()
+		#strat = df[(df['strategy_ref']=='setups.trade_pro.RSIS_EMA_X') & (df['instrument'] == 'GBP/USD')]
+		strat_result = self.strategy_result(df)
+		
 		
 		pdb.set_trace()
 		print('formulate')
 		return obj_result
 	
-	def objective_result_per_instrument(self,df=None,objective_function=None):
+	#def query(self,df,instr) #do outside? 
+	
+	#functions for grid search - what about instrument AND strategy? code smell?
+	def per_instrument(self,df=None,objective_function=None):
 		if df is None:
 			df = self.mainframe
 		if objective_function is None:
@@ -219,12 +258,29 @@ class BackTestStatistics:
 			objective['instrument'] = instrument 
 			result.append(objective)
 		return pd.DataFrame.from_records(result)
-			
+	
+	def per_strategy_ref(self,df=None,objective_function=None):
+		if df is None:
+			df = self.mainframe
+		if objective_function is None:
+			objective_function = self.objective_result
+		strategy_refs = df['strategy_ref'].unique() #perhaps can use this if insturments is not known 
+		result = [] 
+		for strategy_ref in strategy_refs:
+			df_i = df[df['strategy_ref'] == strategy_ref]
+			objective = objective_function(df_i)
+			objective['strategy_ref'] = strategy_ref 
+			result.append(objective)
+		return pd.DataFrame.from_records(result)
+		
 	#objective result is used in search algorithms to find best strategies on what instruments. some instruments might respond better than others
 	#to the different strategies we are testing
 	def objective_result(self,df=None): #from dataframe, build a simple result list (win/lose ratio, max wins in row, max losses in row etc)
 		if df is None:
 			df = self.mainframe
+		
+				
+		#pdb.set_trace()
 		
 		#calc streaks 
 		df = df.sort_values(['entry_date'])
@@ -247,65 +303,235 @@ class BackTestStatistics:
 		return dict_result
 		
 		
+	#conversion index (for exchange rates)
+	def update_df_for_exchange(self,df):
+		df['exchange'] = df['currency'] + '/' + self.base_currency
+		df['exchange_index'] = df['exchange'].apply(lambda en, instruments=self.exchange_rates.instruments.tolist() : instruments.index(en))
+		return df 
 	
-	#given a dataframe of a particular strat (instrument and strategy_ref), get all the info eg winstreaks, drawdowns etc 
-	#the dif with this and objective_result is this also gets everything in terms of money, including drawdown 
-	def strategy_result(self,df):
-		base_result = self.objective_result(df)
+	#for profit/loss line, units per lot, leverage, 
+	def update_df_for_currency(self,df):
+		idetails = InstrumentDetails() 
+		df['leverage'] = df['instrument'].apply(lambda i, imap=idetails.instrument_map : imap[i]['leverage_pro'])
+		df['lot_size'] = df['instrument'].apply(lambda i, imap=idetails.instrument_map : imap[i]['lot_size'])
+		df['pip_size'] = df['instrument'].apply(lambda i, imap=idetails.instrument_map : imap[i]['pip_size'])
+		#pdb.set_trace()
+		return df 
+	
+	
+	#def produce_exchange_rates(self,df):
+	#	lens = df['exit_index'] - df['entry_index'] + 1
+	#	maxlen = max(lens)
+	#	exchanges_dest = np.full((len(df),maxlen),np.nan)
+	#	instrument_indexs = np.repeat(df['exchange_index'],lens)
+	#	df_indexs = np.repeat(np.arange(len(df)),lens)
+	#	
+	#	offsets = np.cumsum(lens)
+	#	offsets = np.concatenate([[0],offsets[:-1]],axis=0)
+	#	exchange_indexs = np.arange(df_indexs.shape[0]) - np.repeat(offsets,lens)
+	#	
+	#	conversion_indexs = exchange_indexs + np.repeat(df['entry_index'],lens)
+	#	exchanges_dest[df_indexs,exchange_indexs] = self.exchange_rates.np_conversions[instrument_indexs,conversion_indexs]
+	#	return exchanges_dest 
+		
+	
+	
+	#the dif with this and objective_result is this also can get everything in terms of money, including pnl charts and drawdowns
+	def strategy_result(self, df): #todo: compounding interest somehow
+		#base_result = self.objective_result(df)
 		print('calc strategy result')
 		#first get typical percentages and worst percentages 
+		typical = self.select_percent_tracks(df,PercentPathType.TYPICAL) 
+		best = self.select_percent_tracks(df,PercentPathType.OPTIMISTIC)
+		worst = self.select_percent_tracks(df,PercentPathType.PESSIMISTIC) 
+		
 		#for percent only runs, combine 
-		typical, worst = self._select_percent_tracks(df) 
+		percent_line = self.merge_to_chart(typical,df['entry_index'],df['exit_index'])
+		#pdb.set_trace()
+		
+		return_charts = {
+			'typical':self.merge_to_chart(typical,df['entry_index'],df['exit_index']),
+			'best':self.merge_to_chart(best,df['entry_index'],df['exit_index']),
+			'worst':self.merge_to_chart(worst,df['entry_index'],df['exit_index'])
+		}
 		
 		
-		#mult by trade size per trade 
-		#convert back to GBP 
-		#combine 
+		#percent time in market - lower the better since we want to be in then out with a profit asap
+		market_activity = self.market_activity(df['entry_index'],df['exit_index'])
+		return_charts['market_time_percentage'] = 100 * np.sum(market_activity == 0) / market_activity.shape[0]
+		
+		if self.exchange_rates: 
+			
+			#calc the PnL chart for this strat and the drawdown etc 
+			#mult percent by trade size per trade, and by convesion rate back to gbp 
+			#combine 
+			df = self.update_df_for_exchange(df) #adds data from ExchangeRateTool  
+			df = self.update_df_for_currency(df) #adds data from InstrumentDetails  
+			
+			#pdb.set_trace()
+			#print('try getting exchange rates')
+			exchange_rates = self.exchange_rates.produce_exchange_rates(df['entry_index'],df['exit_index'],df['exchange_index'])
+			
+			#get hold cost for each trade (trade size * conversion rate * 1/levereage)
+			trade_sizes = np.array(self.lotsize * df['lot_size']) #!need to get from instruments not from this constant 
+			margin_ratios = np.array(1.0 / df['leverage'])
+			margin_requirements = (1.0 / exchange_rates) * trade_sizes[:,np.newaxis] * margin_ratios[:,np.newaxis]
+			
+			typical_results = exchange_rates * trade_sizes[:,np.newaxis] * typical / 100 #remember typical is percentages 
+			best_results = exchange_rates * trade_sizes[:,np.newaxis] * best / 100  
+			worst_results = exchange_rates * trade_sizes[:,np.newaxis] * worst / 100 
+			
+			return_charts.update({
+				'typical_money':self.merge_to_chart(typical_results,df['entry_index'],df['exit_index']),
+				'best_money':self.merge_to_chart(best_results,df['entry_index'],df['exit_index']),
+				'worst_money':self.merge_to_chart(worst_results,df['entry_index'],df['exit_index'])
+			})
+			
+			#amount of margin required to perform the trades 
+			return_charts.update({
+				'margin_money':self.merge_to_chart(margin_requirements,df['entry_index'],df['exit_index'],accumulate=False)
+			})
+			
+			pdb.set_trace()
+			print('test from here')
+			#find drawdowns from here !!  DRAWDOWN HOW 
+			#self.max_drawdown(worst_results) 
+			
+		return return_charts
 	
-	#todo: handle if the signalling data is backtest or plain (bid AND ask or just bid) 
-	def _select_percent_tracks(self,df):
-		#pdb.set_trace()
-		maxlen = max(df['exit_index'] - df['entry_index']) + 1
-		trades_df = df[['signal_id','instrument_index','entry_index','exit_index','entry_price','exit_price','direction','result_percent']]
-		typical_dest = np.zeros((len(df),maxlen))
-		worst_dest =  np.zeros((len(df),maxlen))
-		trade_directions_end = (trades_df['direction'] == TradeDirection.SELL).astype(np.int) 
-		#trade_directions_start = 1 - trade_directions_end
-		np_candles = self.signalling_data.np_candles
-		np_typical = np.mean(np_candles[:,:,0,1:4],axis=2)
-		#todo - can this be optimised with fancy indexing?
-		for i, (trade_index, trade_row) in enumerate(trades_df.iterrows()):
-			candles_len = (trade_row['exit_index'] - trade_row['entry_index']) + 1 
-			
-			typical_prices = np_typical[trade_row['instrument_index'],trade_row['entry_index']:trade_row['exit_index']+1]			
-			typical_moves = ((typical_prices - trade_row['entry_price']) / trade_row['entry_price'])
-			typical_percents = typical_moves * 100 * (-1.0 if trade_row['direction'] == TradeDirection.SELL else 1.0)
-			
-			
-			worstlastind = csf.low if trade_row['direction'] == TradeDirection.BUY else csf.high
-			worst_prices = np_candles[trade_row['instrument_index'],trade_row['entry_index']:trade_row['exit_index']+1,worstlastind]
-			worst_moves = ((worst_prices - trade_row['entry_price']) / trade_row['entry_price'])
-			worst_percents = worst_moves * 100 * (-1.0 if trade_row['direction'] == TradeDirection.SELL else 1.0)
-			
-			
-			#apply bounds - can not go below or higher than result percent
-			if trade_row['result_percent'] < 0: 
-				typical_percents[typical_percents < trade_row['result_percent']] = trade_row['result_percent']
-				worst_percents[worst_percents < trade_row['result_percent']] = trade_row['result_percent']
-			
-			if trade_row['result_percent'] > 0: 
-				typical_percents[typical_percents > trade_row['result_percent']] = trade_row['result_percent']
-				#best could go here 
-				
-			typical_dest[i,:candles_len] = typical_percents
-			typical_dest[i,candles_len:] = trade_row['result_percent']
-			worst_dest[i,:candles_len] = worst_percents
-			worst_dest[i,candles_len:] = trade_row['result_percent']
-			
-		#pdb.set_trace()
-		return typical_dest, worst_dest
+	def select_percent_tracks(self,df,percent_path_type=PercentPathType.TYPICAL):
+		N = len(df)
+		lens = df['exit_index'] - df['entry_index'] + 1
+		maxlen = max(lens)
+		values_dest = np.full((N,maxlen),np.nan)
+		instrument_indexs = np.repeat(df['instrument_index'],lens)
+		df_indexs = np.repeat(np.arange(N),lens)
 		
-	#def calc_equity_curve() #unsure how this will work yet  
+		offsets = np.cumsum(lens)
+		offsets = np.concatenate([[0],offsets[:-1]],axis=0)
+		time_indexs = np.arange(df_indexs.shape[0]) - np.repeat(offsets,lens)
+		
+		value_indexs = time_indexs + np.repeat(df['entry_index'],lens)
+		direction_indexs = np.repeat((df['direction'] == TradeDirection.SELL).astype(np.int),lens)
+		
+		np_candles = self.signalling_data.np_candles
+		if len(np_candles.shape) == 3:
+			#grow to same as usual backtest candles
+			np_candles = np.stack([np_candles,np_candles],axis=2)#test
+		
+		price_values = None #use to calc percent changes 
+		if percent_path_type == PercentPathType.TYPICAL:
+			price_values = np.mean(np_candles[instrument_indexs,value_indexs,direction_indexs,1:4],axis=1)
+			
+		elif percent_path_type == PercentPathType.OPTIMISTIC:
+			channel = np.full(df_indexs.shape,csf.high)
+			channel[direction_indexs == 1] = csf.low
+			price_values = np_candles[instrument_indexs,value_indexs,direction_indexs,channel]
+			
+		elif percent_path_type == PercentPathType.PESSIMISTIC:
+			channel = np.full(df_indexs.shape,csf.low)
+			channel[direction_indexs == 1] = csf.high
+			price_values = np_candles[instrument_indexs,value_indexs,direction_indexs,channel]
+			
+		else:
+			raise ValueError(f"Unknown percent path type : {percent_path_type}")
+		
+		start_values = np.repeat(df['entry_price'],lens)
+		
+		#calc percentage change
+		values_dest[df_indexs,time_indexs] = (((price_values - start_values) / start_values) * 100) * (1 - (2*direction_indexs))
+		
+		#consider applying bounds - should not be higher than tp or lower than sl values
+		
+		#set last index to exit percentage
+		values_dest[np.arange(N),lens-1] = df['result_percent']
+		
+		return values_dest
+	
+	
+	#for every point in time, return number of trades active
+	def market_activity(self, start_indexs, end_indexs):
+		linelen = len(self.signalling_data.timeline)
+		output = np.zeros(linelen)
+		
+		for (start_index, end_index) in zip(start_indexs,end_indexs):
+			output[start_index:end_index] += 1 
+			
+		return output 
+	
+	#from a list of profit paths (in money or percents) merge it to a single line 
+	def merge_to_chart(self,value_tracks,start_indexs,end_indexs,accumulate=True): 
+		
+		linelen = len(self.signalling_data.timeline)
+		N = len(value_tracks) 
+		lens = end_indexs - start_indexs + 1
+		maxlen = max(lens)
+		#output = np.zeros((N,linelen))
+		
+		output = np.zeros(linelen)
+		
+		#try this instead if below keeps behaving weirdly 
+		for (value_track, start_index, end_index) in zip(value_tracks,start_indexs,end_indexs):
+			#pdb.set_trace()
+			end_value = value_track[end_index - start_index]
+			output[start_index:end_index] += value_track[:end_index - start_index]
+			if accumulate:
+				output[end_index:] += end_value #good for pnl
+			else:
+				output[end_index] += end_value #good for margin requirement
+		#pdb.set_trace()
+		return output
+		
+		###this bit doesnt work too well with numpy - cant do it all at once it seems 
+
+		
+		#first, put the tracks in
+		#vt_indexs = np.repeat(np.arange(N),lens)
+		#
+		#offsets = np.cumsum(lens)
+		#offsets = np.concatenate([[0],offsets[:-1]],axis=0)
+		#time_indexs = np.arange(vt_indexs.shape[0]) - np.repeat(offsets,lens)
+		#value_indexs = time_indexs + np.repeat(start_indexs,lens)
+		#
+		#output[vt_indexs,value_indexs] = value_tracks[vt_indexs,time_indexs]
+		#
+		##pdb.set_trace()
+		#
+		##then, put the remaining in to accumulate the results (the end value to the end of the line) 
+		#remaining_output = np.zeros((N,linelen))
+		#
+		#end_values = value_tracks[np.arange(N),lens-1]
+		#remaining_lens = linelen - end_indexs 
+		#
+		##zeros cause problems here
+		#rvt_indexs = np.repeat(np.arange(N),remaining_lens)
+		#remaining_offsets = np.cumsum(remaining_lens)
+		#remaining_offsets = np.concatenate([[0],remaining_offsets[:-1]],axis=0)
+		#
+		#
+		#remaining_time_indexs = np.arange(rvt_indexs.shape[0]) - np.repeat(remaining_offsets,remaining_lens)
+		#
+		#remaining_values = np.repeat(end_values,remaining_lens) 
+		##remaining_values[remaining_time_indexs == 0] = 0 # dont need to add anything here - this has already been done in step 1
+		#
+		#remaining_time_indexs = linelen - remaining_time_indexs - 1
+		#remaining_output[rvt_indexs,remaining_time_indexs] = remaining_values[rvt_indexs]
+		#
+		#
+		#return_rows = output + remaining_output
+		#
+		#pdb.set_trace()
+		#
+		#return output + remaining_output
+	
+	#used for calculating what trades were skipped using margin requirement, and calculating compounding interest 
+	def merge_in_order_gen(self,df):
+		#use a generator or similar to determine whether to place the trade or not, and what the trade size should be
+		pass  
+	
+	#TODO: given a set of values from a PnL chart or similar, get the maximum drawdown found in percentage 
+	def max_drawdown(self,linechart):
+		pass
 	
 	
 	#dumb version for getting more info from results 
@@ -642,7 +868,7 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		trade_lengths = [] 
 		timeline_indexs = [] 
 		
-		for ts in trade_signals: #TODO: see if this can be optimised further 
+		for ts in trade_signals: #TODO: see if this can be optimised further (use dataframes and fancy indexing) 
 			ii = self.signalling_data.instrument_index(ts.instrument)
 			ti = self.signalling_data.closest_time_index(ts.the_date)
 			timeline_indexs.append(ti)
