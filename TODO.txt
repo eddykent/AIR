@@ -16,13 +16,12 @@ journaling
 		- forex factory
 		- forex client sentiment 
 		- etoro
+		- the weather? :) 
 	- keep all trades (demo & live) in a table called trade_journal 
 
 mathematical indicators 
 	- fourier noise cancellation - done
 	- lag correlation values & n of corr > 0.3 (etc...)
-
-make indicators callable?
 
 trading rush checklist? 
 
@@ -41,8 +40,8 @@ refactor setups
 		- utilise length property of trade_signal for faster backtesting (exit signals can be slow)
 			- or use exit_per_entry = true! :) 
 
-	rename detect to trigger
-	detect has lookahead bias
+	rename detect to trigger - done i think?
+	detect has lookahead bias --does it still???? -check
 	indicator init functions - for setting period and other params on indicators in one line 
 
 - proper backtesting stats! 
