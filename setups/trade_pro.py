@@ -244,8 +244,8 @@ class ENGULFING(TradeSetup):
 	def indicators(self):
 		self.indicator_bag = {
 			'rsi14':RSI(14),
-			'ema200':EMA(200)
-			#'engulfer':Engulfing() #draw here? (tool?)
+			'ema200':EMA(200),
+			'engulfer':Engulfing() #draw here? (tool?)
 		}
 	
 	@overrides(TradeSetup)
@@ -268,7 +268,7 @@ class ENGULFING(TradeSetup):
 		ema_bear = ema_result > np_closes 
 		
 		#bullish/bearish candle patterns (engulfing)
-		eng = Engulfing() #replace with CandlePatternEnsemble 
+		eng = Engulfing() #replace with CandlePatternEnsemble? 
 
 		eng_result = eng(np_candles)[:,:,0]
 		eng_bullish = eng_result > 0
@@ -290,7 +290,6 @@ class SIMPLE_MONEY(TradeSetup):
 		self.indicator_bag = {
 			'ema200':EMA(200),
 			'mfi14':MoneyFlowIndex()
-			#'engulfer':Engulfing() #draw here? (tool?)
 		}
 	
 	@overrides(TradeSetup)

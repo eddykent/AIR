@@ -19,6 +19,7 @@ class CandleStickPattern(Indicator):
 	
 	_required_candles = 1 #number of candles needed for this pattern - used in a sliding window 
 	pattern_name  = "Candle stick pattern"
+	candle_sticks = True
 	
 	def explain(self):
 		return """
@@ -34,10 +35,10 @@ class CandleStickPattern(Indicator):
 
 		for i,t in enumerate(the_type):
 			these_candles = candles[i-self._required_candles+1 : i+1]
-			if not these_candles:
+			if not these_candles.shape[0]:
 				continue
-			the_max = max([c[csf.high] for c in these_candles])
-			the_min = min([c[csf.low] for c in these_candles])
+			the_max = np.max([c[csf.high] for c in these_candles])
+			the_min = np.min([c[csf.low] for c in these_candles])
 			if t > 0:
 				y1 = the_max
 				y2 = the_min

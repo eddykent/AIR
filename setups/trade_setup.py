@@ -147,7 +147,7 @@ class TradeSetupView:
 			tp_line = entry_line
 			sl_line = entry_line 
 			
-			bullbear = 'NONE'
+			bullbear = None
 			
 			if signal.direction == TradeDirection.BUY:
 				tp_line += signal.take_profit_distance
@@ -167,7 +167,7 @@ class TradeSetupView:
 				else:
 					bullbear = 'bullish'
 			
-			if bullbear != 'NONE':
+			if bullbear is not None:
 				x1 = self.trade_signalling_data.closest_time_index(br.entry_date) -0.5 
 				x2 = self.trade_signalling_data.closest_time_index(br.exit_date) + 0.5
 				y1 = br.entry_price
@@ -180,9 +180,11 @@ class TradeSetupView:
 				chart.draw(f"trades {bullbear} boxes",chv.Box(x1,y1,x2,y2))
 				
 	
-	#FROM HERE ON THESE SHOULD BE HANDLED USING TradeSetup CLASS! 
+	def stats(self, backteststats):
+		pass # method for passing back test stats to the chart (eg prices, movements, balance)
+	
 	#these depend on the trade_setup which might be overridden? also they are drawn on other charts than candlesticks 
-	def indicators(self,trade_setup, signals=[]):
+	def indicators(self,trade_setup):
 		instrument_ind, start_ind, end_ind = self._np_params()
 		
 		np_candles = self.trade_signalling_data.np_candles
@@ -204,9 +206,33 @@ class TradeSetupView:
 					self.charts[chart_key] = chv.ChartView()
 				self.charts[chart_key] += indicator.draw_snapshot(chart_candles)
 			
+	#def chart_patterns(self,trade_setup):
+	#	setup_triggers = trade_setup.trigger(self.trade_signalling_data)
+	
 	#these are harder to draw - eg how to draw divergence?
-	def tools(self,trade_setup, signals=[]): #only need to draw per signal 
-		pass
+	def annotations(self,trade_setup): #only need to draw per signal 
+		
+		instrument_index, _, _  = self._np_params()
+		
+		np_candles = self.trade_signalling_data.np_candles
+		timeline = self.trade_signalling_data.timeline 
+		chart_candles = np.concatenate([np_candles[instrument_index,:,:4],timeline[:,np.newaxis]],axis=1)
+		
+		
+		bullish,bearish = trade_setup.trigger(self.trade_signalling_data)
+		setup_triggers = bullish | bearish
+		trigger_indexs = np.where(setup_triggers)[0]
+		
+		for chart_pattern_key in trade_setup.chart_pattern_bag: 
+			chart_pattern = trade_setup.chart_pattern_bag[chart_pattern_key]
+			for trigger_index in trigger_indexs: 
+				self.charts['candlesticks'] += chart_pattern.draw_snapshot(chart_candles, trigger_index, instrument_index)
+		
+		for tool_key in trade_setup.tool_bag: 
+			setup_tool = trade_setup.tool_bag[tool_key]
+			setup_tool.draw_annotations(self,trigger_indexs) 
+		
+		
 	
 	
 
@@ -220,13 +246,19 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 	
 	#carry the tools and indicators here for display later
 	indicator_bag = {}
+	chart_pattern_bag = {} 
 	tool_bag = {} #what and how to draw? 
 	
 	
 	#for every setup, put the indicators used in here.
 	def indicators(self):	
 		pass 
+	
+	#chart patterns go in here - so they can be called and drawn at the trigger points 
+	def chart_patterns(self):
+		pass
 		
+	#tools that require annotations can be placed in here for drawing at trigger points 
 	def tools(self):
 		pass
 	
@@ -360,9 +392,9 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		return self.signals(tsd)
 	
 	#method similar to indicator, but this should show a bunch of signals instead & run a separate drawing tool for the underlying indicators etc used 
-	def draw(self,trade_signalling_data : TradeSignallingData, instrument : str, date_from : Optional[datetime.datetime] = None, date_to : Optional[datetime.datetime] = None) -> chv.ChartView: #-add all chart views together. Consider what to do with start_date and end_date  
+	def draw(self,trade_signalling_data : TradeSignallingData, instrument : str, date_from : Optional[datetime.datetime] = None, date_to : Optional[datetime.datetime] = None) -> TradeSetupView: #-add all chart views together. Consider what to do with start_date and end_date  
 		"""
-		Generate a ChartView object that can be plotted and looked at for inspecting the signals generated from this setup.
+		Generate a TradeSetupView object that can be plotted and looked at for inspecting the signals generated from this setup.
 		All of  the indicators etc used should be plotted on this chart in this method. Start and end dates are needed to 
 		gauge the chart size for the trade setup. 
 		
@@ -378,102 +410,14 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		"""
 		
 		trade_setup_view = TradeSetupView(trade_signalling_data, instrument, date_from, date_to) #candlesticks? close prices? base! 
-		trade_setup_view.indicators(self)
+		trade_setup_view.indicators(self) #for indicators and candle stick patterns ?
+		trade_setup_view.annotations(self) #for chart patterns and tools
 		#self.draw_annotations(trade_setup_view)
 		#self.draw_signals(trade_setup_view)		
 		return trade_setup_view 
 		
 		#raise NotImplementedError('This method must be overridden')  #--incorrect? this needs to return a chart view with the trading rectangle 
 	
-	def draw_indicators(self, trade_setup_view):
-		pass
-	
-	
-	@deprecated
-	def get_latest(self,age_limit : int = 240) -> List[TradeSignal]: #- for signals right now (short cut to not call for a backtest) 
-		"""
-		Generate a set of trade signals from this setup generator, returning only the latest trades per instrument
-		
-		Returns:
-		-------
-		list(TradeSignal) 
-			A bunch of trade signals that were found from now up to age_limit minutes ago. 
-		"""
-		end_date = datetime.now() 
-		start_date = datetime.now() - timedelta(minutes=age_limit) 
-		start_date = start_date - timedelta(minutes=self.grace_period * self.timeframe)  #use grace period too to ensure quality signals 
-		return self.get_setups(start_date,end_date)
-		
-	#caching tool - not needed here
-	@deprecated
-	def get_initial_data(self,chartbase,mask=None,return_flat=None,return_np_candles=True):
-		np_candles, timeline = chartbase._construct(candlesticks)
-		init_dict = chartbase.get_initial_data(np_candles,mask,return_flat)
-		if return_np_candles:
-			return init_dict, np_candles
-		return init_dict
-		
-	#this is in the wrong place 
-	@deprecated
-	def get_candlesticks(self,start_date,end_date,block=False,volumes=False,query_params={}):
-		days_back = self.get_days_back(start_date,end_date)
-		candle_result = None
-		with Database(commit=False, cache=False) as cursor: 
-			composer = DataComposer(cursor) #.candles(params).call()...
-			composer.call('get_candles'+('_volumes_' if volumes else '_') + 'from_currencies',{'currencies':self.currencies,'this_date':end_date,'days_back':days_back})
-			candle_result = composer.result(as_json=True)
-		
-		instruments = self.instruments 
-		
-		candles = None
-		if volumes:
-			candles = DataComposer.as_candles_volumes(candle_result,instruments)
-		else:
-			candles = DataComposer.as_candles(candle_result,instruments)
-		
-		if block:#turn into an npblock of numbers instead of a bunch of streams 
-			candle_block = np.array([candles[instr] for instr in instruments if candles.get(instr)])
-			instruments = [instr for instr in instruments if candles.get(instr)]
-			candles = candle_block
-		return candles, instruments
-
-	
-	
-	@deprecated
-	def get_candlestick_data(self,start_date,end_date,block=False,query_params={}):
-		candles = []
-		
-		days_back = self.get_days_back(start_date,end_date) 
-		
-		instruments = self.instruments
-		parameters = {
-			'the_date':end_date,
-			'instruments':self.instruments, #redundant but probably useful later when doing stocks 
-			'currencies':self.currencies, #perhaps going to be a pain in the arse when doing stocks 
-			'days_back':days_back,
-			'chart_resolution':self.timeframe,
-			'candle_offset':0
-		}
-		parameters.update(query_params)
-		with Database(commit=False,cache=True) as cursor:
-			with open('queries/candle_stick_selector.sql','r') as f:
-				query = f.read()
-				cursor.execute(query,parameters)
-				candles = cursor.fetchcandles(instruments)
-		
-		if block:#turn into an npblock of numbers instead of a bunch of streams 
-			candle_block = np.array([candles[instr] for instr in instruments if candles.get(instr)])
-			instruments = [instr for instr in instruments if candles.get(instr)]
-			candles = candle_block
-		return candles, instruments
-	
-
-
-
-
-
-
-
 
 
 

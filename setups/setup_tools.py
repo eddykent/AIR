@@ -31,11 +31,11 @@ bearish = 1
 
 
 #put any common functions for setup tools into here 
-class SetupTool:
+class SetupTool:  #abc? 
 	
 	period = 5 
 	
-	def __init__(self,period=5):
+	def __init__(self,period=5,):
 		self.period = period
 
 	def _sliding_windows(self,detected,period=None,filler=0):
@@ -45,6 +45,11 @@ class SetupTool:
 		detected_padded = np.concatenate([np_nones,detected],axis=1)
 		detected_windows = np.lib.stride_tricks.sliding_window_view(detected_padded,window_shape=period,axis=1)
 		return detected_windows 
+	
+	def draw_annotations(self,setup_view,triggers):
+		#not sure how this is going to work yet... 
+		return None #blank if the tool does not have any annotations to draw
+		
 	
 	#def _pad_start(self,period):
 	#	def _pad_start(self,np_candles,period): #this is needed to preserve the length of the streams
@@ -107,82 +112,6 @@ class Zero2OneTool(SetupTool):
 		return (prev)
 
 
-#divergence tool - check this for lookahead bias - use windows instead! #HAS LOOKAHEAD BIAS! USE WINDOWS 
-class BadMomentumDivergenceTool(SetupTool):
-	
-	signal1 = None #usually typical price action
-	signal2 = None #usually RSI or Stochastic etc 
-	candlestick_smudge = 2
-	order = 7 #arbitraty order - ensure peaks are far apart enough 
-	hill_tolerance = 2 #if the peaks/troughs are more than this candles apart, do not include it in the divergence calculation 
-	grace_period = 50
-	
-	def __init__(self,signa1,signal2,*args,**kwargs):
-		super()._init__(*args,*kwargs)
-		self.set_signals(signal1, signal2)
-	
-	def set_signals(self,signal1,signal2):
-		assert len(signal1.shape) == 2, f"signal1 must be of shape n by t (2 dimensions). Dimensions = {len(signal1.shape)}"
-		assert len(signal2.shape) == 2, f"signal1 must be of shape n by t (2 dimensions). Dimensions = {len(signal2.shape)}"
-		self.signal1 = signal1
-		self.signal2 = signal2 
-	
-	def detect(self):
-		assert self.signal1 is not None, "signal 1 is none"
-		assert self.signal2 is not None, "signal 2 is none"
-		
-		#bearish reversals
-		#max1s = scipy.signal.argrelmax(self.signal1[:,self.grace_period:],axis=1,order=self.order) #all peaks - when they are increasing check rsi is decreasing. 
-		#max2s = scipy.signal.argrelmax(self.signal2[:,self.grace_period:],axis=1,order=self.order) #use this as the anchor then find peaks between in signal1
-		#max1s = max1s[0],max1s[1]+self.grace_period #add back the grace period 
-		#max2s = [max2s[0],max2s[1]+self.grace_period]
-		
-		#find mapping from max2s to max1s 
-		
-		#if maxs on signal 1 increase, and maxs on signal 2 decrease, bearish
-		#if mins on signal 1 decrease, and mins on signal 2 increase, bullish
-		
-		##use _sliding_windows()!!
-		#naiive way to start with - might not need to be very advanced for this stage? 
-		result_array = np.full(self.signal1.shape,np.nan) 
-		for ii,(price_action,momentum) in enumerate(zip(self.signal1,self.signal2)):
-			
-			regions_of_interest = []
-			
-			max_args = scipy.signal.argrelmax(price_action[self.grace_period:],order=self.order)[0]
-			max_args += self.grace_period
-			momentum_maxs = [np.max(momentum[m-self.hill_tolerance:m+self.hill_tolerance+1]) for m in max_args] #get close maximums in rsi/stoch etc 
-			price_action_maxs = price_action[(max_args,)]
-			tpmx = list(zip(max_args,price_action_maxs,momentum_maxs))
-			for (tpm1,tpm2) in zip(tpmx[:-1],tpmx[1:]):
-				if tpm1[1] < tpm2[1] and tpm1[2] > tpm2[2]:
-					regions_of_interest.append((tpm2[0]+self.hill_tolerance,-1)) #add bearish region of interest
-			
-			
-			min_args = scipy.signal.argrelmin(price_action[self.grace_period:],order=self.order)[0]
-			min_args += self.grace_period
-			momentum_mins = [np.min(momentum[m-self.hill_tolerance:m+self.hill_tolerance+1]) for m in min_args]
-			price_action_mins = price_action[(min_args,)]
-			tpmn = list(zip(min_args,price_action_mins,momentum_mins))
-			for tpm1,tpm2 in zip(tpmn[:-1],tpmn[1:]):
-				if tpm1[1] > tpm2[1] and tpm1[2] < tpm2[2]:
-					regions_of_interest.append((tpm2[0]+self.hill_tolerance,1)) #add bullish region of interest
-			
-			for (ti,d) in sorted(regions_of_interest,key=lambda tid : tid[0]):
-				result_array[ii,ti:ti+self.candlestick_smudge] = d
-			
-		return result_array
-		#pdb.set_trace()
-		
-		#print('check divergences')
-	
-	#def _naive_closest_map(self,nums1, nums2):	
-	#	#scipy.optimize.linear_sum_assignment ? 
-	##	for n in nums1: 
-	#		wheres = (nums2 - self.hill_tolerance >= n) & (nums2 + self.hill_tolerance <= n)
-	#		close2s = nums2[wheres]
-
-
 class ExtremesTool(SetupTool): 
 	
 	required_values = 20
@@ -202,6 +131,10 @@ class ExtremesTool(SetupTool):
 			raise ValueError(f'Unknown direction "{direction.lower()}". Must be "min" or "max"')
 		value_extremes = self.get_extremes(value_windows,self.order,scipyf)
 		return value_extremes 
+	
+	@overrides(SetupTool)
+	def draw_annotations(self,setup_view,triggers):
+		pass 
 	
 	#turn a set of windows into a list of max peaks per window 
 	@staticmethod
@@ -300,6 +233,10 @@ class DivTool(ExtremesTool):
 		
 		return bullish, bearish 
 		
+	@overrides(SetupTool)
+	def draw_annotations(self,setup_view,triggers):
+		pass
+	
 	
 
 #eg get macd and signal line, get their diff (macd - signal) then this.markup(diff) gives bullish and bearish crossovers 
