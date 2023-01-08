@@ -111,7 +111,10 @@ class ExchangeRateTool:
 		conversion_indexs = exchange_indexs + np.repeat(entry_indexs,lens)
 		exchanges_dest[df_indexs,exchange_indexs] = self.np_conversions[instrument_indexs,conversion_indexs]
 		return exchanges_dest
-		
+	
+	def spot_exchange_rates(self, time_indexs, exchange_indexs):
+		return self.np_conversions[exchange_indexs,time_indexs]
+	
 	@staticmethod
 	def has_base(base_currency,instrument):
 		instrument = instrument.upper() 
@@ -217,16 +220,18 @@ class BackTestStatistics:
 	def calculate(self,query_params=None):
 		df = self.mainframe
 		#scores = self.strategy_result(df)
-		obj_result = self.per_instrument(df,self.objective_result)
 		
-		#pdb.set_trace()
+		dbf.stopwatch('calc objective and strategy results')
 		
-		dbf.stopwatch('calculate percentage tracks')
-		typical = self.select_percent_tracks(df) 
-		dbf.stopwatch('calculate percentage tracks')		
-		 
 		print('setup exchange') 
 		self.set_exchange_rate_tool()
+		df = self.update_df_for_exchange(df) #adds data from ExchangeRateTool  
+		df = self.update_df_for_currency(df) #adds data from InstrumentDetails 
+		
+		obj_result = self.per_instrument(df,self.objective_result)
+		#pdb.set_trace()
+				 
+		
 		#dbf.stopwatch('calcualte pnl line')
 		#percent_line = self.merge_to_chart(typical,df['entry_index'],df['exit_index'],accumulate=False)
 		#dbf.stopwatch('calcualte pnl line')
@@ -235,15 +240,15 @@ class BackTestStatistics:
 		
 		#pdb.set_trace()
 		#strat = df[(df['strategy_ref']=='setups.trade_pro.RSIS_EMA_X') & (df['instrument'] == 'GBP/USD')]
-		strat_result = self.strategy_result(df)
-		
+		strat_result = self.per_instrument(df,self.strategy_result)
+		dbf.stopwatch('calc objective and strategy results')
 		
 		pdb.set_trace()
+		
 		print('formulate')
 		return obj_result
 	
-	#def query(self,df,instr) #do outside? 
-	
+
 	#functions for grid search - what about instrument AND strategy? code smell?
 	def per_instrument(self,df=None,objective_function=None):
 		if df is None:
@@ -295,11 +300,28 @@ class BackTestStatistics:
 			'loses':df['lose'].sum(), 
 			'win_streak':df['win_streak'].max(), 
 			'lose_streak':df['lose_streak'].max(), 
-			'max_win':df['result_percent'].max(),
-			'max_loss':df['result_percent'].min(),
+			'max_win_percent':df['result_percent'].max(),
+			'max_loss_perent':df['result_percent'].min(),
 			'len':len(df)
 		}
 		dict_result['ratio'] = dict_result['wins'] / (dict_result['wins'] + dict_result['loses'])
+		
+		
+		#if we have set up the currency things, we can also get results in terms of money 
+		if set(['exchange_index','lot_size','leverage']).issubset(df.columns):
+			#get hold cost for each trade (trade size * conversion rate * 1/levereage)
+			exchange_rates = self.exchange_rates.spot_exchange_rates(df['exit_index'],df['exchange_index'])
+			
+			trade_sizes = np.array(self.lotsize * df['lot_size']) #!need to get from instruments not from this constant 
+			
+			#margin_ratios = np.array(1.0 / df['leverage'])  #margin not needed? 
+			#margin_requirements = (1.0 / exchange_rates) * trade_sizes * margin_ratios
+			money_output = exchange_rates * trade_sizes * (df['result_percent']  / 100)
+			dict_result['max_win_money'] =  money_output.max()
+			dict_result['max_loss_money'] =  money_output.min()
+			
+			dict_result['output_balance'] = money_output.sum()
+		
 		return dict_result
 		
 		
@@ -317,7 +339,7 @@ class BackTestStatistics:
 		df['pip_size'] = df['instrument'].apply(lambda i, imap=idetails.instrument_map : imap[i]['pip_size'])
 		#pdb.set_trace()
 		return df 
-	
+
 	
 	#def produce_exchange_rates(self,df):
 	#	lens = df['exit_index'] - df['entry_index'] + 1
@@ -339,7 +361,7 @@ class BackTestStatistics:
 	#the dif with this and objective_result is this also can get everything in terms of money, including pnl charts and drawdowns
 	def strategy_result(self, df): #todo: compounding interest somehow
 		#base_result = self.objective_result(df)
-		print('calc strategy result')
+		#print('calc strategy result')
 		#first get typical percentages and worst percentages 
 		typical = self.select_percent_tracks(df,PercentPathType.TYPICAL) 
 		best = self.select_percent_tracks(df,PercentPathType.OPTIMISTIC)
@@ -355,18 +377,24 @@ class BackTestStatistics:
 			'worst':self.merge_to_chart(worst,df['entry_index'],df['exit_index'])
 		}
 		
+		#(x1,v1), (x2,v2) = self.max_drawdown_points(return_charts['worst']) 
+		#maxddp = min(((v2 - v1) / v2)*100 , 100)
+		#assert maxddp >= 0 , "drawdown is negative which indicates error "
+		
+		#return_charts['draw_down_percent'] = maxddp   #not sure this makes sense 
 		
 		#percent time in market - lower the better since we want to be in then out with a profit asap
 		market_activity = self.market_activity(df['entry_index'],df['exit_index'])
 		return_charts['market_time_percentage'] = 100 * np.sum(market_activity == 0) / market_activity.shape[0]
 		
-		if self.exchange_rates: 
+		
+		
+		if set(['exchange_index','lot_size','leverage']).issubset(df.columns):
 			
 			#calc the PnL chart for this strat and the drawdown etc 
 			#mult percent by trade size per trade, and by convesion rate back to gbp 
 			#combine 
-			df = self.update_df_for_exchange(df) #adds data from ExchangeRateTool  
-			df = self.update_df_for_currency(df) #adds data from InstrumentDetails  
+			#this could be done before this method  
 			
 			#pdb.set_trace()
 			#print('try getting exchange rates')
@@ -381,21 +409,28 @@ class BackTestStatistics:
 			best_results = exchange_rates * trade_sizes[:,np.newaxis] * best / 100  
 			worst_results = exchange_rates * trade_sizes[:,np.newaxis] * worst / 100 
 			
+			
 			return_charts.update({
-				'typical_money':self.merge_to_chart(typical_results,df['entry_index'],df['exit_index']),
-				'best_money':self.merge_to_chart(best_results,df['entry_index'],df['exit_index']),
-				'worst_money':self.merge_to_chart(worst_results,df['entry_index'],df['exit_index'])
+				'typical_money':self.merge_to_chart(typical_results,df['entry_index'],df['exit_index']) + self.starting_capital,
+				'best_money':self.merge_to_chart(best_results,df['entry_index'],df['exit_index']) + self.starting_capital,
+				'worst_money':self.merge_to_chart(worst_results,df['entry_index'],df['exit_index']) + self.starting_capital
 			})
+			
+			#grab the chart data by doing something like:
+			#strat_result[strat_result['instrument'] == 'EUR/CHF']['typical_money'].iloc[0]
 			
 			#amount of margin required to perform the trades 
 			return_charts.update({
 				'margin_money':self.merge_to_chart(margin_requirements,df['entry_index'],df['exit_index'],accumulate=False)
 			})
 			
-			pdb.set_trace()
-			print('test from here')
+			
 			#find drawdowns from here !!  DRAWDOWN HOW 
-			#self.max_drawdown(worst_results) 
+			(x1,v1), (x2,v2) = self.max_drawdown_points(return_charts['worst_money']) 
+			maxddm = min(((v2 - v1) / v2)*100 , 100) #100 => account blown
+			assert maxddm >= 0 , "drawdown is negative which indicates error "
+			
+			return_charts['draw_down'] = maxddm
 			
 		return return_charts
 	
@@ -530,8 +565,18 @@ class BackTestStatistics:
 		pass  
 	
 	#TODO: given a set of values from a PnL chart or similar, get the maximum drawdown found in percentage 
-	def max_drawdown(self,linechart):
-		pass
+	@staticmethod
+	def max_drawdown_points(linechart):
+		x1 = np.argmax(np.maximum.accumulate(linechart) - linechart) # end of the period
+		x2 = np.argmax(linechart[:x1]) # start of period
+		v1 = linechart[x1]
+		v2 = linechart[x2]
+		#pdb.set_trace()
+		return (x1,v1),(x2,v2)
+		
+	#@staticmethod
+	#def has_money_columns(df):
+		
 	
 	
 	#dumb version for getting more info from results 
