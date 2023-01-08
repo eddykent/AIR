@@ -168,7 +168,6 @@ class BackTestStatistics:
 	starting_capital = 100 #pounds ofcourse! 
 	capital_risk = 0.02 #1% - might not be needed - use to calc lot size only 
 	
-	#UNITSPERLOT = 100000 #warning! might be different for other instruments same for FX though? 
 	
 	mainframe = None
 	
@@ -339,23 +338,6 @@ class BackTestStatistics:
 		df['pip_size'] = df['instrument'].apply(lambda i, imap=idetails.instrument_map : imap[i]['pip_size'])
 		#pdb.set_trace()
 		return df 
-
-	
-	#def produce_exchange_rates(self,df):
-	#	lens = df['exit_index'] - df['entry_index'] + 1
-	#	maxlen = max(lens)
-	#	exchanges_dest = np.full((len(df),maxlen),np.nan)
-	#	instrument_indexs = np.repeat(df['exchange_index'],lens)
-	#	df_indexs = np.repeat(np.arange(len(df)),lens)
-	#	
-	#	offsets = np.cumsum(lens)
-	#	offsets = np.concatenate([[0],offsets[:-1]],axis=0)
-	#	exchange_indexs = np.arange(df_indexs.shape[0]) - np.repeat(offsets,lens)
-	#	
-	#	conversion_indexs = exchange_indexs + np.repeat(df['entry_index'],lens)
-	#	exchanges_dest[df_indexs,exchange_indexs] = self.exchange_rates.np_conversions[instrument_indexs,conversion_indexs]
-	#	return exchanges_dest 
-		
 	
 	
 	#the dif with this and objective_result is this also can get everything in terms of money, including pnl charts and drawdowns
@@ -377,12 +359,6 @@ class BackTestStatistics:
 			'worst':self.merge_to_chart(worst,df['entry_index'],df['exit_index'])
 		}
 		
-		#(x1,v1), (x2,v2) = self.max_drawdown_points(return_charts['worst']) 
-		#maxddp = min(((v2 - v1) / v2)*100 , 100)
-		#assert maxddp >= 0 , "drawdown is negative which indicates error "
-		
-		#return_charts['draw_down_percent'] = maxddp   #not sure this makes sense 
-		
 		#percent time in market - lower the better since we want to be in then out with a profit asap
 		market_activity = self.market_activity(df['entry_index'],df['exit_index'])
 		return_charts['market_time_percentage'] = 100 * np.sum(market_activity == 0) / market_activity.shape[0]
@@ -392,12 +368,6 @@ class BackTestStatistics:
 		if set(['exchange_index','lot_size','leverage']).issubset(df.columns):
 			
 			#calc the PnL chart for this strat and the drawdown etc 
-			#mult percent by trade size per trade, and by convesion rate back to gbp 
-			#combine 
-			#this could be done before this method  
-			
-			#pdb.set_trace()
-			#print('try getting exchange rates')
 			exchange_rates = self.exchange_rates.produce_exchange_rates(df['entry_index'],df['exit_index'],df['exchange_index'])
 			
 			#get hold cost for each trade (trade size * conversion rate * 1/levereage)
@@ -424,8 +394,6 @@ class BackTestStatistics:
 				'margin_money':self.merge_to_chart(margin_requirements,df['entry_index'],df['exit_index'],accumulate=False)
 			})
 			
-			
-			#find drawdowns from here !!  DRAWDOWN HOW 
 			(x1,v1), (x2,v2) = self.max_drawdown_points(return_charts['worst_money']) 
 			maxddm = min(((v2 - v1) / v2)*100 , 100) #100 => account blown
 			assert maxddm >= 0 , "drawdown is negative which indicates error "
@@ -476,8 +444,6 @@ class BackTestStatistics:
 		#calc percentage change
 		values_dest[df_indexs,time_indexs] = (((price_values - start_values) / start_values) * 100) * (1 - (2*direction_indexs))
 		
-		#consider applying bounds - should not be higher than tp or lower than sl values
-		
 		#set last index to exit percentage
 		values_dest[np.arange(N),lens-1] = df['result_percent']
 		
@@ -514,50 +480,8 @@ class BackTestStatistics:
 				output[end_index:] += end_value #good for pnl
 			else:
 				output[end_index] += end_value #good for margin requirement
-		#pdb.set_trace()
 		return output
 		
-		###this bit doesnt work too well with numpy - cant do it all at once it seems 
-
-		
-		#first, put the tracks in
-		#vt_indexs = np.repeat(np.arange(N),lens)
-		#
-		#offsets = np.cumsum(lens)
-		#offsets = np.concatenate([[0],offsets[:-1]],axis=0)
-		#time_indexs = np.arange(vt_indexs.shape[0]) - np.repeat(offsets,lens)
-		#value_indexs = time_indexs + np.repeat(start_indexs,lens)
-		#
-		#output[vt_indexs,value_indexs] = value_tracks[vt_indexs,time_indexs]
-		#
-		##pdb.set_trace()
-		#
-		##then, put the remaining in to accumulate the results (the end value to the end of the line) 
-		#remaining_output = np.zeros((N,linelen))
-		#
-		#end_values = value_tracks[np.arange(N),lens-1]
-		#remaining_lens = linelen - end_indexs 
-		#
-		##zeros cause problems here
-		#rvt_indexs = np.repeat(np.arange(N),remaining_lens)
-		#remaining_offsets = np.cumsum(remaining_lens)
-		#remaining_offsets = np.concatenate([[0],remaining_offsets[:-1]],axis=0)
-		#
-		#
-		#remaining_time_indexs = np.arange(rvt_indexs.shape[0]) - np.repeat(remaining_offsets,remaining_lens)
-		#
-		#remaining_values = np.repeat(end_values,remaining_lens) 
-		##remaining_values[remaining_time_indexs == 0] = 0 # dont need to add anything here - this has already been done in step 1
-		#
-		#remaining_time_indexs = linelen - remaining_time_indexs - 1
-		#remaining_output[rvt_indexs,remaining_time_indexs] = remaining_values[rvt_indexs]
-		#
-		#
-		#return_rows = output + remaining_output
-		#
-		#pdb.set_trace()
-		#
-		#return output + remaining_output
 	
 	#used for calculating what trades were skipped using margin requirement, and calculating compounding interest 
 	def merge_in_order_gen(self,df):
