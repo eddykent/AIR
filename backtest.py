@@ -146,7 +146,9 @@ class ExchangeRateTool:
 			return f"{c2}/{c1}"
 		except Exception as e:
 			return instrument
-	
+
+#consider putting meta data such as exchange/instrument/etc indexs into a separate class so it can be used elsewhere for speed 
+
 #class for handling the stats? eg for querying 
 # allow for sorting/grouping etc of trade results into separate parts 
 class BackTestStatistics: 
@@ -340,7 +342,7 @@ class BackTestStatistics:
 		return df 
 	
 	
-	#the dif with this and objective_result is this also can get everything in terms of money, including pnl charts and drawdowns
+	#the dif with this and objective_result is this gets everything in terms of money, including pnl charts and drawdowns
 	def strategy_result(self, df): #todo: compounding interest somehow
 		#base_result = self.objective_result(df)
 		#print('calc strategy result')
