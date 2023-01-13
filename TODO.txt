@@ -29,9 +29,9 @@ trading rush checklist?
 code smells - indicator, trade_setup, candle_stick_pattern & chart_pattern 
 	draw_snapshot - make it take all np_candles and an instrument_index - done
 			- call _perform for all drawing needs 
-			- remove calculate & calculate_multiple functions 
+			- remove calculate, calculate_multiple, detect functions 
 			- remove _construct function from indicator and place into candle tool 
-	draw_snapshot bonus - perhaps make a snapshot drawing class - not required?
+	draw_snapshot bonus - perhaps make a snapshot drawing class - not required
 
 refactor setups - only drawing left
 	#done?- core signals func - -1, 0 and 1s 
