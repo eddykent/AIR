@@ -78,26 +78,26 @@ class Indicator:
 	def pass_instrument_names(self,_instrument_names):
 		self.instrument_names = _instrument_names
 	
-	#this method does not need to be implemented since we can just perfrom a calculate_multiple! :) 
-	def calculate(self,candle_stream : list,candle_stream_index : Optional[int]=-1) -> np.array:
-		"""
-		Calculates all of the indicator values for the given set of candles 
-		
-		Parameters
-		----------
-		candle_stream : list of candles
-			The set of candles that we want to calculate on 
-		candle_stream_index : int
-			The end point at which we want to "pretend" that we can't see passed. If None, the whole candle stream is used
-		
-		Returns 	
-		-------
-		np.array of shape (len(candles),1,len(channel_keys))
-			All of the indicator results, with the last dimension in the order of channel_keys
-		"""
-		result = self.calculate_multiple([candle_stream],candle_stream_index)
-		return result[0]
-	
+	##this method does not need to be implemented since we can just perfrom a calculate_multiple! :) 
+	#def calculate(self,candle_stream : list,candle_stream_index : Optional[int]=-1) -> np.array:
+	#	"""
+	#	Calculates all of the indicator values for the given set of candles 
+	#	
+	#	Parameters
+	#	----------
+	#	candle_stream : list of candles
+	#		The set of candles that we want to calculate on 
+	#	candle_stream_index : int
+	#		The end point at which we want to "pretend" that we can't see passed. If None, the whole candle stream is used
+	#	
+	#	Returns 	
+	#	-------
+	#	np.array of shape (len(candles),1,len(channel_keys))
+	#		All of the indicator results, with the last dimension in the order of channel_keys
+	#	"""
+	#	result = self.calculate_multiple([candle_stream],candle_stream_index)
+	#	return result[0]
+	#
 	def calculate_multiple(self,candle_streams : list,candle_stream_index:Optional[int]=-1) -> np.array:
 		"""
 		Calculates all of the indicator values for all channelts of candles 
@@ -116,8 +116,9 @@ class Indicator:
 		"""
 		candle_streams, self.timeline = self._construct(candle_streams,candle_stream_index)
 		return self._perform(candle_streams)
-		
-	def draw_snapshot(self,candle_stream : Union[List[float],np.array] ,snapshot_index : Union[int , np.array , List[int]] = -1, instrument_index : int =-1) -> chv.ChartView:
+	
+	#refactor to use np_candles instead 
+	def draw_snapshot(self,np_candles : np.array, instrument_index : int, snapshot_index : Union[int , np.array] = -1) -> chv.ChartView:
 		"""
 		Generates a ChartView object from the given set of candles so the indicator can be plotted. 
 		
@@ -133,8 +134,9 @@ class Indicator:
 		chv.ChartView  
 			A chart view object of the drawing of this indicator 
 		"""
-		
-		result = self.calculate(candle_stream,snapshot_index)
+		#candle_stream = np_candles[instrument_index]
+		result_multi = self._perform(np_candles)
+		result = result_multi[instrument_index]
 		
 		style_paths = {}
 		
@@ -153,48 +155,48 @@ class Indicator:
 		
 		return chart_view
 		
-	def generate_setups(self,criteria : list) -> list:
-		"""
-		Generates trade setups in the form of TradeSignal from the set of candles and from given criteria. 
-		
-		Parameters
-		----------
-		candle_stream : list of candles 
-			The set of candles that we want to calculate on
-		candle_stream_index : int
-			The end point at which we want to "pretend" that we can't see passed. If None, the whole candle stream is used
-		criteria : list of SetupCriteria
-			The criteria required for there to be a setup at any point in the streams & the indicator resuts 
-		
-		Returns 	
-		-------
-		list of TradeSignal
-			A list of trade signals that are able to be passed to a backtester  
-		"""
-		raise NotImplementedError('This method must be overridden') #not sure how to do criteria yet 
-	
-	def detect(self,criteria : list=[]) -> np.array:
-		"""
-		Generates trade setups in the form of -1,0,1 from the set of candles and from given criteria. 
-		This format can be useful for ai related work
-		
-		Parameters
-		----------
-		candle_stream : list of candles 
-			The set of candles that we want to calculate on
-		candle_stream_index : int
-			The end point at which we want to "pretend" that we can't see passed. If None, the whole candle stream is used
-		criteria : list of SetupCriteria (Optional)
-			The criteria required for there to be a setup at any point in the streams & the indicator resuts. If a blank list is returned, all bullish and bearish setups are returned
-		
-		Returns 	
-		-------
-		np.array of int
-			A list of trade signals that are able to be passed to a backtester  
-		"""
-		raise NotImplementedError('This method must be overridden') #not sure how to do criteria yet 
-	
-	
+	#def generate_setups(self,criteria : list) -> list:
+	#	"""
+	#	Generates trade setups in the form of TradeSignal from the set of candles and from given criteria. 
+	#	
+	#	Parameters
+	#	----------
+	#	candle_stream : list of candles 
+	#		The set of candles that we want to calculate on
+	#	candle_stream_index : int
+	#		The end point at which we want to "pretend" that we can't see passed. If None, the whole candle stream is used
+	#	criteria : list of SetupCriteria
+	#		The criteria required for there to be a setup at any point in the streams & the indicator resuts 
+	#	
+	#	Returns 	
+	#	-------
+	#	list of TradeSignal
+	#		A list of trade signals that are able to be passed to a backtester  
+	#	"""
+	#	raise NotImplementedError('This method must be overridden') #not sure how to do criteria yet 
+	#
+	#def detect(self,criteria : list=[]) -> np.array:
+	#	"""
+	#	Generates trade setups in the form of -1,0,1 from the set of candles and from given criteria. 
+	#	This format can be useful for ai related work
+	#	
+	#	Parameters
+	#	----------
+	#	candle_stream : list of candles 
+	#		The set of candles that we want to calculate on
+	#	candle_stream_index : int
+	#		The end point at which we want to "pretend" that we can't see passed. If None, the whole candle stream is used
+	#	criteria : list of SetupCriteria (Optional)
+	#		The criteria required for there to be a setup at any point in the streams & the indicator resuts. If a blank list is returned, all bullish and bearish setups are returned
+	#	
+	#	Returns 	
+	#	-------
+	#	np.array of int
+	#		A list of trade signals that are able to be passed to a backtester  
+	#	"""
+	#	raise NotImplementedError('This method must be overridden') #not sure how to do criteria yet 
+	#
+	#
 	
 	#Repeated code - already availalbe in CandleStickPattern and should be used from that! 
 	#@staticmethod
@@ -215,7 +217,7 @@ class Indicator:
 	#	"""
 	
 	
-	#helper functions for all subclasses - these dont need to be doc'ed 
+	#helper functions for all subclasses - these dont need to be doc'ed - but they do need to be moved 
 	#pull out the times from the candle streams but raise an error if any of the timelines don't match
 	def _construct(self,candle_streams,candle_stream_index=-1):
 		assert len(candle_streams) > 0, "There are no candle streams"
@@ -365,7 +367,7 @@ class HeikinAshi(Indicator):  #more of a translator than indicator!
 		return np.stack([opens,highs,lows,closes,times],axis=2)
 	
 	@overrides(Indicator)
-	def draw_snapshot(self,candle_stream,snapshot_index,instrument_index):
+	def draw_snapshot(self,np_candles,instrument_index,snapshot_index):
 		raise NotImplementedError("Use ChartView.draw_candlesticks()") #to prevent 2 sets of candles being drawn on the same chart
 	
 	@overrides(Indicator)
@@ -385,7 +387,7 @@ class CandleSticks(Indicator):
 		return np_candles 
 	
 	@overrides(Indicator)
-	def draw_snapshot(self,candle_stream,snapshot_index,instrument_index):
+	def draw_snapshot(self,np_candles,instrument_index,snapshot_index):
 		raise NotImplementedError("Use ChartView.draw_candlesticks()") #to prevent 2 sets of candles being drawn on the same chart
 	
 	@overrides(Indicator)

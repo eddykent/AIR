@@ -167,7 +167,7 @@ class ShapePattern(ChartPattern):
 		return shape_levels #change to ensure it is "well behaved" and flipped if the direction is wrong
 	
 	@overrides(ChartPattern)
-	def draw_snapshot(self,np_candles,snapshot_index,instrument_index):
+	def draw_snapshot(self,np_candles,instrument_index,snapshot_index):
 		mask = self._create_mask(np_candles,instrument_index,snapshot_index)
 		xtreme_windows, _ = self._generate_xtreme_windows(np_candles,mask)
 		atr = self._get_average_true_ranges(np_candles,mask)

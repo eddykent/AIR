@@ -428,7 +428,7 @@ class ChartPattern(Indicator):
 		return self.calculate(candle_stream,candle_stream_index)
 	
 	@overrides(Indicator)
-	def draw_snapshot(self,np_candles,snapshot_index,instrument_index):
+	def draw_snapshot(self,np_candles,instrument_index,snapshot_index):
 		mask = self._create_mask(np_candles,instrument_index,snapshot_index)
 		xtreme_windows, _ = self._generate_xtreme_windows(np_candles,mask)
 		
@@ -662,7 +662,7 @@ class SupportAndResistance(ChartPattern):  #group together points along the pric
 		return np.stack([bias,actual_sits,actual_reaches],axis=1)
 	
 	@overrides(Indicator)
-	def draw_snapshot(self,np_candles,snapshot_index,instrument_index):
+	def draw_snapshot(self,np_candles,instrument_index,snapshot_index):
 		mask = self._create_mask(np_candles,instrument_index,snapshot_index)
 		xtreme_windows, _ = self._generate_xtreme_windows(np_candles,mask)
 		
@@ -820,7 +820,7 @@ class PivotPoints(ChartPattern):
 		return P, S1, S2, R1, R2
 	
 	@overrides(ChartPattern)
-	def draw_snapshot(self,np_candles,snapshot_index,instrument_index):
+	def draw_snapshot(self,np_candles,instrument_index,snapshot_index):
 		day_indexs = self._day_indices()
 		P, S1, S2, R1, R2 = self._produce_pivots(np_candles,day_indexs)
 		_,counts = np.unique(day_indexs,return_counts=True)

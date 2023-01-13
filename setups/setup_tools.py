@@ -46,7 +46,7 @@ class SetupTool:  #abc?
 		detected_windows = np.lib.stride_tricks.sliding_window_view(detected_padded,window_shape=period,axis=1)
 		return detected_windows 
 	
-	def draw_annotations(self,setup_view,triggers):
+	def draw_annotations(self,setup_view, candlesticks, instrument_index, trigger_indexs):
 		#not sure how this is going to work yet... 
 		return None #blank if the tool does not have any annotations to draw
 		
@@ -276,7 +276,7 @@ class ATRStop(StopTool):
 
 	def get_stops(self,trade_signalling_data):
 		average_true_range = ATR()
-		average_true_range_values = average_true_range.calculate_multiple(trade_signalling_data.candlesticks) [:,:,0]
+		average_true_range_values = average_true_range(trade_signalling_data.candlesticks) [:,:,0]
 		tp_distances = self.tpm * average_true_range_values
 		sl_distances = self.slm * average_true_range_values
 		return (tp_distances, tp_distances), (sl_distances, sl_distances) #a stop can be differnet values in diff directions

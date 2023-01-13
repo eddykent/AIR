@@ -28,10 +28,20 @@ class CandleStickPattern(Indicator):
 		"""
 	
 	@overrides(Indicator)
-	def draw_snapshot(self,candles,index=-1): #draw all patterns we can find as boxes on the chart. 
+	def draw_snapshot(self,np_candles,instrument_index,snapshot_index): #draw all patterns we can find as boxes on the chart. 
 		
+		candles = np_candles[instrument_index]
 		this_view = chv.ChartView()
-		the_type = self.detect(candles)
+		the_type = self._perform(candles[np.newaxis,:,:])[0]
+		
+		annotation = self.__class__.__name__
+		mask = np.zeros(candles.shape[0]) 
+		if snapshot_index is None: 
+			mask[:] = 1
+		else:
+			mask[snapshot_index] = 1
+		
+		the_type[:,0] = the_type[:,0] * mask #use mask to remove any patterns we don't want by setting the detect (-1 or 1) to 0 
 
 		for i,t in enumerate(the_type):
 			these_candles = candles[i-self._required_candles+1 : i+1]
@@ -45,12 +55,22 @@ class CandleStickPattern(Indicator):
 				x1 = i - self._required_candles + 0.5
 				x2 = i + 0.5
 				this_view.draw('candle_boxes bullish boxes',chv.Box(x1,y1,x2,y2))
+				tx = (x1 + x2)/2
+				ty = y2
+				ta = 'bottom center'
+				tt = annotation
+				this_view.draw('candle_boxes bullish texts',chv.Text(tx,ty,tt,ta))
 			if t < 0:
 				y1 = the_max
 				y2 = the_min
 				x1 = i - self._required_candles + 0.5
 				x2 = i + 0.5
 				this_view.draw('candle_boxes bearish boxes',chv.Box(x1,y1,x2,y2))
+				tx = (x1 + x2)/2
+				ty = y1
+				ta = 'top center'
+				tt = annotation
+				this_view.draw('candle_boxes bearish texts',chv.Text(tx,ty,tt,ta))
 				
 		return this_view
 		
@@ -90,9 +110,6 @@ class CandleStickPattern(Indicator):
 	def _candle_perform(self,candle_windows):
 		raise NotImplementedError("This method must be overridden")
 	
-	@overrides(Indicator)
-	def detect(self,candle_stream,candle_stream_index=-1,criteria=[]): #for now, ignore criteria 
-		return self.calculate(candle_stream,candle_stream_index)
 		
 class PinBar(CandleStickPattern):
 	

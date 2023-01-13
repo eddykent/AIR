@@ -4,7 +4,7 @@
 ## Also all styling etc is done here so we can just dump lines/points etc into a view object 
 ## and everything will be painted from a painting tool in this file 
 from enum import Enum
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 
 from plotly import graph_objects as chart
 import json
@@ -24,7 +24,7 @@ Box = namedtuple('Box','x1 y1 x2 y2')
 Circle = namedtuple('Circle','x y r')
 Triangle = namedtuple('Triangle','x1 y1 x2 y2 x3 y3')
 Quadrilateral = namedtuple('Quadrilateral','x1 y1 x2 y2 x3 y3 x4 y4') #everything can be built from triangles but quadrilaterals allow for trapeziums in curves for convenience 
-Text = namedtuple('Text','x y string')
+Text = namedtuple('Text','x y string alignment')
 Candle = namedtuple('Candle','open high low close datetime')
 
  
@@ -196,14 +196,14 @@ class ChartView:
 		#faint background lines 
 		self.faint_traces = ChartLayer(DrawingMode.PATHS)
 		
-		#shapes we might want to draw that covers the candles showing a chart pattern eg a candle stick highlight box or a wedge
-		self.candle_boxes = ChartLayer(DrawingMode.BOXES) #note: bordered 
+		#shapes we might want to draw that covers the candles showing a chart pattern eg a candle stick highlight box 
+		self.candle_boxes = ChartLayer([DrawingMode.BOXES,DrawingMode.TEXT]) #note: bordered 
 		
 		#wedge patterns etc 
 		self.patterns = ChartLayer(DrawingMode.ALL)
 		
 		#any trades that were taken on the candlestick data - use to draw the stop loss and take profit regions and POSSIBLY use the data to draw if it is a winning/losing trade?
-		self.trades = ChartLayer([DrawingMode.BOXES,DrawingMode.POINTS,DrawingMode.LINES]) 
+		self.trades = ChartLayer([DrawingMode.BOXES,DrawingMode.POINTS,DrawingMode.LINES, DrawingMode.TEXT]) 
 		
 		#the candle sticks themselves that we will draw
 		self.candle_sticks = ChartLayer(DrawingMode.CANDLES)
@@ -362,10 +362,10 @@ class ChartPainter:
 			'keyinfo':{'fill':'rgba(0,255,255,0.3)'}
 		},
 		'faint_traces':{
-			'neutral':{'stroke':'rgba(200,200,200,1)'},
-			'bullish':{'stroke':'rgba(0,255,0,1)'},
-			'bearish':{'stroke':'rgba(255,0,0,1)'},
-			'keyinfo':{'stroke':'rgba(0,255,255,1)'}
+			'neutral':{'stroke':'rgba(200,200,200,0.5)'},
+			'bullish':{'stroke':'rgba(0,255,0,0.5)'},
+			'bearish':{'stroke':'rgba(255,0,0,0.5)'},
+			'keyinfo':{'stroke':'rgba(0,255,255,0.5)'}
 		},
 		'boundaries':{
 			'neutral':{'stroke':'rgba(200,200,200,1)'},
@@ -584,6 +584,37 @@ class PlotlyChartPainter(ChartPainter):
 				self.fig.add_trace(boxes)
 				
 				self.fig_data.append(self.fig.data[-1]) #add last thing that has been figged to the fig data 
+			
+	def __paint_plotly_texts(self,chart_layer,layer_name):
+		styles = chart_layer.get_styles()
+		
+		for style in styles:
+			drawing_data = chart_layer.get_drawing_data(style)
+			
+			colour = self.get_colour(layer_name,style)
+			if drawing_data.texts:
+				alignments = defaultdict(list)
+				for text in drawing_data.texts:
+					alignments[text.alignment].append(text)
+								
+				for alignment, texts in alignments.items():
+					xs = [t.x for t in texts]
+					ys = [t.y for t in texts]
+					labels = [t.string for t in texts]
+					#sizes = [t.size for t in texts]
+					text_trace = chart.Scatter(
+						x=xs,
+						y=ys,
+						fill='none',
+						mode='text',
+						text=labels,
+						textposition=alignment,
+						#=colour['stroke']
+					)
+					text_trace.textfont.color = colour['stroke']
+					self.fig.add_trace(text_trace)
+				
+					self.fig_data.append(self.fig.data[-1])
 
 
 	def _paint_candle_sticks(self,chart_layer):
@@ -628,7 +659,7 @@ class PlotlyChartPainter(ChartPainter):
 		self.__paint_plotly_lines(chart_layer,'trends',2)
 	
 	def _paint_trades(self, chart_layer):
-		self.__paint_plotly_boxes(chart_layer,'trades',1) #no border
+		self.__paint_plotly_boxes(chart_layer,'trades') #no border
 		self.__paint_plotly_lines(chart_layer,'trades',2)
 		self.__paint_plotly_points(chart_layer,'trades',6)
 		
@@ -644,6 +675,7 @@ class PlotlyChartPainter(ChartPainter):
 	
 	def _paint_candle_boxes(self,chart_layer):
 		self.__paint_plotly_boxes(chart_layer,'candle_boxes',2)
+		self.__paint_plotly_texts(chart_layer,'candle_boxes')
 		
 	def _paint_price_actions(self,chart_layer):
 		self.__paint_plotly_paths(chart_layer,'price_actions',2)

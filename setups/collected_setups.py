@@ -34,7 +34,7 @@ class ChartCollection(TradeSetup):
 	_result_cdlen = []
 	
 	@overrides(TradeSetup)
-	def detect(self, trade_signalling_data):
+	def trigger(self, trade_signalling_data):
 		timeline = trade_signalling_data.timeline
 		np_candles = trade_signalling_data.np_candles 
 		

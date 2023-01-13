@@ -169,7 +169,7 @@ class MatchPatternInstance(ChartPattern):
 		return full_paths, distances
 
 	@overrides(ChartPattern)
-	def draw_snapshot(self,np_candles,snapshot_index,instrument_index=0):
+	def draw_snapshot(self,np_candles,instrument_index,snapshot_index):
 		#np_candles, _ = self._construct(np_candles)
 		full_paths, distances = self._get_haystack_paths(np_candles)
 		paths = full_paths[instrument_index]
@@ -393,7 +393,7 @@ class MatchPattern(ChartPattern):
 	
 	
 	@overrides(ChartPattern)
-	def draw_snapshot(self,np_candles,snapshot_index,instrument_index=0):
+	def draw_snapshot(self,np_candles,instrument_index,snapshot_index):
 		mask = self._create_mask(np_candles,instrument_index,snapshot_index)
 		
 		needles, haystack_indexs = self._get_window_needles(np_candles,mask) 

@@ -240,12 +240,18 @@ class CMF_MACD_ATR(TradeSetup):
 
 class ENGULFING(TradeSetup):
 	
+	
+	@overrides(TradeSetup)
+	def chart_patterns(self):
+		self.chart_pattern_bag = {
+			'engulfing':Engulfing() #replace with CandlePatternEnsemble
+		}
+	
 	@overrides(TradeSetup)
 	def indicators(self):
 		self.indicator_bag = {
 			'rsi14':RSI(14),
-			'ema200':EMA(200),
-			'engulfer':Engulfing() #draw here? (tool?)
+			'ema200':EMA(200)
 		}
 	
 	@overrides(TradeSetup)
@@ -268,7 +274,7 @@ class ENGULFING(TradeSetup):
 		ema_bear = ema_result > np_closes 
 		
 		#bullish/bearish candle patterns (engulfing)
-		eng = Engulfing() #replace with CandlePatternEnsemble? 
+		eng = self.chart_pattern_bag['engulfing']  
 
 		eng_result = eng(np_candles)[:,:,0]
 		eng_bullish = eng_result > 0

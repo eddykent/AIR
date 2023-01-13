@@ -63,6 +63,8 @@ class TradeSetupView:
 		
 		highest = np.max(np_candles[instrument_ind, start_ind:end_ind,csf.high])
 		lowest = np.min(np_candles[instrument_ind, start_ind:end_ind,csf.low])
+		
+		return highest, lowest
 	
 	def candlesticks(self,np_candles=None): #uses np_candles for any overrides (eg heikin ashi)
 		np_candles = self.trade_signalling_data.np_candles if np_candles is None else np_candles
@@ -185,11 +187,11 @@ class TradeSetupView:
 	
 	#these depend on the trade_setup which might be overridden? also they are drawn on other charts than candlesticks 
 	def indicators(self,trade_setup):
-		instrument_ind, start_ind, end_ind = self._np_params()
+		instrument_index, start_index, end_index = self._np_params()
 		
 		np_candles = self.trade_signalling_data.np_candles
-		timeline = self.trade_signalling_data.timeline 
-		chart_candles = np.concatenate([np_candles[instrument_ind,:,:4],timeline[:,np.newaxis]],axis=1)
+		timeline = self.trade_signalling_data.timeline #merge timeline to np_candles?
+		#chart_candles = np.concatenate([np_candles[instrument_index,:,:4],timeline[:,np.newaxis]],axis=1)
 		
 		for ind_key in trade_setup.indicator_bag:
 			indicator = trade_setup.indicator_bag[ind_key]
@@ -197,15 +199,17 @@ class TradeSetupView:
 				#means draw on main candlestick chart
 				#self.charts['candlesticks'] += indficator.draw(np_candles)?
 				#pdb.set_trace()
-				chv_result = indicator.draw_snapshot(chart_candles)
-				self.charts['candlesticks'] += chv_result
+				#chv_result = indicator.draw_snapshot(chart_candles)
+				self.charts['candlesticks'] += indicator.draw_snapshot(np_candles,instrument_index)
 			
 			else:
-				chart_key = ind_key.rstrip(string.digits).upper() 
+				chart_key = ind_key.rstrip(string.digits).upper() #eg MACD, RSI, etc ...
 				if self.charts.get(chart_key) is None:
 					self.charts[chart_key] = chv.ChartView()
-				self.charts[chart_key] += indicator.draw_snapshot(chart_candles)
-			
+				self.charts[chart_key] += indicator.draw_snapshot(np_candles,instrument_index)
+	
+	#stop tools? 
+	
 	#def chart_patterns(self,trade_setup):
 	#	setup_triggers = trade_setup.trigger(self.trade_signalling_data)
 	
@@ -218,19 +222,19 @@ class TradeSetupView:
 		timeline = self.trade_signalling_data.timeline 
 		chart_candles = np.concatenate([np_candles[instrument_index,:,:4],timeline[:,np.newaxis]],axis=1)
 		
-		
+		pdb.set_trace()
 		bullish,bearish = trade_setup.trigger(self.trade_signalling_data)
-		setup_triggers = bullish | bearish
+		setup_triggers = bullish[instrument_index] | bearish[instrument_index]
 		trigger_indexs = np.where(setup_triggers)[0]
 		
 		for chart_pattern_key in trade_setup.chart_pattern_bag: 
 			chart_pattern = trade_setup.chart_pattern_bag[chart_pattern_key]
-			for trigger_index in trigger_indexs: 
-				self.charts['candlesticks'] += chart_pattern.draw_snapshot(chart_candles, trigger_index, instrument_index)
+			#for trigger_index in trigger_indexs: 
+			self.charts['candlesticks'] += chart_pattern.draw_snapshot(np_candles,instrument_index,trigger_indexs)
 		
 		for tool_key in trade_setup.tool_bag: 
-			setup_tool = trade_setup.tool_bag[tool_key]
-			setup_tool.draw_annotations(self,trigger_indexs) 
+			setup_tool = trade_setup.tool_bag[tool_key] #TODO - make some draw_annotations functions 
+			setup_tool.draw_annotations(self, chart_candles, trigger_indexs) 
 		
 		
 	
@@ -250,7 +254,12 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 	tool_bag = {} #what and how to draw? 
 	
 	
-	#for every setup, put the indicators used in here.
+	def __init__(self):
+		self.indicators()  #call all initializers 
+		self.chart_patterns() 
+		self.tools() 
+	
+	#for every setup, put the indicators used in here. They get drawn in full
 	def indicators(self):	
 		pass 
 	
@@ -328,7 +337,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		"""
 		#pdb.set_trace()
 		
-		self.indicators() #init indicators for this setup 
+		#self.indicators() #init indicators for this setup 
 		trade_signalling_data.name = self.get_name()
 		trade_signalling_data.bullish.signals, trade_signalling_data.bearish.signals = self.trigger(trade_signalling_data)
 		trade_signalling_data.bullish.entries, trade_signalling_data.bearish.entries = self.entry(trade_signalling_data)

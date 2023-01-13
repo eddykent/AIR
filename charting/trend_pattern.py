@@ -65,7 +65,7 @@ class TrendPattern(ChartPattern):
 		
 	#draws the standard trendlines found from the functions above - might suffice for all patterns? 
 	@overrides(ChartPattern)
-	def draw_snapshot(self,np_candles,snapshot_index,instrument_index):
+	def draw_snapshot(self,np_candles,instrument_index,snapshot_index):
 		line_buffer = 5 #how much to hang trendlines over the edge
 		
 		mask = self._create_mask(np_candles,instrument_index,snapshot_index)
