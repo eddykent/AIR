@@ -22,12 +22,18 @@ journaling
 mathematical indicators 
 	- fourier noise cancellation - done
 	- lag correlation values & n of corr > 0.3 (etc...)
+	- currency collection & redistribute
 
 trading rush checklist? 
 
-XGBoost - for better AI prediction results (for any indicator or price action) 
+code smells - indicator, trade_setup, candle_stick_pattern & chart_pattern 
+	draw_snapshot - make it take all np_candles and an instrument_index - done
+			- call _perform for all drawing needs 
+			- remove calculate & calculate_multiple functions 
+			- remove _construct function from indicator and place into candle tool 
+	draw_snapshot bonus - perhaps make a snapshot drawing class - not required?
 
-refactor setups 
+refactor setups - only drawing left
 	#done?- core signals func - -1, 0 and 1s 
 	#done?- stop tools (atr/std etc) - take list of signals and hints to produce full signals 
 	#done?- meta tools - divergence - bug
@@ -43,8 +49,12 @@ refactor setups
 	rename detect to trigger - done i think?
 	detect has lookahead bias --does it still???? -check
 	indicator init functions - for setting period and other params on indicators in one line 
+	
+drawing => add a chart pattern (eg support and resistance) to a setup and test it 
+		=> add annotations to tools DivTool, ExtremeTool and StopTools 
+		=> use SmudgeTool/DelayTool to somehow also add any elements that are used in trigger yet were not displayed due to not being prev candle
 
-- proper backtesting stats! 
+- proper backtesting stats! - only sharpe and sortino ratios left 
 	- add profit path to bactesting np
 	- drawdown is min of sum of all negative profit paths 
 	- win/loss ratio
@@ -152,7 +162,7 @@ long term trends - correlation, client sentiment, currency strength,
 		- anything else 
 	
 	
-
+XGBoost - for better AI prediction results (for any indicator or price action) 
 
 
 ADVANCED: 
