@@ -30,41 +30,40 @@ bullish = 0
 bearish = 1
 
 
+def _sliding_windows(source,period,filler=0):
+	start_padding = np.full((source.shape[0],period-1),filler)
+	source_padded = np.concatenate([start_padding,source],axis=1)
+	source_windows = np.lib.stride_tricks.sliding_window_view(source_padded,window_shape=period,axis=1)
+	return source_windows 
+
 #put any common functions for setup tools into here 
 class SetupTool:  #abc? 
 	
 	period = 5 
 	
-	def __init__(self,period=5,):
+	def __init__(self,period=5):
 		self.period = period
-
-	def _sliding_windows(self,detected,period=None,filler=0):
-		if period is None:
-			period = self.period
-		np_nones = np.full((detected.shape[0],period-1),filler)
-		detected_padded = np.concatenate([np_nones,detected],axis=1)
-		detected_windows = np.lib.stride_tricks.sliding_window_view(detected_padded,window_shape=period,axis=1)
-		return detected_windows 
 	
-	def draw_annotations(self,setup_view, candlesticks, instrument_index, trigger_indexs):
+	def draw_annotations(self,setup_view, markup_param, instrument_index, trigger_indexs):
 		#not sure how this is going to work yet... 
-		return None #blank if the tool does not have any annotations to draw
+		return None #blank if the tool does not have any annotations to draw (eg cross tool)
 		
 	
-	#def _pad_start(self,period):
-	#	def _pad_start(self,np_candles,period): #this is needed to preserve the length of the streams
-	#	np_nones = np.full((np_candles.shape[0],period-1,np_candles.shape[-1]),np.nan) 
-	#	return np.concatenate([np_nones,np_candles],axis=1)
+	def markup(self,values : np.array): #use a two array for div tool 
+		pass
 
 
-#smudge stuff forward in time so they are relevant for longer 
+#smudge triggers forward in time so they are relevant for longer 
 class SmudgeTool(SetupTool):
 
 	smudge_length = 5 
 	
-	   #might be able to make this without loops 
+	def __init__(self,smudge_length= 5):
+		self.smudge_length = smudge_length
+	
+	#might be able to make this without loops 
 	def markup(self,detected):	 
-		detected_windows = self._sliding_windows(detected,self.smudge_length)
+		detected_windows = _sliding_windows(detected,self.smudge_length)
 		return np.any(detected_windows,axis=2)
 	
 #strategy tools? 
@@ -114,25 +113,32 @@ class Zero2OneTool(SetupTool):
 
 class ExtremesTool(SetupTool): 
 	
-	required_values = 20
+	extreme_window = 20
 	order = 3
+	chart = 'candlesticks' #where to draw the extreme points per window 
 	
 	direction_dict = {
 		'max':scipy.signal.argrelmax,
 		'min':scipy.signal.argrelmin
 	}
 	
+	
+	def __init__(self, extreme_window = 20, order = 3, chart='candlesticks'):
+		self.extreme_window = extreme_window
+		self.order = order
+	
 	def markup(self, values, direction='max'):
 		#data = np.concatenate([self.momentum,self.priceaction],axis=2)
 		#maxminimas 
-		value_windows = self._sliding_windows(values,self.required_values,np.nan)
-		scipyf = self.direction_dict.get(direction.lower())
+		value_windows = _sliding_windows(values,self.extreme_window,np.nan)
+		funcname = direction.lower()
+		scipyf = self.direction_dict.get(funcname)
 		if scipyf is None:
-			raise ValueError(f'Unknown direction "{direction.lower()}". Must be "min" or "max"')
+			raise ValueError(f'Unknown direction "{funcname}". Must be "min" or "max"')
 		value_extremes = self.get_extremes(value_windows,self.order,scipyf)
 		return value_extremes 
 	
-	@overrides(SetupTool)
+	@overrides(SetupTool)#perhaps not?
 	def draw_annotations(self,setup_view,triggers):
 		pass 
 	
@@ -185,23 +191,23 @@ class ExtremesTool(SetupTool):
 #find peaks/lows in a momentum result and in the price action and determine if divergence is happening 
 class DivTool(ExtremesTool):
 	
-	momentum = None
-	price_action = None
-	div_window = 30
+	extreme_window = 30
 	order = 8
 	hidden = False #if true, use hidden divergence detection method instead 
 	zero_cross = True #TODO if false, mark all divs that cross over the 0 line as false (undetect) (rsi will require scaling) 
 	
 	
-	def __init__(self,momentum,price_action):
-		self.momentum = momentum if len(momentum.shape) == 2 else momentum[:,:,0]
-		self.price_action = price_action if len(price_action.shape) == 2 else price_action[:,:,0]
+	def __init__(self, extreme_window = 20, order = 3, zero_cross= True, chart='candlesticks', other_chart='rsi14'): #default draw on rsi charts 
+		super().__init__(self,*args,*kwargs)
+		self.other_chart = other_chart #where to draw the other lines 
+		self.zero_cross = zero_cross
 	
-	def markup(self):
+	def markup(self, values):
 		#data = np.concatenate([self.momentum,self.priceaction],axis=2)
 		#maxminimas 
-		price_action_windows = self._sliding_windows(self.price_action,self.div_window,np.nan)
-		momentum_windows = self._sliding_windows(self.momentum,self.div_window,np.nan)		
+		momenum, price_action = values
+		price_action_windows = _sliding_windows(price_action,self.extreme_window,np.nan)
+		momentum_windows = _sliding_windows(momentum,self.extreme_window,np.nan)		
 		
 		#tic = time.time() 
 		price_peaks = self.get_extremes(price_action_windows,self.order,scipy.signal.argrelmax)
@@ -223,8 +229,8 @@ class DivTool(ExtremesTool):
 		momentum_lows = momentum_pits[:,:,-1,1] < momentum_pits[:,:,-2,1] if self.hidden else momentum_pits[:,:,-1,1] > momentum_pits[:,:,-2,1]
 		
 		#check proximity to the current time of the window 
-		price_peaks_proxi = price_peaks[:,:,-1,0] > (self.div_window - self.order)
-		price_pits_proxi = price_pits[:,:,-1,0] > (self.div_window - self.order)
+		price_peaks_proxi = price_peaks[:,:,-1,0] > (self.extreme_window - self.order)
+		price_pits_proxi = price_pits[:,:,-1,0] > (self.extreme_window - self.order)
 		
 		#pdb.set_trace()
 		

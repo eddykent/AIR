@@ -222,7 +222,7 @@ class TradeSetupView:
 		timeline = self.trade_signalling_data.timeline 
 		chart_candles = np.concatenate([np_candles[instrument_index,:,:4],timeline[:,np.newaxis]],axis=1)
 		
-		pdb.set_trace()
+		#pdb.set_trace()
 		bullish,bearish = trade_setup.trigger(self.trade_signalling_data)
 		setup_triggers = bullish[instrument_index] | bearish[instrument_index]
 		trigger_indexs = np.where(setup_triggers)[0]

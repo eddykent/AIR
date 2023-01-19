@@ -15,7 +15,7 @@ from utils import overrides
 
 import charting.candle_stick_functions as csf
 from charting.candle_stick_pattern  import Engulfing, PinBar
-from charting.chart_pattern import ChartPattern #get an xtreme window 
+from charting.chart_pattern import ChartPattern, SupportAndResistance #get an xtreme window 
 
 from setups.trade_setup import TradeSetup
 from setups.setup_tools import DivTool, CrossTool, Zero2OneTool, CandleLagTool, ValueLagTool, ExtremesTool, SmudgeTool
@@ -34,7 +34,7 @@ class TripleRSIADX(TradeSetup):
 	#aggressive - close to prev support/resistance value (>1 atr?) (with SR)
 	#conservative - candle stick pattern (WithCSP)
 	#SL rolling low + few pip buffer
-	aggressive = False 
+	aggressive = True 
 	conservative = False 
 	
 	@overrides(TradeSetup)
@@ -45,6 +45,12 @@ class TripleRSIADX(TradeSetup):
 			'rsi21':RSI(21),
 			'ema50':EMA(50),
 			'adx14':ADX(14)
+		}
+	
+	@overrides(TradeSetup)
+	def chart_patterns(self):
+		self.chart_pattern_bag = {
+			'support_resistance1':SupportAndResistance()
 		}
 	
 	@overrides(TradeSetup)
@@ -76,7 +82,10 @@ class TripleRSIADX(TradeSetup):
 		
 		if self.aggressive:
 			#test S&R
-			pass
+			support_resistance = self.chart_pattern_bag['support_resistance1']
+			sr_bias = support_resistance(np_candles)[:,:,0]  #bias is at 1
+			bullish = bullish & (sr_bias > 0)
+			bearish = bearish & (sr_bias < 0)
 			
 		if self.conservative:
 			#test candles 
