@@ -96,6 +96,14 @@ sql functions for correlations (cross & auto) - still todo correlation function 
 
 perhaps refactor newsindicator - don't use an indicator with numpy, it is a filter thing
 
+- proper backtesting stats! - only sharpe and sortino ratios left 
+	- add profit path to bactesting np
+	- drawdown is min of sum of all negative profit paths 
+	- win/loss ratio
+	- winstreak, losestreak
+	- result profit in %, calc using capital risk factor 1% * capital, capital, lotsize?  (leverage per instrument makes for borrowing capability) 
+	- (other, volatility? market exposure? sharpe ratio? profit factor? largest win/loss trade, average win/loss trade) 
+
 pip to price conversion tool 
 
 pluralise all chart patterns. Start with match_pattern as  it already uses numpy. other chart patterns may be a re-write 
