@@ -99,8 +99,11 @@ class ExchangeRateTool:
 	def produce_exchange_rates(self,entry_indexs, exit_indexs, exchanges):
 		N = len(entry_indexs)
 		lens = exit_indexs - entry_indexs + 1
-		maxlen = max(lens)
+		maxlen = max(lens) if not lens.empty else 0
 		exchanges_dest = np.full((N,maxlen),np.nan)
+		if lens.empty:
+			return exchanges_dest
+			
 		instrument_indexs = np.repeat(exchanges,lens)
 		df_indexs = np.repeat(np.arange(N),lens)
 		
@@ -244,9 +247,9 @@ class BackTestStatistics:
 		strat_result = self.per_instrument(df,self.strategy_result)
 		dbf.stopwatch('calc objective and strategy results')
 		
-		pdb.set_trace()
+		#pdb.set_trace()
 		
-		print('formulate')
+		#print('formulate')
 		return obj_result
 	
 
@@ -317,7 +320,7 @@ class BackTestStatistics:
 			
 			#margin_ratios = np.array(1.0 / df['leverage'])  #margin not needed? 
 			#margin_requirements = (1.0 / exchange_rates) * trade_sizes * margin_ratios
-			money_output = exchange_rates * trade_sizes * (df['result_percent']  / 100)
+			money_output = exchange_rates * trade_sizes * (df['result_percent']  / 100) #comissions? 
 			dict_result['max_win_money'] =  money_output.max()
 			dict_result['max_loss_money'] =  money_output.min()
 			
@@ -397,18 +400,32 @@ class BackTestStatistics:
 			})
 			
 			(x1,v1), (x2,v2) = self.max_drawdown_points(return_charts['worst_money']) 
-			maxddm = min(((v2 - v1) / v2)*100 , 100) #100 => account blown
+			
+			maxddm = min(((v2 - v1) / v2)*100 , 100) if v1 is not None and v2 is not None else 0 #100 => account blown
 			assert maxddm >= 0 , "drawdown is negative which indicates error "
 			
 			return_charts['draw_down'] = maxddm
+			
+			if v1 is not None and v2 is not None:
+				returns = (return_charts['typical_money'] / self.starting_capital) * 100 
+				returns = returns - 100 
+				sd = np.std(returns)
+				risk_free = 0.05 #unknown tbh
+				return_charts['sharpe_ratio'] = (returns[-1] - risk_free) / sd 
+			else:
+				return_charts['sharpe_ratio'] = 0
+			
 			
 		return return_charts
 	
 	def select_percent_tracks(self,df,percent_path_type=PercentPathType.TYPICAL):
 		N = len(df)
 		lens = df['exit_index'] - df['entry_index'] + 1
-		maxlen = max(lens)
+		#pdb.set_trace()
+		maxlen = max(lens) if not lens.empty else 0
 		values_dest = np.full((N,maxlen),np.nan)
+		if maxlen is 0:
+			return values_dest #everything moves by 0 percent since lists are empty
 		instrument_indexs = np.repeat(df['instrument_index'],lens)
 		df_indexs = np.repeat(np.arange(N),lens)
 		
@@ -465,17 +482,20 @@ class BackTestStatistics:
 	#from a list of profit paths (in money or percents) merge it to a single line 
 	def merge_to_chart(self,value_tracks,start_indexs,end_indexs,accumulate=True): 
 		
-		linelen = len(self.signalling_data.timeline)
-		N = len(value_tracks) 
-		lens = end_indexs - start_indexs + 1
-		maxlen = max(lens)
-		#output = np.zeros((N,linelen))
+		linelen = len(self.signalling_data.timeline)		
 		
 		output = np.zeros(linelen)
 		
+		N = len(value_tracks) 
+		lens = end_indexs - start_indexs + 1
+		#if lens.empty:
+		#	return output #return line of 0s 
+			
+		
 		#try this instead if below keeps behaving weirdly 
 		for (value_track, start_index, end_index) in zip(value_tracks,start_indexs,end_indexs):
-			#pdb.set_trace()
+			#if start_index == end_index:
+			#	continue
 			end_value = value_track[end_index - start_index]
 			output[start_index:end_index] += value_track[:end_index - start_index]
 			if accumulate:
@@ -494,6 +514,8 @@ class BackTestStatistics:
 	@staticmethod
 	def max_drawdown_points(linechart):
 		x1 = np.argmax(np.maximum.accumulate(linechart) - linechart) # end of the period
+		if x1 == 0: 
+			return (0,None),(0,None) #return 0 when no drawdown 
 		x2 = np.argmax(linechart[:x1]) # start of period
 		v1 = linechart[x1]
 		v2 = linechart[x2]
