@@ -11,7 +11,7 @@
 #(ENGULFING)	HIGH PROFIT 1 Minute Chart Scalping Stratgey Proven 100 Trades - RSI+200 EMA+ Engulfing
 #(SIMPLE_MONEY)	Simple Money Flow Index MF! DayTrading Strategy Tested 100 Times (5 minute chart) - Full Results
 
-
+import numpy as np
 import pdb
 
 import charting.candle_stick_functions as csf
@@ -38,6 +38,12 @@ class MACD_MFT(TradeSetup):
 			'macd':MACD()
 		}
 		
+	@overrides(TradeSetup)
+	def tools(self):
+		self.tool_bag = {
+			'div_tool1':DivTool(15,3,other_chart='macd'),
+			'div_tool2':DivTool(30,5,other_chart='macd')
+		}
 	
 	@overrides(TradeSetup)
 	def trigger(self,trade_signalling_data):
@@ -64,16 +70,14 @@ class MACD_MFT(TradeSetup):
 		macd_dev = macd_result[:,:,2]
 		
 		np_closes = np_candles[:,:,csf.close]
+
+		div_tool1 = self.tool_bag['div_tool1']
+		div_tool2 = self.tool_bag['div_tool2']
 		
-		div_tool1 = DivTool(macd_result, np_closes)
-		div_tool1.order = 3 
-		div_tool1.div_window = 20
-		div_tool1.zero_cross = False
+		div_args = np.stack([np_closes, macd_line])
 		
-		div_tool2 = DivTool(macd_result, np_closes)
-		
-		bull_div1, bear_div1 = div_tool1.markup()
-		bull_div2, bear_div2 = div_tool2.markup()
+		bull_div1, bear_div1 = div_tool1.markup(div_args)
+		bull_div2, bear_div2 = div_tool2.markup(div_args)
 		
 		bull_div = bull_div1 | bull_div2
 		bear_div = bear_div1 | bear_div2 

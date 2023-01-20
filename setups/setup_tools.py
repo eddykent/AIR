@@ -21,7 +21,7 @@ from setups.signal import * #anyting signal data related
 from utils import ListFileReader, Database, DataComposer, PipHandler
 from utils import overrides, deprecated
 
-#import charting.candle_stick_functions as csf
+import charting.candle_stick_functions as csf
 from indicators.indicator import *
 from indicators.trend import *
 
@@ -44,7 +44,7 @@ class SetupTool:  #abc?
 	def __init__(self,period=5):
 		self.period = period
 	
-	def draw_annotations(self,setup_view, markup_param, instrument_index, trigger_indexs):
+	def draw_annotations(self,setup_view, trade_setup, instrument_index, trigger_indexs):
 		#not sure how this is going to work yet... 
 		return None #blank if the tool does not have any annotations to draw (eg cross tool)
 		
@@ -139,7 +139,7 @@ class ExtremesTool(SetupTool):
 		return value_extremes 
 	
 	@overrides(SetupTool)#perhaps not?
-	def draw_annotations(self,setup_view,triggers):
+	def draw_annotations(self,setup_view, trade_setup, instrument_index, trigger_indexs):
 		pass 
 	
 	#turn a set of windows into a list of max peaks per window 
@@ -191,21 +191,21 @@ class ExtremesTool(SetupTool):
 #find peaks/lows in a momentum result and in the price action and determine if divergence is happening 
 class DivTool(ExtremesTool):
 	
-	extreme_window = 30
-	order = 8
+	extreme_window = 15
+	order = 3
 	hidden = False #if true, use hidden divergence detection method instead 
 	zero_cross = True #TODO if false, mark all divs that cross over the 0 line as false (undetect) (rsi will require scaling) 
 	
 	
-	def __init__(self, extreme_window = 20, order = 3, zero_cross= True, chart='candlesticks', other_chart='rsi14'): #default draw on rsi charts 
-		super().__init__(self,*args,*kwargs)
+	def __init__(self, extreme_window = 15, order = 3, zero_cross= True, chart='candlesticks', other_chart='rsi14'): #default draw on rsi charts 
+		#super().__init__(self,*args,*kwargs)
 		self.other_chart = other_chart #where to draw the other lines 
 		self.zero_cross = zero_cross
 	
-	def markup(self, values):
+	def _produce_extremes(self,values):
 		#data = np.concatenate([self.momentum,self.priceaction],axis=2)
 		#maxminimas 
-		momenum, price_action = values
+		price_action, momentum = values  #price_action drawn on chart, momentum drawn on other_chart
 		price_action_windows = _sliding_windows(price_action,self.extreme_window,np.nan)
 		momentum_windows = _sliding_windows(momentum,self.extreme_window,np.nan)		
 		
@@ -215,13 +215,10 @@ class DivTool(ExtremesTool):
 		
 		price_pits = self.get_extremes(price_action_windows,self.order,scipy.signal.argrelmin)
 		momentum_pits = self.get_extremes(momentum_windows,self.order,scipy.signal.argrelmin)
-		#tok = time.time() - tic 
 		
-		#print('time to get extremes = '+str(tok))
-		#pdb.set_trace()
-		
-		#oob check? 
-		
+		return (price_peaks, momentum_peaks), (price_pits, momentum_pits)  
+	
+	def _determine_divergence(self, price_peaks, momentum_peaks, price_pits, momentum_pits ):
 		price_highs = price_peaks[:,:,-1,1] < price_peaks[:,:,-2,1] if self.hidden else price_peaks[:,:,-1,1] > price_peaks[:,:,-2,1]
 		momentum_highs = momentum_peaks[:,:,-1,1] > momentum_peaks[:,:,-2,1] if self.hidden else momentum_peaks[:,:,-1,1] < momentum_peaks[:,:,-2,1]
 		
@@ -239,10 +236,35 @@ class DivTool(ExtremesTool):
 		
 		return bullish, bearish 
 		
-	@overrides(SetupTool)
-	def draw_annotations(self,setup_view,triggers):
-		pass
 	
+	def markup(self, values):
+		(price_peaks, momentum_peaks), (price_pits, momentum_pits) = self._produce_extremes(values)
+		return self._determine_divergence(price_peaks, momentum_peaks, price_pits, momentum_pits)
+		
+		
+		
+	@overrides(SetupTool)
+	def draw_annotations(self,setup_view, trade_setup, instrument_index, trigger_indexs):
+		np_candles = setup_view.trade_signalling_data.np_candles
+		
+		primary_data = np_candles[:,:,csf.close]
+		if self.chart != 'candlesticks':
+			indicator_instance = trade_setup.indicator_bag.get(self.chart)
+			if indicator_instance is not None: 
+				primary_data = indicator_instance(np_candles)[:,:,0]
+		
+		secondary_data = np_candles[:,:,csf.close]
+		if self.other_chart != 'candlesticks':
+			indicator_instance = trade_setup.indicator_bag.get(self.other_chart)
+			if indicator_instance is not None: 
+				secondary_data = indicator_instance(np_candles)[:,:,0]
+		
+		
+		(primary_peaks,secondary_peaks), (primary_pits, secondary_pits) = self._produce_extremes([primary_data,secondary_data])
+		bullish, bearish = self._determine_divergence(primary_peaks,secondary_peaks, primary_pits, secondary_pits)
+		
+		#now decypher the results to draw using all the indexs and bullish,bearish 
+		
 	
 
 #eg get macd and signal line, get their diff (macd - signal) then this.markup(diff) gives bullish and bearish crossovers 

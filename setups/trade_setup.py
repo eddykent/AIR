@@ -203,7 +203,7 @@ class TradeSetupView:
 				self.charts['candlesticks'] += indicator.draw_snapshot(np_candles,instrument_index)
 			
 			else:
-				chart_key = ind_key.rstrip(string.digits).upper() #eg MACD, RSI, etc ...
+				chart_key = self.get_chart_key(ind_key) 
 				if self.charts.get(chart_key) is None:
 					self.charts[chart_key] = chv.ChartView()
 				self.charts[chart_key] += indicator.draw_snapshot(np_candles,instrument_index)
@@ -234,9 +234,11 @@ class TradeSetupView:
 		
 		for tool_key in trade_setup.tool_bag: 
 			setup_tool = trade_setup.tool_bag[tool_key] #TODO - make some draw_annotations functions 
-			setup_tool.draw_annotations(self, chart_candles, trigger_indexs) 
+			setup_tool.draw_annotations(self, trade_setup, instrument_index, trigger_indexs) 
 		
-		
+	@staticmethod
+	def get_chart_key(ind_key): #turn indicator name into chart name it will be drawn on (indicators are grouped together)
+		return ind_key.rstrip(string.digits).upper() #eg MACD, RSI, etc ...
 	
 	
 
@@ -276,11 +278,15 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 	def parameters(self,param_settings={}):
 		for (key,settings) in param_settings.items():
 			if key in self.indicator_bag:
-				clazz = self.indicator_bag[key] 
+				clazz = self.indicator_bag[key].__class__
 				inst = clazz(**settings)
 				self.indicator_bag[key] = inst
+			if key in self.chart_pattern_bag:
+				clazz = self.chart_pattern_bag[key].__class__
+				inst = clazz(**settings)
+				self.chart_pattern_bag[key] = inst
 			if key in self.tool_bag:
-				clazz = self.tool_bag[key] 
+				clazz = self.tool_bag[key].__class__
 				inst = clazz(**settings)
 				self.tool_bag[key] = inst
 				
