@@ -299,6 +299,8 @@ class BackTestStatistics:
 		lose_grouper = (df['lose'] != df['lose'].shift()).cumsum()
 		df['lose_streak'] = df['lose'].groupby(lose_grouper).cumsum()
 		
+		df['duration'] = df['exit_date'] - df['entry_date']
+		
 		dict_result = {
 			'wins':df['win'].sum(),
 			'loses':df['lose'].sum(), 
@@ -306,6 +308,9 @@ class BackTestStatistics:
 			'lose_streak':df['lose_streak'].max(), 
 			'max_win_percent':df['result_percent'].max(),
 			'max_loss_perent':df['result_percent'].min(),
+			'shortest_duration':df['duration'].min(),
+			'longest_duration':df['duration'].max(),
+			'average_duration':df['duration'].mean(),
 			'len':len(df)
 		}
 		dict_result['ratio'] = dict_result['wins'] / (dict_result['wins'] + dict_result['loses'])
