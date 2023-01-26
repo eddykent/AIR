@@ -95,6 +95,11 @@ class CandleLagTool(SetupTool):
 class ValueLagTool(SetupTool):
 	
 	lag_length = 1
+	
+	
+	def __init__(self,lag_length):
+		self.lag_length = lag_length
+	
 	def markup(self,values):
 		return np.concatenate([np.full((values.shape[0],self.lag_length),np.nan),values[:,:-self.lag_length]],axis=1)
 		

@@ -356,9 +356,10 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		
 		#asserts here? 
 		
-		return self.__make_trade_signals(trade_signalling_data)
+		return self.make_trade_signals(trade_signalling_data)
 	
-	def __make_trade_signals(self,signal_data_extra):	
+	@staticmethod
+	def make_trade_signals(signal_data_extra):	
 		trade_signals = []
 		
 		#export these? would be much faster for any further computation such as filtering...
@@ -376,7 +377,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 			instrument = signal_data_extra.instruments[instrument_index]
 			the_date = signal_data_extra.timeline[timeline_index]
 			direction = TradeDirection.BUY
-			entry = signal_data_extra.bullish.entries[instrument_index,timeline_index]  
+			entry = signal_data_extra.bullish.entries[instrument_index,timeline_index] 
 			entry_cut = signal_data_extra.bullish.entry_cuts[instrument_index,timeline_index]  
 			take_profit_distance = signal_data_extra.bullish.take_profit_distances[instrument_index,timeline_index]
 			stop_loss_distance = signal_data_extra.bullish.stop_loss_distances[instrument_index,timeline_index]
