@@ -24,33 +24,16 @@ mathematical indicators
 	- lag correlation values & n of corr > 0.3 (etc...)
 	- currency collection & redistribute
 
-trading rush checklist? 
+trading rush checklist strategy? 
 
 code smells - indicator, trade_setup, candle_stick_pattern & chart_pattern 
 	draw_snapshot - make it take all np_candles and an instrument_index - done
 			- call _perform for all drawing needs 
 			- remove calculate, calculate_multiple, detect functions 
 			- remove _construct function from indicator and place into candle tool 
-	draw_snapshot bonus - perhaps make a snapshot drawing class - not required
-
-refactor setups - only drawing left
-	#done?- core signals func - -1, 0 and 1s 
-	#done?- stop tools (atr/std etc) - take list of signals and hints to produce full signals 
-	#done?- meta tools - divergence - bug
-	- init step for putting indicators/patterns onto self
-	- drawing consists of list of TradeSignal and nothing else? 
-		-base yes, higher drawing functions can draw the underlying indicators if on candlesticks
-		-consider drawing any results from self 
-	exit signals
-		- write exit signals for some setups
-		- utilise length property of trade_signal for faster backtesting (exit signals can be slow)
-			- or use exit_per_entry = true! :) 
-
-	rename detect to trigger - done i think?
-	detect has lookahead bias --does it still???? -check
-	indicator init functions - for setting period and other params on indicators in one line 
+	draw_snapshot bonus - perhaps make a snapshot drawing class - not required -remove?
 	
-drawing => add a chart pattern (eg support and resistance) to a setup and test it 
+drawing => add a chart pattern (eg support and resistance) to a setup and test it - done
 		=> add annotations to tools DivTool, ExtremeTool and StopTools 
 		=> use SmudgeTool/DelayTool to somehow also add any elements that are used in trigger yet were not displayed due to not being prev candle
 
@@ -61,6 +44,7 @@ drawing => add a chart pattern (eg support and resistance) to a setup and test i
 
 
 additional constraints for chart patterns & speed
+	- re-think support/resistance as gives bad results
 	- harmonics - eg why are there so few? fix the cache method in Harmony (custom_setups)
 	- trend pattern - what additional constraints can be added to get better results? 
 
@@ -102,6 +86,8 @@ data - hole finder
 data - broker tool for getting all instrument details 
 	broker tool for getting captial, open trades etc 
 data - ensure not to get blocked from news  (refactor news stuff to have instrument keys per story etc)
+data - validate all stuff from dukascopy before pushing to database & unlinking downloads
+	- suspect thread unsafe datetime stuff being used
 
 
 

@@ -36,6 +36,22 @@ to see if the exchange rate is the same (for common exchanges)
 Extend trades to be able to have entry, stop loss and take profit price values - refactored trade_schedule.py to work with and 
 have a TradeSignal class which is much nicer! 
 
+refactor setups - only drawing left
+	#done?- core signals func - -1, 0 and 1s 
+	#done?- stop tools (atr/std etc) - take list of signals and hints to produce full signals 
+	#done?- meta tools - divergence - bug
+	- init step for putting indicators/patterns onto self
+	- drawing consists of list of TradeSignal and nothing else? 
+		-base yes, higher drawing functions can draw the underlying indicators if on candlesticks
+		-consider drawing any results from self 
+	exit signals
+		- write exit signals for some setups
+		- utilise length property of trade_signal for faster backtesting (exit signals can be slow)
+			- or use exit_per_entry = true! :) 
+
+	rename detect to trigger - done i think?
+	detect has lookahead bias --does it still???? -check
+	indicator init functions - for setting period and other params on indicators in one line 
 
 refactor chart_pattern to use a XtremeWindowBundle that is passed to chart_perform 
 	- remove cache hell by also having a _bundle_perform function that takes an XtremeWindowBundle and returns same as _perform
