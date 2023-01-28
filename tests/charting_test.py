@@ -35,7 +35,7 @@ database_response = cur.fetchall()
 candles = CandleStickPattern.to_candles(database_response,'EUR/USD')
 candle_pattern = SoldiersAndCrows()
 
-pattern_result = candle_pattern.detect(candles)
+pattern_result = candle_pattern.detect(candles)[]
 #pdb.set_trace()
 
 candlestick_chart_data = chart.Candlestick(

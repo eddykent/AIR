@@ -9,7 +9,7 @@ from setups.setup_tools import CandleDataTool, PipStop, ATRStop, RollingExtremeS
 #from setups.custom_setups import Harmony
 from setups.trade_pro import *
 from utils import ListFileReader, Database
-from backtest import BackTesterDatabase, BackTestStatistics
+from backtest import BackTesterDatabase, BackTesterCandles, BackTestStatistics
 from filters.simple_filters import LambdaSelectFilter
 
 lfr = ListFileReader()
@@ -22,8 +22,9 @@ currencies = lfr.read('fx_pairs/currencies.txt')
 
 
 
-setups = [MACD_MFT, RSIS_EMA_X, RSIS_EMA_1, CMF_MACD_ATR, ENGULFING, SIMPLE_MONEY]
+#setups = [MACD_MFT, RSIS_EMA_X, RSIS_EMA_1, CMF_MACD_ATR, ENGULFING, SIMPLE_MONEY]
 #setups = [MACD_MFT] #[RSIS_EMA_X, ENGULFING, CMF_MACD_ATR] #highest winrate ones
+setups = [ENGULFING]
 
 datatool = CandleDataTool() 
 datatool.start_date = datetime.datetime(2022,5,4)
@@ -118,7 +119,7 @@ dbf.stopwatch('backtesting')
 with open('data/pickles/backtestdata.pkl','wb') as f:
 	pickle.dump((tsd,signals,result),f)
 
-bts = BackTestStatistics(tsd, signals, result)
+bts = BackTestStatistics(bsd, signals, result)
 some_result = bts.calculate() #todo! pass query params
 
 

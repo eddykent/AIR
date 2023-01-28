@@ -10,7 +10,9 @@ from setups.setup_tools import CandleDataTool, PipStop, ATRStop
 #from setups.custom_setups import Harmony
 #from setups.collected_setups import Harmony 
 #from setups.simple_setups import *
-from setups.trade_pro import *
+#from setups.trade_pro import *
+#from setups.trader_dna import *
+from setups.trading_rush import *
 from utils import ListFileReader, Database
 from backtest import BackTesterDatabase, BackTestStatistics
 from filters.simple_filters import LambdaSelectFilter
@@ -31,11 +33,14 @@ currencies = lfr.read('fx_pairs/currencies.txt')
 
 
 datatool = CandleDataTool() 
-datatool.start_date = datetime.datetime(2022,5,4)
-datatool.end_date = datetime.datetime(2022,9,4)
+#datatool.start_date = datetime.datetime(2022,10,3)
+#datatool.end_date = datetime.datetime(2022,12,16)
+datatool.start_date = datetime.datetime(2022,12,16)
+datatool.end_date = datetime.datetime(2022,12,23)
 datatool.instruments = lfr.read('fx_pairs/fx_mains.txt')
 datatool.volumes = True
-datatool.chart_resolution = 60
+#datatool.ask_candles = True
+datatool.chart_resolution = 15
 #datatool.candle_offset = 15
 dbf.stopwatch('fetch candles')
 datatool.read_data_from_currencies(currencies)
@@ -50,12 +55,15 @@ dbf.stopwatch('fetch candles')
 
 #pdb.set_trace()
 
-fxss = RSIS_EMA_X() 
+#fxss = BollingerBandsRSISetup() #MACD_MFT()
+#fxss = TripleRSIADX()
+#fxss = ICHIMOKU() #from trading_rush
+#fxss = RSIS_EMA_X() 
 #signals = mrffx.get_setups(start_date,end_date) #+ axemrsi.get_setups(start_date,end_date)
 #msda = HA_VWAP_RSI_DIVERGENCE()
 #msda.stop_calculator = PipStop(take_profit_pips=30,stop_loss_pips=20)
-#fxss.stop_calculator = ATRStop()
-fxss.stop_calculator = PipStop(take_profit_pips=30,stop_loss_pips=20)
+fxss.stop_calculator = ATRStop()
+#fxss.stop_calculator = PipStop(take_profit_pips=30,stop_loss_pips=20)
 
 
 #from indicators.momentum import MACD 
@@ -65,7 +73,8 @@ fxss.stop_calculator = PipStop(take_profit_pips=30,stop_loss_pips=20)
 
 signals = fxss.get_setups(tsd)
 
-trade_setup_view = fxss.draw(tsd,instrument='EUR/USD')
+trade_setup_view = fxss.draw(tsd,instrument='GBP/USD')
+#check signals here 
 trade_setup_view.signals(signals)
 
 
@@ -110,14 +119,14 @@ btd = BackTesterDatabase(cursor)
 
 
 
- #remove when wanting to do stress tests
-dbf.stopwatch('backtesting')
+# #remove when wanting to do stress tests
+#dbf.stopwatch('backtesting')
 result = btd.perform(signals) #,profit_lock=(0.75,0.5,0)
-#backteststats = BacktestStatistics(...) 
-dbf.stopwatch('backtesting')
+##backteststats = BacktestStatistics(...) 
+#dbf.stopwatch('backtesting')
 
 #pdb.set_trace()
-#trade_setup_view.backtest(signals, result)
+trade_setup_view.backtest(signals, result)
 
 pcp = PlotlyChartPainter()
 pcp.paint(trade_setup_view.charts['candlesticks'])
@@ -125,13 +134,14 @@ pcp.show()
 
 
 bts = BackTestStatistics(tsd, signals, result)
-#bts.get_stats() #pass query params
+bts.set_exchange_rate_tool()
+full_results = bts.calculate() #pass query params
 
 
-statuses = [r.result_status for r in result]
-cc = Counter(statuses)
+#statuses = [r.result_status for r in result]
+#cc = Counter(statuses)
 
-print(cc)
+#print(cc)
 #print(result)
 
 

@@ -11,14 +11,9 @@ from setups.simple_setups import ForexSignalsAnchorBar, MeanReversionFFXS
 
 
 from filters.simple_filters import ForexSignalsAnchorBarFilter,LambdaSelectFilter
-from filters.ai_based import NewsFilter
+from filters.ai_based import NewsFilter, NextCurrencyStrengthFilter
 #from models.model_base import ModelMaker, ModelLoader
 
-from models.news_reader_model import NewsReaderModel
-from models.model_base import ModelLoader 
-
-nrm = NewsReaderModel(weights_label='main_set')
-ml = ModelLoader(nrm)
 
 from utils import ListFileReader, Database, DataComposer
 from backtest import BackTesterDatabase
@@ -31,7 +26,7 @@ end_date = datetime.datetime(2022,7,21,14,0)
 instruments = lfr.read('fx_pairs/fx_mains.txt')
 currencies = lfr.read('fx_pairs/currencies.txt')
 
-hablah = MeanReversionFFXS(instruments)
+hablah = MeanReversionFFXS()
 
 signals = hablah.get_setups(start_date,end_date) #do same for filters?
 
@@ -94,11 +89,18 @@ available_instruments = None
 #available_instruments = [fx for fx in instruments if fx in candlestreams]
 
 
-nf =  NewsFilter(ml)
-#csf = CurrencyStrengthFilter(candle_result)
-#csf.rank_gap = -3
+from models.news_reader_model import NewsReaderModel
+from models.model_base import ModelLoader 
 
-filtered_signals  = nf.filter(signals)
+#nrm = NewsReaderModel(weights_label='main_set')
+csm = CurrencyStrengthModel(weights_label='test')
+
+ml = ModelLoader(csm)
+ncsf =  NextCurrencyStrengthFilter(ml)
+
+
+
+filtered_signals  = ncsf.filter(signals)
 print(str(len(signals)) + ' -> ' + str(len(filtered_signals)))
 
 cursor = Database(cache=False,commit=False)

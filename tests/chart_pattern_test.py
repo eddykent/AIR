@@ -50,12 +50,12 @@ with Database(commit=False, cache=False) as cursor:
 #chart_pattern = PivotPoints()
 #chart_pattern  = MatchPatternInstance()
 #chart_pattern = Triangle()
-#chart_pattern = SymmetricalTriangle()
+chart_pattern = SymmetricalTriangle()
 #chart_pattern = RisingWedge() 
 #chart_pattern = FallingWedge()
 
-chart_pattern = RisingTriangle() 
-#chart_pattern = Bat()
+#chart_pattern = RisingTriangle() 
+#chart_pattern = Gartley()
 #chart_pattern = FallingTriangle()
 #chart_pattern = ApproximateChannel()
 

@@ -8,7 +8,7 @@ from indicators.trend import *
 from charting.candle_stick_pattern import CandleStickPattern
 from charting.chart_viewer import PlotlyChartPainter
 
-
+import numpy as np
 
 lfr = ListFileReader()
 currencies = lfr.read('fx_pairs/currencies.txt')
@@ -50,7 +50,7 @@ OurIndicator = ADX
 
 indicator = OurIndicator()
 
-candle_streams = [candles[fx] for fx in fx_pairs]
+candle_streams = np.array([candles[fx] for fx in fx_pairs])
 #results = indicator.calculate_multiple(candle_streams)
 
 
@@ -58,7 +58,7 @@ candle_streams = [candles[fx] for fx in fx_pairs]
 this_view = chv.ChartView()
 this_view.draw_candles(candle_streams[0])
 indicator.candle_type = CandleType.CANDLE
-indicator_view = indicator.draw_snapshot(candle_streams[0])
+indicator_view = indicator.draw_snapshot(candle_streams,0)
 this_view += indicator_view
 
 

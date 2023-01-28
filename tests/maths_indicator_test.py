@@ -8,6 +8,9 @@ from indicators.mathematic import *
 from indicators.volatility import ChoppinessIndex
 
 import charting.chart_viewer as chv
+from setups.setup_tools import CandleDataTool
+
+import debugging.functs as debug
 
 lfr = ListFileReader()
 currencies = lfr.read('fx_pairs/currencies.txt')
@@ -37,9 +40,9 @@ tsd = datatool.get_trade_signalling_data()
 debug.stopwatch('fetch candles')
 
 
-#OurIndicator = FourierGradient
+OurIndicator = FourierGradient
 #OurIndicator = ChoppinessIndex
-OurIndicator = CorrelationAnalysis
+#OurIndicator = CorrelationAnalysis
 
 indicator = OurIndicator()
 
@@ -48,11 +51,11 @@ results = indicator.calculate_multiple(candle_streams)
 
 
 
-indicator_view = indicator.draw_snapshot(candle_streams[0])
+indicator_view = indicator.draw_snapshot(tsd.np_candles,0)
 
 pcp = chv.PlotlyChartPainter()
 if indicator.candle_sticks:
-	indicator_view.draw_candles(candle_streams[0])
+	indicator_view.draw_candles(tsd.np_candles[0])
 pcp.paint(indicator_view)
 pcp.show()
 
