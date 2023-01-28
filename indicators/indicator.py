@@ -175,26 +175,26 @@ class Indicator:
 	#	"""
 	#	raise NotImplementedError('This method must be overridden') #not sure how to do criteria yet 
 	#
-	#def detect(self,criteria : list=[]) -> np.array:
-	#	"""
-	#	Generates trade setups in the form of -1,0,1 from the set of candles and from given criteria. 
-	#	This format can be useful for ai related work
-	#	
-	#	Parameters
-	#	----------
-	#	candle_stream : list of candles 
-	#		The set of candles that we want to calculate on
-	#	candle_stream_index : int
-	#		The end point at which we want to "pretend" that we can't see passed. If None, the whole candle stream is used
-	#	criteria : list of SetupCriteria (Optional)
-	#		The criteria required for there to be a setup at any point in the streams & the indicator resuts. If a blank list is returned, all bullish and bearish setups are returned
-	#	
-	#	Returns 	
-	#	-------
-	#	np.array of int
-	#		A list of trade signals that are able to be passed to a backtester  
-	#	"""
-	#	raise NotImplementedError('This method must be overridden') #not sure how to do criteria yet 
+	def detect(self,criteria : list=[]) -> np.array:
+		"""
+		Generates trade setups in the form of -1,0,1 from the set of candles and from given criteria. 
+		This format can be useful for ai related work
+		
+		Parameters
+		----------
+		candle_stream : list of candles 
+			The set of candles that we want to calculate on
+		candle_stream_index : int
+			The end point at which we want to "pretend" that we can't see passed. If None, the whole candle stream is used
+		criteria : list of SetupCriteria (Optional)
+			The criteria required for there to be a setup at any point in the streams & the indicator resuts. If a blank list is returned, all bullish and bearish setups are returned
+		
+		Returns 	
+		-------
+		np.array of int
+			A list of trade signals that are able to be passed to a backtester  
+		"""
+		raise NotImplementedError('This method must be overridden') #not sure how to do criteria yet 
 	#
 	#
 	
@@ -268,7 +268,7 @@ class Typical(Indicator):
 	
 	@overrides(Indicator)
 	def title(self):
-		return "{self.__class__.__name__} "
+		return f"{self.__class__.__name__} "
 	
 
 
