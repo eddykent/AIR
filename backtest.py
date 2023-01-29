@@ -225,9 +225,9 @@ class BackTestStatistics:
 		df = self.mainframe
 		#scores = self.strategy_result(df)
 		
-		dbf.stopwatch('calc objective and strategy results')
+		#dbf.stopwatch('calc objective and strategy results')
 		
-		print('setup exchange') 
+		#print('setup exchange') 
 		self.set_exchange_rate_tool()
 		df = self.update_df_for_exchange(df) #adds data from ExchangeRateTool  
 		df = self.update_df_for_currency(df) #adds data from InstrumentDetails 
@@ -245,7 +245,7 @@ class BackTestStatistics:
 		#pdb.set_trace()
 		#strat = df[(df['strategy_ref']=='setups.trade_pro.RSIS_EMA_X') & (df['instrument'] == 'GBP/USD')]
 		strat_result = self.per_instrument(df,self.strategy_result)
-		dbf.stopwatch('calc objective and strategy results')
+		#dbf.stopwatch('calc objective and strategy results')
 		
 		#pdb.set_trace()
 		
@@ -311,7 +311,7 @@ class BackTestStatistics:
 			'shortest_duration':df['duration'].min(),
 			'longest_duration':df['duration'].max(),
 			'average_duration':df['duration'].mean(),
-			'len':len(df)
+			'N':len(df)
 		}
 		dict_result['ratio'] = dict_result['wins'] / (dict_result['wins'] + dict_result['loses'])
 		
@@ -439,7 +439,7 @@ class BackTestStatistics:
 		time_indexs = np.arange(df_indexs.shape[0]) - np.repeat(offsets,lens)
 		
 		value_indexs = time_indexs + np.repeat(df['entry_index'],lens)
-		direction_indexs = np.repeat((df['direction'] == TradeDirection.SELL).astype(np.int),lens)
+		direction_indexs = np.array(np.repeat((df['direction'] == TradeDirection.SELL).astype(np.int),lens)) #df being used instead of np so cast
 		
 		np_candles = self.signalling_data.np_candles
 		if len(np_candles.shape) == 3:
