@@ -113,7 +113,7 @@ class Zero2OneTool(SetupTool):
 	def markup(detected):
 		dt = DelayTool() 
 		prev = dt.markup(detected)
-		return (!prev & detected)
+		return (~prev & detected)
 
 
 class ExtremesTool(SetupTool): 
