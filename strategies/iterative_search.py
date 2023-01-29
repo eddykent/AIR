@@ -4,13 +4,17 @@
 
 import itertools #going to want all combinations of iterators
 import numpy as np 
-
+import pandas as pd
+from tqdm import tqdm
 
 from backtest import BackTesterCandles, BackTestStatistics
 from charting import candle_stick_functions as csf
 
+from setups.trade_setup import blank_result, TradeSetup
+from setups.setup_tools import Zero2OneTool
 
 import pdb
+import pickle
 
 #container class for holding an indicator, and a function specifying buy/sell direction based on the indicator and the candles
 class LambdaContainer: #inner class? #rename => TriggerBlock or similar? 
@@ -52,9 +56,16 @@ class IterativeSearch: #(SignalGenerator?)
 		self.trade_signalling_data = trade_signalling_data
 		self.backtesting_data = backtesting_data if backtesting_data is not None else trade_signalling_data
 	
+	def train(self): #this better? 
+		pass
+	
+	def infer(self): #for tests and usage 
+		pass
+	
 	def main(self):
-		full_results = self.all_biases()
-		self.main_iterate(full_results)
+		all_indicator_results = self.all_biases()
+		full_results = self.main_iterate(all_indicator_results)
+		
 	
 	def all_biases(self):
 		num_containers = len(self.lambda_containers)
@@ -68,7 +79,7 @@ class IterativeSearch: #(SignalGenerator?)
 	
 	def create_signals(self, name, bullish, bearish, stop_stuff):
 		
-		(bullish_tp, bullish_sl, bearish_tp, bearish_sl) = stop_stuff
+		(bullish_tp, bullish_sl), (bearish_tp, bearish_sl) = stop_stuff
 		trade_signalling_data = self.trade_signalling_data #possible crossref err
 		
 		trade_signalling_data.name = name 
@@ -85,8 +96,20 @@ class IterativeSearch: #(SignalGenerator?)
 		
 		return TradeSetup.make_trade_signals(trade_signalling_data)
 	
-	def process_full_results(self,results): #sort by money on each instrument 
-		pass
+	#objective is to maximise profits - this always max 
+	def process_full_results(self,results_df,objective='output_balance'): #sort by money on each instrument 
+		
+		full_results = result_df.copy()
+		
+		if callable(objective):
+			full_results['objective_value'] = objective(full_results) #check - may need lambda or something
+		elif objective in result_df.columns:
+			full_results['objective_value'] = full_results[objective]
+		else:
+			raise ValueError(f"Unsure what to do with objective '{objective}'")
+		
+		#for every instrument, lets get the top combinations? better to get highest performers? 
+		
 	
 	def pruned(self,comb):
 		return False
@@ -100,28 +123,41 @@ class IterativeSearch: #(SignalGenerator?)
 		
 		backtester = BackTesterCandles(self.backtesting_data)
 		
-		pdb.set_trace()
+		all_signals = []
 		
-		full_results = []
+		pruned_comb = [comb for comb in container_combs if not self.pruned(comb)]
 		
-		for comb in container_combs:
+		print('get all signals')
+		for comb in tqdm(pruned_comb):
 			#pdb.set_trace()
-			
-			if self.pruned(comb):
-				continue 
 				
 			name = comb #necessary?
 			bullish = np.all(all_results[:,:,comb,0],axis=2) #zero to 1 tools?
 			bearish = np.all(all_results[:,:,comb,1],axis=2)
 			
-			signals = self.create_signals(name,bullish,bearish,stop_data) 
+			if True:
+				bullish = Zero2OneTool.markup(bullish)
+				bearish = Zero2OneTool.markup(bearish)
 			
-			results = backtester.perform(signals)
-			statstool = BackTestStatistics(self.backtesting_data,signals,results)
-			full_result = statstool.calculate()  #add to pile for sorting 
-			full_results.append((comb, full_result))
+			all_signals.append(self.create_signals(name,bullish,bearish,stop_data))
 			
-		combination_lists = self.process_full_results(full_results)
+		full_results = [] 
+		#pdb.set_trace()
+		print('backtest all signals')
+		for comb,signals in tqdm(list(zip(pruned_comb,all_signals))):
+			if signals:
+				results = backtester.perform(signals)
+				statstool = BackTestStatistics(self.backtesting_data,signals,results)
+				result_df = statstool.calculate()  #add to pile for sorting 
+				result_df.insert(0,'combination',[comb]*len(result_df))
+				full_results.append(result_df)
+
+		full_results_df = pd.concat(full_results) 
+		
+		#with open('results/full_results.pkl','wb') as f: #save result for faster playing with later 
+		#	pickle.dump(full_results_df,f)
+			
+		return full_results_df
 	
 	
 	

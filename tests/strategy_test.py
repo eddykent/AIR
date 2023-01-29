@@ -6,6 +6,7 @@ import numpy as np
 import pdb 
 from datetime import datetime
 
+import pickle
 
 from setups.setup_tools import CandleDataTool, PipStop, ATRStop
 from utils import ListFileReader, Database
@@ -18,7 +19,10 @@ from strategies.iterative_search import IterativeSearch, LambdaContainer
 
 from charting import candle_stick_functions as csf
 
+from backtest import BackTesterCandles, BackTestStatistics 
+
 from debugging import functs as dbf
+
 
 lfr = ListFileReader()
 currencies = lfr.read('fx_pairs/currencies.txt')
@@ -36,15 +40,29 @@ datatool.volumes = True
 datatool.chart_resolution = 15
 #datatool.candle_offset = 15
 dbf.stopwatch('fetch candles')
-datatool.read_data_from_currencies(currencies)
-trade_signalling_data = datatool.get_trade_signalling_data()
+#datatool.read_data_from_currencies(currencies)
+#trade_signalling_data = datatool.get_trade_signalling_data()
+
+#with open('results/trade_signalling_data.pkl','wb') as f:
+#	pickle.dump(trade_signalling_data,f)
+
+with open('results/trade_signalling_data.pkl','rb') as f:
+	trade_signalling_data = pickle.load(f)
+
 dbf.stopwatch('fetch candles')
 
+
 datatool.backtesting = True 
-dbf.stopwatch('fetch candles')
-datatool.read_data_from_currencies(currencies)
-backtesting_data = datatool.get_trade_signalling_data()
-dbf.stopwatch('fetch candles')
+dbf.stopwatch('fetch bt candles')
+#datatool.read_data_from_currencies(currencies)
+#backtesting_data = datatool.get_trade_signalling_data()
+
+#with open('results/backtesting_data.pkl','wb') as f:
+#	pickle.dump(backtesting_data,f)
+
+with open('results/backtesting_data.pkl','rb') as f:
+	backtesting_data = pickle.load(f)
+dbf.stopwatch('fetch bt candles')
 
 
 #a breif list of indicators we will use for this 
@@ -93,10 +111,22 @@ its.pass_data(trade_signalling_data,backtesting_data)
 its.main() 
 
 
+#reload pickle from prev rrun for faster 
+#full_results = [] 
+#with open('results/full_results.pkl','rb') as f:
+#	full_results = pickle.load(f)
+#
+#its.process_full_results(full_results) #test this fnc
 
 
-
-
+#btc = BackTesterCandles(backtesting_data) 
+#bad_sigs = []
+#with open('results/badsignals.pkl','rb') as f:	
+#	bad_sigs = pickle.load(f)
+#bad_result = btc.perform(bad_sigs)
+#bts = BackTestStatistics(backtesting_data, bad_sigs, bad_result)
+#pdb.set_trace()
+#some_result = bts.calculate()
 
 
 
