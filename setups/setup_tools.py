@@ -96,8 +96,7 @@ class ValueLagTool(SetupTool):
 	
 	lag_length = 1
 	
-	
-	def __init__(self,lag_length):
+	def __init__(self,lag_length=1):
 		self.lag_length = lag_length
 	
 	def markup(self,values):

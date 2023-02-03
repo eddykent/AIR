@@ -277,7 +277,12 @@ class ZeroLagEMA(TradeSetup):
 			'nlma240': ZLMA(240)
 		}
 	
-	##TOOLS!
+	@overrides(TradeSetup)
+	def tools(self):
+		self.tool_bag = {
+			'et1':ExtremesTool(20,3), 
+			'et2':ExtremesTool(40,5)
+		}
 	
 	
 	@overrides(TradeSetup)
@@ -296,16 +301,12 @@ class ZeroLagEMA(TradeSetup):
 		nlma_bearish = (np_candles[:,:,csf.close] < nlma021_result) & (nlma240_grad < 0)
 		
 		#check nlma21 for higher highs and higher lows or lower highs and lower lows 
-		et2 = ExtremesTool()
-		et5 = ExtremesTool()
-		et2.order = 2 
-		et2.required_values = 20
-		et5.order = 5
-		et5.required_values = 40
-		high2s = et2.markup(nlma021_result,'max')
-		high5s = et5.markup(nlma021_result,'max')
-		low2s = et2.markup(nlma021_result,'min')
-		low5s = et5.markup(nlma021_result,'min')
+		et1 = self.tool_bag['et1']
+		et2 = self.tool_bag['et2']
+		high2s = et1.markup(nlma021_result,'max')
+		high5s = et2.markup(nlma021_result,'max')
+		low2s = et1.markup(nlma021_result,'min')
+		low5s = et2.markup(nlma021_result,'min')
 		
 		#bounds checks?
 		hhhls2 = (high2s[:,:,-2,1] < high2s[:,:,-1,1]) & (low2s[:,:,-2,1] < low2s[:,:,-1,1])
@@ -340,7 +341,12 @@ class MACD_DOUBLE_DIV(TradeSetup):
 			'macd':MACD()
 		}
 	
-	#TOOLS!
+	@overrides(TradeSetup)
+	def tools(self):
+		self.tool_bag = {
+			'div4':DivTool(30,4,other_chart='macd'),
+			'div7':DivTool(40,7,other_chart='macd')
+		}
 	
 	@overrides(TradeSetup)
 	def trigger(self, trade_signalling_data):
@@ -353,27 +359,14 @@ class MACD_DOUBLE_DIV(TradeSetup):
 		macd_line = macd_result[:,:,0]
 		macd_hist = macd_result[:,:,2]
 		
-		div4macd = DivTool(np_closes,macd_line) 
-		div4macd.order = 4
-		div4macd.div_window = 30
+		div4 = self.tool_bag['div4']
+		div7 = self.tool_bag['div7']
 		
-		div7macd = DivTool(np_closes,macd_line)
-		div7macd.order = 7
-		div7macd.div_window = 40
+		bullish_macd4, bearish_macd4 = div4.markup(np.stack([np_closes, macd_line]))
+		bullish_macd7, bearish_macd7 = div7.markup(np.stack([np_closes, macd_line]))
 		
-		div4hist = DivTool(np_closes,macd_hist) 
-		div4hist.order = 4
-		div4hist.div_window = 30
-			
-		div7hist = DivTool(np_closes,macd_hist)
-		div7hist.order = 7
-		div7hist.div_window = 40
-		
-		
-		bullish_macd4, bearish_macd4 = div4macd.markup()
-		bullish_macd7, bearish_macd7 = div7macd.markup()
-		bullish_hist4, bearish_hist4 = div4hist.markup()
-		bullish_hist7, bearish_hist7 = div7hist.markup()
+		bullish_hist4, bearish_hist4 = div4.markup(np.stack([np_closes, macd_hist]))
+		bullish_hist7, bearish_hist7 = div7.markup(np.stack([np_closes, macd_hist]))
 		
 		bullish_macd = bullish_macd4 | bullish_macd7
 		bearish_macd = bearish_macd4 | bearish_macd7

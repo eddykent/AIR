@@ -56,8 +56,8 @@ class MACD_TR(TradeSetup): #since there is an indicator called MACD got to have 
 		ema200 = self.indicator_bag['ema200']
 		ema_result = ema200(np_candles)
 		
-		macd_place_bullish = (macd_line < 0) & (macd_signal < 0) 
-		macd_place_bearish = (macd_line > 0) & (macd_signal > 0) 
+		macd_place_bullish = (macd_line < 0) & (signal_line < 0) 
+		macd_place_bearish = (macd_line > 0) & (signal_line > 0) 
 		
 		ema_bullish = np_candles[:,:,csf.low] > ema_result[:,:,0]
 		ema_bearish = np_candles[:,:,csf.high] < ema_result[:,:,0]

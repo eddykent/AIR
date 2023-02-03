@@ -256,10 +256,12 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 	tool_bag = {} #what and how to draw? 
 	
 	
-	def __init__(self):
+	def __init__(self, param_settings={}):
 		self.indicators()  #call all initializers 
 		self.chart_patterns() 
 		self.tools() 
+		if param_settings:
+			self.parameters(param_settings)
 	
 	#for every setup, put the indicators used in here. They get drawn in full
 	def indicators(self):	
@@ -370,9 +372,11 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		
 		entry_expire = TradeSignal.entry_expire
 		
+		start_index = signal_data_extra.closest_time_index(signal_data_extra.start_date)
+		
 		for (instrument_index,timeline_index) in buy_coords:
 			timeline_index += 1 #push forward by 1 candle to prevent look ahead bias 
-			if timeline_index >= len(signal_data_extra.timeline) or signal_data_extra.timeline[timeline_index] < signal_data_extra.start_date:
+			if timeline_index >= len(signal_data_extra.timeline) or timeline_index < start_index:
 				continue
 			instrument = signal_data_extra.instruments[instrument_index]
 			the_date = signal_data_extra.timeline[timeline_index]
@@ -386,7 +390,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		
 		for (instrument_index,timeline_index) in sell_coords:
 			timeline_index += 1 #push forward by 1 candle to prevent look ahead bias 
-			if timeline_index >= len(signal_data_extra.timeline) or signal_data_extra.timeline[timeline_index] < signal_data_extra.start_date:
+			if timeline_index >= len(signal_data_extra.timeline) or timeline_index < start_index:
 				continue
 			instrument = signal_data_extra.instruments[instrument_index]
 			the_date = signal_data_extra.timeline[timeline_index]

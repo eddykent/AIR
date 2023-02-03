@@ -104,6 +104,12 @@ class RSIS_EMA_X(TradeSetup):
 			'stochastic':Stochastic()
 		}
 	
+	@overrides(TradeSetup)
+	def tools(self):
+		self.tool_bag = {
+			'div1':DivTool(20,3,other_chart='rsi'),
+			'div2':DivTool(50,7,other_chart='rsi'),
+		}
 	
 	@overrides(TradeSetup)
 	def trigger(self,trade_signalling_data):
@@ -122,13 +128,11 @@ class RSIS_EMA_X(TradeSetup):
 		rsi = self.indicator_bag['rsi14'] 
 		rsi_result = rsi(np_candles)[:,:,0]
 		
-		div_tool1 = DivTool(rsi_result, np_closes)
-		div_tool1.order = 3
-		div_tool1.div_window = 20 
+		div_tool1 = self.tool_bag['div1']
+		div_tool2 = self.tool_bag['div2']
 		
-		div_tool2 = DivTool(rsi_result, np_closes)
-		bull_div1, bear_div1 = div_tool1.markup() 
-		bull_div2, bear_div2 = div_tool2.markup()
+		bull_div1, bear_div1 = div_tool1.markup(np.stack([np_closes, rsi_result])) 
+		bull_div2, bear_div2 = div_tool2.markup(np.stack([np_closes, rsi_result]))
 		
 		bull_div = bull_div1 | bull_div2
 		bear_div = bear_div1 | bear_div2 
@@ -157,6 +161,12 @@ class RSIS_EMA_1(TradeSetup): #check
 			'rsi14':RSI()
 		}
 	
+	@overrides(TradeSetup)
+	def tools(self):
+		self.tool_bag = {
+			'div1':DivTool(20,3,other_chart='rsi'),
+			'div2':DivTool(50,7,other_chart='rsi'),
+		}
 	
 	@overrides(TradeSetup)
 	def trigger(self,trade_signalling_data):
@@ -177,16 +187,15 @@ class RSIS_EMA_1(TradeSetup): #check
 		rsi = self.indicator_bag['rsi14']
 		rsi_result = rsi(np_candles)[:,:,0]
 		
-		div_tool1 = DivTool(rsi_result, np_closes)
-		div_tool1.hidden = True 
-		div_tool1.order = 3
-		div_tool1.div_window = 20 
+		rsi = self.indicator_bag['rsi14'] 
+		rsi_result = rsi(np_candles)[:,:,0]
 		
-		div_tool2 = DivTool(rsi_result, np_closes)
-		div_tool2.hidden = True 
+		div_tool1 = self.tool_bag['div1']
+		div_tool2 = self.tool_bag['div2']
 		
-		bull_div1, bear_div1 = div_tool1.markup() 
-		bull_div2, bear_div2 = div_tool2.markup()
+		bull_div1, bear_div1 = div_tool1.markup(np.stack([np_closes, rsi_result])) 
+		bull_div2, bear_div2 = div_tool2.markup(np.stack([np_closes, rsi_result]))
+		
 		bull_div = bull_div1 | bull_div2 
 		bear_div = bear_div1 | bear_div2 
 		
