@@ -5,6 +5,8 @@ class DataRefresher: #get most recent info into the database (price, volume, sto
 	pass
 
 class SignalGenerator: #use collection of setups to create list of signals 
+	#exhaustive search, local search? genetic? (if so, how?) GLS with - balance each iteration to attempt to make other choices 
+	#over fitting issues - add error values, use a modified/fuzzy obj function, use weighted choice of result, normalise somehow? 
 	pass
 
 class FilterChecker: #check signals against each other and also against filters 

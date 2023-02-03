@@ -9,7 +9,7 @@ LogSetup() #think of how to rmeove this line
 #from tests.web_crawling_tests import *  #<<<<<< run this to get latest volume indicators from dukascopy bank 
 
 #from tests.typedlist_test import *
-
+ 
 #from tests.candle_stick_tests import *
 
 #from tests.chart_pattern_test import *
@@ -37,14 +37,14 @@ LogSetup() #think of how to rmeove this line
 #from tests.chart_pattern_collection_test import *
 #from tests.logging_test import *
 #from tests.data_compose_test import *
-#from tests.data_compose_branch_test import *
-#from tests.data_compose_fork_test import *
+#from tests. _compose_branch_test import *
+#from tests. _compose_fork_test import *
 
 
 #from tests.shape_patterns_test import *
 #from tests.candle_offset_test import *
 
-#from tests.broker_test import * 
+#from tests.broker_test import * << stops on start screen (element not found?) 
 #from tests.indicators_test import *
 #from tests.volume_indicators_test import *
 
@@ -94,11 +94,12 @@ LogSetup() #think of how to rmeove this line
 #from debug.charts import *
 
 #from tests.all_trade_pro_test import *
-from tests.all_trader_dna_test import *
+#from tests.all_trader_dna_test import *
 
 
 
 
+from tests.strategy_test import *
 
 
 

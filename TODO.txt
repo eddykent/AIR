@@ -16,13 +16,14 @@ journaling
 		- forex factory
 		- forex client sentiment 
 		- etoro
+		- tradingview analyst & technical ratings
 		- the weather? :) 
 	- keep all trades (demo & live) in a table called trade_journal 
 
 mathematical indicators 
 	- fourier noise cancellation - done
 	- lag correlation values & n of corr > 0.3 (etc...)
-	- currency collection & redistribute
+	- currency collection & redistribute - done
 
 trading rush checklist strategy? 
 
@@ -168,6 +169,8 @@ Perhaps using pandas data frames will be more efficient and better for the whole
 Practice will also land you a high paying datascience role if you move jobs...
 
 Getting stuff from multiple websites should be async so we can query em all at the same tim
+
+collected setup Trends() not working 
 
 feed_collector articles should be grouped by instr name and then top 5 latest should be picked - filter? 
 
