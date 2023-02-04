@@ -86,6 +86,8 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 			log.warning(f"Missing dates for '{instrument}' - BID:{len(errors.get('bid',[]))}, ASK:{len(errors.get('ask',[]))}")
 			pdb.set_trace()
 		
+		#return errors for fixing? 
+		
 	#only investigate the directory to get the relevant (fully qualified?) filenames 
 	def _find_filenames(self, instrument):
 		
@@ -153,11 +155,13 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 		full_df = bid_df.join(ask_df,lsuffix='.Bid',rsuffix='.Ask',how='inner')	
 		
 		errors = {}
+		
+		#eg: if it is in bid but not in full, it was missing from ask
 		if len(bid_df) > len(full_df):
-			errors['bid'] = list(set(bid_df['the_date']) - set(full_df['the_date.Bid']))
+			errors['ask'] = list(set(bid_df['the_date']) - set(full_df['the_date.Bid']))
 			
 		if len(ask_df) > len(full_df):
-			errors['ask'] = list(set(ask_df['the_date']) - set(full_df['the_date.Ask']))
+			errors['bid'] = list(set(ask_df['the_date']) - set(full_df['the_date.Ask']))
 			
 		return full_df, errors
 	
