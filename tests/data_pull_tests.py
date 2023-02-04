@@ -18,14 +18,14 @@ from data.tools.candle_snatcher import CandleSnatcherDukascopy
 from web.economic_calendar.tradingeconomics import pull_calendar
 
 # async this! 
-pull_calendar(1) 
+#pull_calendar(2) #might need last month too for stats so 2
 
 
 def run_test():
-	csd = CandleSnatcherDukascopy() 
+	csd = CandleSnatcherDukascopy(4) 
 
 	lfr = ListFileReader()
-	the_date = datetime(2023,1,18)
+	the_date = datetime(2022,11,3)
 
 	fx_pairs = lfr.read('fx_pairs/fx_mains.txt')
 	#fx_pairs = ['GBP/CAD','GBP/CHF','GBP/JPY','GBP/NZD','GBP/USD','NZD/CAD','NZD/CHF','NZD/JPY','NZD/USD','USD/CAD','USD/CHF','USD/JPY']

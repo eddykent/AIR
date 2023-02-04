@@ -37,7 +37,7 @@ def client_sentiment():
 
 def get_volumes():
 
-	from data.tools.dukascopy import DukascopyVolumes #DukascopyCandles
+	from data.tools.dukascopy import Dukascopy #DukascopyCandles
 	from web.crawler import Crawler, SeleniumHandler
 	
 	url = 'https://www.dukascopy.com/swiss/english/marketwatch/historical/'
@@ -46,21 +46,34 @@ def get_volumes():
 	
 	instruments = lfr.read('fx_pairs/fx_mains.txt') #['EUR/USD','USD/JPY','GBP/AUD']
 	#instruments = ['GBP/CHF','GBP/JPY','GBP/NZD','GBP/USD','NZD/CAD','NZD/CHF','NZD/JPY','NZD/USD','USD/CAD','USD/CHF','USD/JPY']
-	date_from = datetime.datetime(2022,8,31,0,0)
-	date_to = datetime.datetime(2022,10,6,0,0)
-	#date_to = datetime.datetime.now() 
+	date_from = datetime.datetime(2023,1,23)
+	#date_to = datetime.datetime(2022,10,6,0,0)
+	date_to = datetime.datetime.now() 
 	#date_from = date_to - datetime.timedelta(days=20)
 	
 	cursor = Database(commit=True,cache=False)
 	with SeleniumHandler() as sh:
-		duk = DukascopyVolumes(sh,cursor)
+		duk = Dukascopy(sh,cursor)
 		duk.set_gets(instruments, date_from, date_to)
 		duk.perform()
 		wait_for_me()
 
 
-#get_volumes()
+def get_single_test():
+	
+	from data.tools.dukascopy import DukascopyCSVProcessor
+	
+	cursor = Database(commit=True,cache=False) 
+	instrument = 'AUD/NZD'
+	directory = 'C:/Users/Ed/Downloads'
+	
+	handle = DukascopyCSVProcessor(directory,cursor)
+	handle.acquire(instrument)
+	
 
+
+#get_volumes()
+get_single_test()
 
 
 

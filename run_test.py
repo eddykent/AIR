@@ -6,7 +6,7 @@
 
 from utils import LogSetup
 LogSetup() #think of how to rmeove this line
-#from tests.web_crawling_tests import *  #<<<<<< run this to get latest volume indicators from dukascopy bank 
+from tests.web_crawling_tests import *  #<<<<<< run this to get latest volume indicators from dukascopy bank 
 
 #from tests.typedlist_test import *
  
@@ -99,7 +99,7 @@ LogSetup() #think of how to rmeove this line
 
 
 
-from tests.strategy_test import *
+#from tests.strategy_test import *
 
 
 

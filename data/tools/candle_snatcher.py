@@ -62,9 +62,10 @@ class DataWorker():
 		
 		#need proxy! 
 		#need to be headless! (caused file system issues)
-		selenium_handle = SeleniumHandler(hidden=True) #hidden=True?, proxy=? 45.79.110.81
-		selenium_handle.start() 
+		hidden = False
 		cursor = Database(commit=True, cache=False)
+		selenium_handle = SeleniumHandler(hidden=hidden) #hidden=True?, proxy=? 45.79.110.81
+		selenium_handle.start() 	
 		
 		self.dukascopy = Dukascopy(selenium_handle,
 			credentials=self.credentials,
@@ -79,7 +80,7 @@ class DataWorker():
 				else:
 					break
 		except Exception as e:
-			print(e)
+			print(e) #consider re-trying 
 			raise e
 		
 		cursor.close()
@@ -99,11 +100,11 @@ class DataWorker():
 
 class CandleSnatcherDukascopy: #consider super later if needed 
 	
-	pool_size = 4
+	pool_size = 1
 	#browser_threads = None #store available browsers 
 	worker_pool = []
 	browser_threads = []
-	startup_wait = 0.9 # wait this long to ensure no spam of dukascopy and disconnect 
+	startup_wait = 2 # wait this long to ensure no spam of dukascopy and disconnect 
 	
 	task_queue = None #store all data processing tasks 
 	

@@ -1,5 +1,12 @@
 
-##file for running any archive scripts or data fetching stuff 
+
+import datetime 
+import time
+import asyncio
+
+
+##file for running any data fetching stuff to get latest data
+
 
 
 #data to fetch:
@@ -8,12 +15,19 @@
 # economic calendar events 
 # news data
 
-from web.economic_calendar.tradingeconomics import *
+#from data.tools.csv_upsert import *
+#from data.tools.dukascopy import * 
+
+from web.crawler import SeleniumHandler, XPathNavigator 
+from web.scraper import Scraper
+
+from web.economic_calendar.tradingeconomics import pull_calendar
+
+# async this! 
+pull_calendar(2) 
+
 
 #news data 
 #candlesticks 
 #volume 
-
-#from data.tools.csv_upsert import *
-#from data.tools.dukascopy import * 
 
