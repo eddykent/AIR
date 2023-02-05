@@ -43,14 +43,16 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 	cursor = None
 	directory = None
 	file_download_timeout = 5#seconds 
-	file_age_limit = 14400#1 day
+	file_age_limit = 24*60*60 #1 day 
 	
 	end_volume_fix_n = 3
 	db_batch_size = 250
 	
+	lower_volume_limit = 1.0
+	
 	#consider this_date 
 	the_date = None 
-	
+	error_space_days = 3 #if there are no errors for 4 days, we can put a boundary here and split the timeline 
 	
 	def __init__(self, directory, cursor, the_date=datetime.datetime.now()): #probably never need to specify this? 
 		self.directory = directory
@@ -73,7 +75,7 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 		bid_df = self._fix_end_volumes(bid_df,self.the_date)
 		ask_df = self._fix_end_volumes(ask_df,self.the_date) 
 		
-		full_df, errors = self._join_bid_ask(bid_df,ask_df)
+		full_df, errors = self._join_bid_ask(bid_df,ask_df,self.the_date)
 		#self.validate(full_df)#might not be needed here
 		
 		self._put_to_database(full_df, instrument)
@@ -83,10 +85,12 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 			os.unlink(bid_loc) #we can safely delete
 			os.unlink(ask_loc)
 		else:
-			log.warning(f"Missing dates for '{instrument}' - BID:{len(errors.get('bid',[]))}, ASK:{len(errors.get('ask',[]))}")
-			pdb.set_trace()
+			if errors.get('bid') or errors.get('ask'):
+				log.warning(f"Missing dates for '{instrument}' - BID:{len(errors.get('bid',[]))}, ASK:{len(errors.get('ask',[]))}")
+			if errors.get('bid_volume') or errors.get('ask_volume'):
+				log.warning(f"Incorrect volumes for '{instrument}' - BID:{len(errors.get('bid_volume',[]))}, ASK:{len(errors.get('ask_volume',[]))}")
 		
-		#return errors for fixing? 
+		return self._errors_to_timeline(instrument,errors) #for fixing 
 		
 	#only investigate the directory to get the relevant (fully qualified?) filenames 
 	def _find_filenames(self, instrument):
@@ -102,9 +106,12 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 		ask_file = None
 		
 		while bid_file is None or ask_file is None:
+			
 			dir_files = [filename for filename in os.listdir(self.directory) if suitable_file_name(filename)]
 			dir_paths = [(base_name,os.path.join(self.directory,base_name)) for base_name in dir_files]
-			latest_files = [(fn,fp,os.path.getctime(fp)) for (fn,fp) in dir_paths if os.path.getctime(fp) > start_time - self.file_age_limit]
+			timed_files = [(fn,fp,os.path.getctime(fp)) for (fn,fp) in dir_paths]
+			
+			latest_files = [(fn,fp,ft) for (fn,fp,ft) in timed_files if start_time < ft + self.file_age_limit]
 			
 			latest_files.sort(key=lambda x: x[2],reverse=True)
 			
@@ -149,7 +156,7 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 		return the_df
 	
 	#create new dataframe with bid_open, ask_open etc and datetimes, joining on datetimes
-	def _join_bid_ask(self,bid_df,ask_df):	 
+	def _join_bid_ask(self,bid_df,ask_df,this_date):	 
 		bid_df = bid_df.set_index('the_date',drop=False)
 		ask_df = ask_df.set_index('the_date',drop=False)
 		full_df = bid_df.join(ask_df,lsuffix='.Bid',rsuffix='.Ask',how='inner')	
@@ -162,6 +169,15 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 			
 		if len(ask_df) > len(full_df):
 			errors['bid'] = list(set(ask_df['the_date']) - set(full_df['the_date.Ask']))
+		
+		bid_volume_errors = bid_df[(bid_df['Volume'] <= self.lower_volume_limit) & (bid_df['the_date'] < this_date)]
+		ask_volume_errors = ask_df[(ask_df['Volume'] <= self.lower_volume_limit) & (ask_df['the_date'] < this_date)]
+		
+		#if len(bid_volume_errors):
+		#	errors['bid_volume'] = list(bid_volume_errors['the_date'])
+		#	
+		#if len(ask_volume_errors):
+		#	errors['ask_volume'] = list(ask_volume_errors['the_date'])
 			
 		return full_df, errors
 	
@@ -172,16 +188,36 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 		def to_sql_string(row):
 			return self.cursor.mogrify(self.upsert_row,row).decode()
 		
-		dbf.stopwatch('covert to sql')
+		#dbf.stopwatch(f"{instrument} - covert to sql")
 		sql_rows_full = list(full_df.apply(to_sql_string,axis=1)) #slowish but works )
-		dbf.stopwatch('covert to sql')	
+		#dbf.stopwatch(f"{instrument} - covert to sql")	
 		
+		print(f"Uploading {instrument} to database... ")
 		sql_batches = [sql_rows_full[i:i+self.db_batch_size] for i in range(0,len(sql_rows_full),self.db_batch_size)]
 		for sql_rows in tqdm.tqdm(sql_batches):
 			if sql_rows:
 				self.cursor.execute(self.upsert_batch, {'allrows':Inject(','.join(sql_rows))})
 				self.cursor.con.commit()
-
+	
+	def _errors_to_timeline(self,instrument,errors):
+		
+		if not errors:
+			return []
+		
+		error_dates = list(set([a_date for some_dates in errors.values() for a_date in some_dates]))
+		error_dates = sorted(error_dates)
+		n_errors = len(error_dates)
+		paired_dates = [x for x in zip(error_dates[:-1],error_dates[1:])]
+		gap_indexs = [-1] \
+				+ [i for i,(ed1,ed2) in enumerate(paired_dates) if (ed2 - ed1) > datetime.timedelta(days=self.error_space_days)] \
+				+ [n_errors-1]
+		
+		timeline_block_indexs = [(i+1,j) for (i,j) in zip(gap_indexs[:-1],gap_indexs[1:])]
+		timeline_blocks = [(error_dates[i],error_dates[j]) for (i,j) in timeline_block_indexs]
+		timeline_blocks = [(ts1.floor(freq='D'),ts2.ceil(freq='D')) for (ts1,ts2) in timeline_blocks] 
+		return timeline_blocks
+		
+	
 #class for getting either candles or volumes from the dukascopy dataset reader
 class Dukascopy(Crawler): #change to Crawler?
 	
@@ -234,6 +270,7 @@ class Dukascopy(Crawler): #change to Crawler?
 	}
 	
 	csv_handle = None
+	attempt = 0
 	
 	def __init__(self,selenium_handle,cursor='',credentials=None):  #make it break with an empty string because None means debug 
 		super().__init__(selenium_handle,self.url)
@@ -244,10 +281,11 @@ class Dukascopy(Crawler): #change to Crawler?
 		self.credentials = credentials
 		
 	
-	def set_gets(self,instruments,from_date,to_date):
+	def set_gets(self,instruments,from_date,to_date,attempt):
 		self.instruments = instruments
 		self.from_date = from_date
 		self.to_date = to_date
+		self.attempt = attempt
 		
 	def begin(self):		
 		if self.began:
@@ -545,18 +583,23 @@ class Dukascopy(Crawler): #change to Crawler?
 			self.press_download() 
 			got_ask_str = self.long_poll_click_save_csv()
 			
-			self.csv_handle.acquire(instrument) #use csv handle to load & save csvs to db
-		
+			return self.csv_handle.acquire(instrument) 
+		else:
+			return [{'instrument':instrument,'date_from':self.from_date, 'date_to':self.to_date}] #return full back
 	
 	def perform(self):
 		self.begin() #incase 
+		
+		missing_data = []
+		
 		for instrument in self.instruments:
-			print(f"Getting {instrument}...\n") 
+			print(f"Getting {instrument} ({self.attempt})...\n") 
 			#data_frame = self.get_full_data(instrument)
 			#data = self.fix_end_volumes(data)
 			#self.upload_to_database(data_frame,instrument)
-			self.get_full_data(instrument)
-	
+			missing_data += self.get_full_data(instrument)
+		
+		return missing_data
 
 
 
