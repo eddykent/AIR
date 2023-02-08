@@ -16,52 +16,13 @@ from charting import candle_stick_functions as csf
 
 from setups.trade_setup import blank_result, TradeSetup
 from setups.setup_tools import Zero2OneTool
-
 from setups.collected_setups import Harmony, Trends, Shapes
+
+from strategy.strategy_components import TriggerBlock, SetupBlock
+from strategy.trigger_block_lists import moving_averages, chart_patterns #more? 
+
 from utils import overrides 
-
-#container class for holding an indicator, and a function specifying buy/sell direction based on the indicator and the candles
-class TriggerBlock: #inner class? #rename => TriggerBlock or similar? 
 	
-	bullish_funct = None 
-	bearish_funct = None
-	indicator = None 
-	note = 'blank'
-	
-	def __init__(self, indicator, bullish_funct, bearish_funct, note=''):
-		self.indicator = indicator
-		self.note = note
-		self.bullish_funct = bullish_funct
-		self.bearish_funct = bearish_funct
-	
-	def __call__(self,np_candles):
-		result = self.indicator(np_candles)
-		return self.bullish_funct(result,np_candles), self.bearish_funct(result,np_candles)
-
-#ema = TriggerBlock(EMA(200), lambda res, npc : npc[:,:,csf.close] > res[:,:,0], lambda res, npc : npc[:,:,csf.close] < res[:,:,0], 'clearence close only')
-
-default_bullish_funct = lambda res, npc : res[:,:,0] > 0
-default_bearish_funct = lambda res, npc : res[:,:,0] < 0
-
-class SetupBlock: #use with trigger() functions on setups 
-	
-	trade_setup = None 
-	trade_signalling_data = None
-	note = 'blank'
-	
-	def __init__(self, trade_setup, trade_signalling_data, note=''):
-		self.trade_setup = trade_setup
-		self.trade_signalling_data = trade_signalling_data
-		self.note = note
-	
-	def __call__(self, np_candles):
-		return self.trade_setup.trigger(self.trade_signalling_data)
-	
-
-
-##piece that needs to be optimised
-
-
 class SignalGenerator:
 	
 	#from an infer_bubble (a hint from previous training) create signals from trade_signalling_data
@@ -95,7 +56,10 @@ class SignalGenerator:
 		trade_signalling_data.bearish.stop_loss_distances = bearish_sl
 		
 		return TradeSetup.make_trade_signals(trade_signalling_data)
-	
+
+
+
+
 
 class SetupSearch(SignalGenerator):
 	
@@ -172,15 +136,19 @@ class SetupSearch(SignalGenerator):
 		
 
 #used to iterate and find best settings/indicators to use for a signal provider. train and test modes 
+#have an aggregate mode - get only the top winners then collect signals together by instrument & time 
 class ExhaustiveSearch(SignalGenerator):  
 	
 	trigger_blocks = [] 
 	stop_operators = []
 	N = 3 #number of indicators to combine
-	likeness = 1.01 #try 0.99   (any value > 1 means don't prune. 1.0 means exact matches only 
+	likeness = 1.0 #try 0.99   (any value > 1 means don't prune. 1.0 means exact matches only 
 	
-	#calculated values 
+	filters = []
+	
+	#calculated values (for pruning the search)
 	_ignored_triggers = [] 
+	_invalid_trigger_pairs = []
 	
 	def __init__(self, N = 3):
 		self.N = N
@@ -190,8 +158,8 @@ class ExhaustiveSearch(SignalGenerator):
 		backtesting_data = backtesting_data if backtesting_data is not None else trade_signalling_data
 		all_trigger_results = self.run_triggers(trade_signalling_data)
 		
+		self._invalid_trigger_pairs = self.find_invalid_pairs()
 		self._ignored_triggers = self.find_similar_triggers(all_trigger_results)
-		
 		
 		stop_op = self.stop_operators[0]
 		stop_data = stop_op.get_stops(trade_signalling_data)
@@ -207,9 +175,9 @@ class ExhaustiveSearch(SignalGenerator):
 		#actuals = infer_df[infer_df['objective_value'] > 0].sort_values('objective_value',ascending=False)
 		
 		#actuals = actuals.head(len(actuals)//2)
-		actuals = infer_df[(infer_df['ratio'] > 0.55) & (infer_df['objective_value'] > 0)]#
-		actuals['N_rank'] = actuals['N'].rank(method="dense", ascending=False) #sorts by number of trades desc 
-		actuals = actuals[actuals['N_rank'] > 25] #top 12 results 
+		#actuals = infer_df[(infer_df['ratio'] > 0.55) & (infer_df['objective_value'] > 0)]#
+		#actuals['N_rank'] = actuals['N'].rank(method="dense", ascending=False) #sorts by number of trades desc -set with copy warning
+		#actuals = actuals[actuals['N_rank'] > 25] #top 12 results 
 		
 		#pdb.set_trace()
 		#actuals["rank"] = actuals.groupby("instrument")["objective_value"].rank(method="dense", ascending=False)
@@ -217,7 +185,7 @@ class ExhaustiveSearch(SignalGenerator):
 		print('check actuals') 
 		executable_combs = defaultdict(list) 
 		used_indicators = np.zeros(len(self.trigger_blocks)).astype(np.int)
-		for comb, df in actuals.groupby('combination'):
+		for comb, df in infer_df.groupby('combination'):
 			executable_combs[comb] = list(df['instrument'])
 			#pdb.set_trace()
 			used_indicators[list(comb)] += 1
@@ -273,7 +241,30 @@ class ExhaustiveSearch(SignalGenerator):
 				
 		return list(similar_triggers) 
 		
+	def find_invalid_pairs(self):	
+		#return lists of pairs of trigger blocks that should not go together 
+		num_containers = len(self.trigger_blocks)
+		invalid_islands = [moving_averages, chart_patterns]
 		
+		pairs = []
+		
+		for i in range(num_containers):
+			for j in range(i+1,num_containers):
+				ind1 = self.trigger_blocks[i].indicator.__class__
+				ind2 = self.trigger_blocks[j].indicator.__class__
+				
+				
+				#pdb.set_trace() #check for class name equality 
+				if ind1.__name__ == ind2.__name__: #experimental - don't have same indicators
+					pairs.append((i,j))
+					continue
+				
+				for island in invalid_islands:
+					if ind1 in island and ind2 in island:
+						pairs.append((i,j))
+						break
+				
+		return pairs 
 	
 	#objective is to maximise profits - this always max 
 	def process_full_results(self,results_df,objective='output_balance'): #sort by money on each instrument 
@@ -298,6 +289,10 @@ class ExhaustiveSearch(SignalGenerator):
 			return True #prune as this combination contains a removed trigger block 
 		
 		#any other checks here (eg prevent EMAs being used together or something)
+		all_isin = np.isin(self._invalid_trigger_pairs,comb)
+		
+		if np.any(np.all(all_isin,axis=1)):
+			return True 
 		
 		return False
 	
@@ -330,12 +325,22 @@ class ExhaustiveSearch(SignalGenerator):
 		all_signals = self.get_signals(trigger_results,trade_signalling_data,stop_data,pruned_comb)
 			
 		full_results = [] 
+		
 		#pdb.set_trace()
 		backtester = BackTesterCandles(backtesting_data)
 		
+		#use a cache? 
+		
+		#filters? 
+		
+		#pdb.set_trace() 
+		#signals_ns = [len(signals) for signals in all_signals]
+		
+		
 		print('backtest all signals')
 		for comb,signals in tqdm(list(zip(pruned_comb,all_signals))):
-			if signals:
+			n_signals = len(signals)
+			if 0 < n_signals < 3000: ##TODO calc for: ~1000 / month?
 				results = backtester.perform(signals)
 				statstool = BackTestStatistics(backtesting_data,signals,results)
 				result_df = statstool.calculate()  #add to pile for sorting 
