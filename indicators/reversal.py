@@ -177,9 +177,9 @@ class MassIndex(Indicator):
 	mass_period = 25
 	period = 9
 	
-	def __init__(self,period=14,mass_period=0.8,*args,**kwargs):
+	def __init__(self,period=9,mass_period=25,*args,**kwargs):
 		self.period = period 
-		self.mass_period = overbought
+		self.mass_period = mass_period
 		super().__init__(*args,**kwargs)
 	
 	@overrides(Indicator)
@@ -191,7 +191,7 @@ class MassIndex(Indicator):
 		ema_1 = ema._perform(diffs[:,:,np.newaxis])
 		ema_2 = ema._perform(ema_1)
 		ratios = ema_1 / ema_2
-		mass = np.nansum(self._sliding_windows(ratios)[:,:,0,:],axis=2)
+		mass = np.nansum(self._sliding_windows(ratios,self.mass_period)[:,:,0,:],axis=2)
 		return mass[:,:,np.newaxis]
 	
 	@overrides(Indicator)

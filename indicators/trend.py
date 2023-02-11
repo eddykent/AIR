@@ -18,7 +18,7 @@ class ParabolicSAR(Indicator):
 	acceleration_step = 0.02
 	acceleration_max = 0.2
 	
-	def __init__(self, acceleration_step=0.02,acceleration_max=0.2,**kwargs):
+	def __init__(self, acceleration_step=0.02,acceleration_max=0.2,*args,**kwargs):
 		self.acceleration_step = acceleration_step
 		self.acceleration_max = acceleration_max
 		super().__init__(*args,**kwargs)
