@@ -5,6 +5,7 @@ from utils import Database, DataComposer, Configuration, ListFileReader
 from indicators.indicator import * 
 from indicators.moving_average import *
 from indicators.trend import *
+from indicators.reversal import * 
 from charting.candle_stick_pattern import CandleStickPattern
 from charting.chart_viewer import PlotlyChartPainter
 
@@ -33,7 +34,7 @@ with Database(commit=False, cache=False) as cursor:
 #OurIndicator = MultiMovingAverage
 #OurIndicator = MACD #needs special draw_snapshot()
 #OurIndicator = RSI #needs special draw_snapshot
-OurIndicator = ADX
+#OurIndicator = ADX
 #OurIndicator = Accelerator
 #OurIndicator = Momentum
 #OurIndicator = Aroon
@@ -41,8 +42,10 @@ OurIndicator = ADX
 #OurIndicator = ParabolicSAR
 #OurIndicator = IchimokuCloud
 #OurIndicator = RVI
+#OurIndicator = CCI
 #OurIndicator = DonchianChannel
 #OurIndicator = WilliamsPercentRange
+OurIndicator = MassIndex
 #OurIndicator = SuperTrend
 #OurIndicator = TEMA
 
