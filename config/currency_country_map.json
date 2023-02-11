@@ -1,6 +1,6 @@
 {
 	"USD":["USA","United States","United States of America"],
-	"EUR":["European Area", "European Union", "France", "Germany"], --other countries could be added from europe later? (belgium/spain/italy)
+	"EUR":["European Area", "European Union", "France", "Germany", "Spain", "Italy"], --other countries could be added from europe later? (belgium/spain/italy)
 	"GBP":["Britain", "United Kingdom"],
 	"NZD":["New Zealand"],
 	"AUD":["Australia"],
