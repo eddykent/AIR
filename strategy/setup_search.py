@@ -250,17 +250,28 @@ class ExhaustiveSearch(SignalGenerator):
 		
 		for i in range(num_containers):
 			for j in range(i+1,num_containers):
-				ind1 = self.trigger_blocks[i].indicator.__class__
-				ind2 = self.trigger_blocks[j].indicator.__class__
+				tb1 = self.trigger_blocks[i]
+				tb2 = self.trigger_blocks[j]
+				ind1 = tb1.indicator
+				ind2 = tb2.indicator
 				
+				if type(self.trigger_blocks[i]) == SetupBlock and type(self.trigger_blocks[j]) == SetupBlock:
+					pairs.append((i,j)) #dont collect setups together 
 				
 				#pdb.set_trace() #check for class name equality 
-				if ind1.__name__ == ind2.__name__: #experimental - don't have same indicators
+				if ind1 is None or ind2 is None: 
+					continue 
+					
+				if ind1.__class__.__name__ == ind2.__class__.__name__: #experimental - don't have same indicators
+					#keep divergences 
+					if ('divergence' in tb1.note) != ('divergence' in tb2.note): #don't have two divs waste
+						continue
+						
 					pairs.append((i,j))
 					continue
 				
-				for island in invalid_islands:
-					if ind1 in island and ind2 in island:
+				for island in invalid_islands:#dont pair things together on same islands 
+					if ind1.__class__ in island and ind2.__class__ in island:
 						pairs.append((i,j))
 						break
 				
@@ -311,7 +322,12 @@ class ExhaustiveSearch(SignalGenerator):
 				bullish = Zero2OneTool.markup(bullish)
 				bearish = Zero2OneTool.markup(bearish)
 			
-			all_signals.append(SignalGenerator.create_signals(name,bullish,bearish,stop_data,trade_signalling_data))
+			signals = SignalGenerator.create_signals(name,bullish,bearish,stop_data,trade_signalling_data)
+			
+			for f in self.filters:
+				signals = f.filter(signals)
+			
+			all_signals.append(signals)
 		return all_signals
 	
 	def try_all_combinations(self, trigger_results, trade_signalling_data, backtesting_data, stop_data):
@@ -330,8 +346,6 @@ class ExhaustiveSearch(SignalGenerator):
 		backtester = BackTesterCandles(backtesting_data)
 		
 		#use a cache? 
-		
-		#filters? 
 		
 		#pdb.set_trace() 
 		#signals_ns = [len(signals) for signals in all_signals]

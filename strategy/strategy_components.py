@@ -3,6 +3,9 @@
 
 
 
+import numpy as np
+
+
 #container class for holding an indicator, and a function specifying buy/sell direction based on the indicator and the candles
 class TriggerBlock: #inner class? #rename => TriggerBlock or similar? 
 	
@@ -23,8 +26,36 @@ class TriggerBlock: #inner class? #rename => TriggerBlock or similar?
 
 #ema = TriggerBlock(EMA(200), lambda res, npc : npc[:,:,csf.close] > res[:,:,0], lambda res, npc : npc[:,:,csf.close] < res[:,:,0], 'clearence close only')
 
+
+#candle patterns, triangle patterns? etc 
+class MultiTriggerBlock: 
+	#for a set of indicators, collect them together (can be used as refactor from collected_setups.py file)
+	bullish_funct = None 
+	bearish_funct = None
+	indicators = None 
+	note = 'blank'
+	
+	indicator = None #needed for later
+	
+	def __init__(self, indicators, bullish_funct, bearish_funct, note=''):
+		self.indicators = indicators
+		self.note = note
+		self.bullish_funct = bullish_funct
+		self.bearish_funct = bearish_funct
+	
+	def __call__(self,np_candles):
+		
+		result_block = np.zeros(list(np_candles.shape[0:2])+[len(self.indicators)])
+		for i,indicator in enumerate(self.indicators):
+			result = indicator(np_candles)
+			result_block[:,:,i] = result[:,:,0]
+
+		return self.bullish_funct(result_block,np_candles), self.bearish_funct(result_block,np_candles)
+
+
 default_bullish_funct = lambda res, npc : res[:,:,0] > 0
 default_bearish_funct = lambda res, npc : res[:,:,0] < 0
+
 
 class SetupBlock: #use with trigger() functions on setups 
 	
