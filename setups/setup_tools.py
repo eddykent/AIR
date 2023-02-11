@@ -201,10 +201,13 @@ class DivTool(ExtremesTool):
 	zero_cross = True #TODO if false, mark all divs that cross over the 0 line as false (undetect) (rsi will require scaling) 
 	
 	
-	def __init__(self, extreme_window = 15, order = 3, zero_cross= True, chart='candlesticks', other_chart='rsi14'): #default draw on rsi charts 
+	def __init__(self, extreme_window = 15, order = 3, zero_cross= True, chart='candlesticks', other_chart='rsi14', hidden=False): #default draw on rsi charts 
 		#super().__init__(self,*args,*kwargs)
+		self.extreme_window = extreme_window 
+		self.order = order
 		self.other_chart = other_chart #where to draw the other lines 
 		self.zero_cross = zero_cross
+		self.hidden = hidden
 	
 	def _produce_extremes(self,values):
 		#data = np.concatenate([self.momentum,self.priceaction],axis=2)

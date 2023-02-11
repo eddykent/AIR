@@ -24,7 +24,7 @@ import debugging.functs as dbf
 class ChartCollection(TradeSetup):
 	#this class can be the base that Harmony, Shapes and Trends uses. It can also be used for any collection of charting that uses XWindowBundles
 	settings = [] #most favourable last - "find a large pattern" large means further down the list 
-	chart_patterns = [] #rarest first
+	_chart_patterns = [] #rarest first
 	grace_period = 100 
 	
 	remove_conflicts = True
@@ -50,12 +50,12 @@ class ChartCollection(TradeSetup):
 		
 	def perform_collection(self,np_candles):
 		
-		result_shape = (np_candles.shape[0],np_candles.shape[1],len(self.settings), len(self.chart_patterns)) #1 for the 0th summary value (-1,0 or 1) 
+		result_shape = (np_candles.shape[0],np_candles.shape[1],len(self.settings), len(self._chart_patterns)) #1 for the 0th summary value (-1,0 or 1) 
 		result_array = np.full(result_shape,0)
 		result_cdlen = np.full(result_shape,0).astype(np.float) #put into result_array instead? use for getting max harmonic
 		
 		for si,settings in enumerate(self.settings):    
-			base = self.chart_patterns[0]()
+			base = self._chart_patterns[0]()
 			
 			base.apply_settings(settings)
 			
@@ -64,7 +64,7 @@ class ChartCollection(TradeSetup):
 			dbf.stopwatch('get xtreme_window_bundle')
 			
 			dbf.stopwatch('perform chart patterns')
-			for ci,chart_pattern in enumerate(self.chart_patterns):
+			for ci,chart_pattern in enumerate(self._chart_patterns):
 				the_ch = chart_pattern()
 				the_ch.apply_settings(settings)
 				
@@ -76,14 +76,15 @@ class ChartCollection(TradeSetup):
 				
 				except Exception as e:
 					result_array[:,:,si,ci] = 0
-					log.warning(f"failed to perform {the_ch.__class__.__name__} with order {order}... \n\tex: {e}")
+					pdb.set_trace()
+					log.warning(f"failed to perform {the_ch.__class__.__name__} with settings {settings}... \n\tex: {e}")
 			dbf.stopwatch('perform chart patterns')
 		
 		if self.remove_conflicts:
 			bull_orders = np.any(result_array ==  1,axis=3) 
 			bear_orders = np.any(result_array == -1,axis=3)
 			omitted_rows = bull_orders & bear_orders #at each order, if there is one result that says bull and another that says bears it is conflict
-			result_array[omitted_rows] = np.zeros(len(self.chart_patterns)) #overwrite to 0s to delete the entries 
+			result_array[omitted_rows] = np.zeros(len(self._chart_patterns)) #overwrite to 0s to delete the entries 
 		
 		return result_array, result_cdlen
 	
@@ -259,7 +260,7 @@ class ChartCollection(TradeSetup):
 #all harmonics 
 class Harmony(ChartCollection):
 	
-	chart_patterns = [Bat,Crab,Butterfly,Gartley,DeepCrab] #rarest first
+	_chart_patterns = [Bat,Crab,Butterfly,Gartley,DeepCrab] #rarest first
 	settings = [] 
 	
 	_result_array = []
@@ -274,11 +275,24 @@ class Harmony(ChartCollection):
 			xws.order = o 
 			self.settings.append(xws)
 	
+
+
+class Triangles(ChartCollection):
+	_chart_patterns = [RisingTriangle, FallingTriangle, SymmetricalTriangle, RisingWedge, FallingWedge]
+	settings = []
 	
+	def __init__(self,orders=[1,2,3,4],*args,**kwargs):
+		super().__init__(*args,**kwargs)
+		self.settings = []
+		for o in orders:
+			xws = XtremeWindowSettings()
+			xws.order = o 
+			self.settings.append(xws)
+
 #all trends? 
 class Trends(ChartCollection):
 	
-	chart_patterns = [Rectangle, ApproximateChannel, RisingTriangle, FallingTriangle, SymmetricalTriangle, RisingWedge, FallingWedge]
+	_chart_patterns = [Rectangle, ApproximateChannel, RisingTriangle, FallingTriangle, SymmetricalTriangle, RisingWedge, FallingWedge]
 	settings = []
 	
 	def __init__(self,orders=[1,2,3],*args,**kwargs):
@@ -291,7 +305,7 @@ class Trends(ChartCollection):
 
 class Shapes(ChartCollection):
 	
-	chart_patterns = [TripleExtreme, HeadAndShoulders, DoubleExtreme] #HigherHighs/LowerLows
+	_chart_patterns = [TripleExtreme, HeadAndShoulders, DoubleExtreme] #HigherHighs/LowerLows
 	settings = []
 	
 	def __init__(self,orders=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],*args,**kwargs):
