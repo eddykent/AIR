@@ -1,34 +1,150 @@
 import pdb
 import numpy as np 
+import pandas as pd
 from tqdm import tqdm 
-
+import datetime
 
 from utils import overrides
 from filters.trade_filter import *
 
-from utils import Database, ListFileReader, Inject
+from utils import Database, ListFileReader, Inject, PipHandler
+
+economic_calendar_sql = """
+SELECT 
+guid, the_date, impact, country, description 
+FROM economic_calendar 
+WHERE the_date >= %(start_date)s 
+AND the_date <= %(end_date)s
+"""
+
+#use this tool to read the economic calendar events out of the database into a dataframe
+class EconomicCalendarTool:
+	
+	start_date = None
+	end_date = None 
+	currency_country_map = []
+	
+	def __init__(self,start_date=datetime.datetime.now(),end_date=None):
+	
+		#,start_date, end_date=datetime.datetime.now()):
+		self.start_date = start_date
+		self.end_date = end_date if end_date is not None else start_date + datetime.timedelta(days=7)
+		
+		lfr = ListFileReader()
+		self.currency_country_map = lfr.read_json("config/currency_country_map.json")
+		
+		#inv map 
+		self.country_currency_map = {v:k for (k,vs) in self.currency_country_map.items() for v in vs }
+		
+		
+		
+	def get_df(self):
+		rows = []
+		ccm = self.country_currency_map
+		with Database(cache=False,commit=False) as cur:
+			cur.execute(economic_calendar_sql,{
+				'start_date':self.start_date,
+				'end_date':self.end_date
+			})
+			rows = cur.fetchall()
+		the_df = pd.DataFrame(rows,columns=['guid', 'the_date', 'impact', 'country', 'description']) 
+		#pdb.set_trace()
+		the_df['currency'] = the_df.apply(lambda r, ccm=ccm: ccm.get(r['country'],'???'),axis=1)
+		#now expand with currency using apply
+		return the_df
+	
+	
+class EconomicCalendarFilter(TimelineTradeFilter):
+	
+	events_df = None 
+	
+	impact = 3 #impact level to consider 
+	before = 300 #ok 5 hours before event 
+	after = 60 #ok 1 hour after the event 
+	
+	def __init__(self,events_df):
+		self.events_df = events_df
+	
+	def check_instrument(self,instrument, direction, the_date):
+		#pdb.set_trace()
+		#print(instrument + ' @ ' + str(the_date))
+		ins = instrument.split('/')
+		if len(ins) == 2:
+			impact = (self.events_df['impact'] >= self.impact)
+			ins1 = (self.events_df['currency'] == ins[0])
+			ins2 = (self.events_df['currency'] == ins[1])
+			before = (self.events_df['the_date'] >= the_date - datetime.timedelta(minutes=self.after))
+			after = (self.events_df['the_date'] <= the_date + datetime.timedelta(minutes=self.before))
+			
+			instr = ins1 | ins2 
+			timing = before & after
+			indexer = impact & instr & timing 
+			#print(self.events_df[indexer][['impact','the_date','currency','description']])
+			#pdb.set_trace() #check a few of em 
+			return not indexer.any() #esnure there are not any economic events about to happen 
+		return True 
+		
+		
+		
 
 ###filters that are time based or that are based on events in time 
 ##filter that stops any trade signal that has a particular time of day (eg 10pm to 10:30pm where the spreads are fucking wild) to stop trades
-class CrazySpreadsFilter(TimelineTradeFilter):
+class TimeOfDayFilter(TimelineTradeFilter): #think of daylight savings
 	
-	bad_spread_times = [((21,0),(22,30))] #convert to minutes from start of day (simple timespans) 
+	timespans = [((21,0),(22,30))] #convert to minutes from start of day (simple timespans) 
+	#consider creating class TimeSpanOfDay, also a dataframe? 
 	sbs = 30 #30 mins either side of the bad spread times 
 	
+	def __init__(self,timespans=None):
+		if timespans:
+			self.timespans = timespans 
 	
 	def check_instrument(self,instrument, direction, the_date):
-		minute = the_date.min
-		hour = the_date.hour 
+	
+		day_mins = the_date.minute + 60*the_date.hour 
 		
-		day_mins = minute + 60*hour 
-		
-		for ((sh,sm),(eh,em)) in self.bad_spread_times:	
-			if (sh*60 + sm) <= day_mins and (eh*60 + em) <= day_mins:  
+		for ((sh,sm),(eh,em)) in self.timespans:	
+			if (sh*60 + sm) <= day_mins <= (eh*60 + em):  
 				return False #this time is within the bad spread time - do not execute! 
 		return True
 
-##filter based on the economic calendar events 
-class EconomicCalendarFilter(TimelineTradeFilter):
+class PipSpreadFilter(TimelineTradeFilter):#eg, if spread is over 5 pips skip it. Used only for backtest as we got live broker for forward
+	
+	max_pips = 5
+	pip_handle = None
+	backtest_data = None 
+	
+	#calc'd values 
+	_spreads = None 
+	
+	def __init__(self, backtest_data, max_pips=5, pip_handle=None):
+		if not pip_handle:
+			pip_handle = PipHandler() #default one 
+		self.pip_handle = pip_handle
+		self.max_pips = 5
+		self.backtest_data = backtest_data
+		self._calc_spreads_pips()
+		
+	def _calc_spreads_pips(self):
+		#bidask = np.sum(self.backtest_data.np_candles[:,:,:,1:],axis=3)
+		bidask = self.backtest_data.np_candles[:,:,:,3]
+		spreads = np.abs(bidask[:,:,0] - bidask[:,:,1])
+		instr_conv = np.array([self.pip_handle.pip_map[i] for i in self.backtest_data.instruments])[:,np.newaxis]
+		self._spreads = spreads / instr_conv
+		#pdb.set_trace()
+		#print('calc typical spreads')
+	
+	def check_instrument(self,instrument, direction, the_date):
+		ti = self.backtest_data.closest_time_index(the_date) - 1 #back 1 since we want start time of candle 
+		ii = self.backtest_data.instrument_index(instrument) #these func calls might be slow :( 
+		return self._spreads[ii,ti] < self.max_pips
+		
+	
+	
+		
+	
+##filter based on the economic calendar events from the database - consider a database free one (read info first) 
+class DatabaseEconomicCalendarFilter(TimelineTradeFilter):
 	
 	after = 30#ok 30 mins after the event 
 	before = 360#ok 1 hours before the event 
