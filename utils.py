@@ -1209,7 +1209,7 @@ class TimeZipper:
 #consider making dynamic - based on date ranges if pips ever changes
 class PipHandler:
 	
-	pip_map = {} 
+	pip_map = {} #use pip map for internal ops elsewhere
 
 	def __init__(self,pip_file="config/pip_sizes.json"):
 		
