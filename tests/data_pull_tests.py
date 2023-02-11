@@ -22,10 +22,10 @@ from web.economic_calendar.tradingeconomics import pull_calendar
 
 
 def run_test():
-	csd = CandleSnatcherDukascopy(4) 
+	csd = CandleSnatcherDukascopy(2) 
 
 	lfr = ListFileReader()
-	the_date = datetime(2022,11,3)
+	the_date = datetime(2022,10,3)
 
 	fx_pairs = lfr.read('fx_pairs/fx_mains.txt')
 	#fx_pairs = ['GBP/CAD','GBP/CHF','GBP/JPY','GBP/NZD','GBP/USD','NZD/CAD','NZD/CHF','NZD/JPY','NZD/USD','USD/CAD','USD/CHF','USD/JPY']

@@ -64,7 +64,7 @@ def get_single_test():
 	from data.tools.dukascopy import DukascopyCSVProcessor
 	
 	cursor = Database(commit=True,cache=False) 
-	instrument = 'AUD/NZD'
+	instrument = 'AUD/CAD'
 	directory = 'C:/Users/Ed/Downloads'
 	
 	handle = DukascopyCSVProcessor(directory,cursor)

@@ -1,8 +1,12 @@
 
 import datetime
-import pdb
 from collections import Counter
 import pickle
+
+import pdb
+import cProfile
+
+
 
 # test the setup object and also test its trade signals 
 from setups.setup_tools import CandleDataTool, PipStop, ATRStop, RollingExtremeStop
@@ -111,7 +115,16 @@ btc = BackTesterCandles(bsd)
 
  #remove when wanting to do stress tests
 #pdb.set_trace()
+
+#pdb.set_trace() 
+#print('profiling backtester start')
+#cProfile.runctx("btc.perform(signals)",{'btc':btc, 'signals':signals},{})
+#pdb.set_trace()
+#print('profiling backtester end')
+
+
 dbf.stopwatch('backtesting')
+
 result = btc.perform(signals) #,profit_lock=(0.75,0.5,0)
 #backteststats = BacktestStatistics(...) 
 dbf.stopwatch('backtesting')
@@ -120,8 +133,9 @@ with open('data/pickles/backtestdata.pkl','wb') as f:
 	pickle.dump((tsd,signals,result),f)
 
 bts = BackTestStatistics(bsd, signals, result)
+dbf.stopwatch('stats test')
 some_result = bts.calculate() #todo! pass query params
-
+dbf.stopwatch('stats test')
 
 statuses = [r.result_status for r in result]
 cc = Counter(statuses)

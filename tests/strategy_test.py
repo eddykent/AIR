@@ -15,9 +15,9 @@ from indicators.reversal import RSI
 from indicators.moving_average import EMA
 from indicators.currency import CurrencyWrapper
 
-from strategies.setup_search import ExhaustiveSearch, TriggerBlock, SetupBlock, SetupSearch 
-import strategies.trigger_block_lists as tbl
-import strategies.setup_lists as sul 
+from strategy.setup_search import ExhaustiveSearch, TriggerBlock, SetupBlock, SetupSearch 
+import strategy.trigger_block_lists as tbl
+import strategy.setup_lists as sul 
 
 from setups.collected_setups import Harmony
 
@@ -25,18 +25,36 @@ from charting import candle_stick_functions as csf
 
 from backtest import BackTesterCandles, BackTestStatistics 
 
+
+from filters.time_based import EconomicCalendarTool, EconomicCalendarFilter, PipSpreadFilter, TimeOfDayFilter
+
+
 from debugging import functs as dbf
 
-train_period_start = datetime(2022,6,6)
-train_period_end = datetime(2022,11,18)
+#train_period_start = datetime(2022,10,6)#just care about if it runs for now for debugging
+train_period_start = datetime(2022,9,26) #actual serious test (too long?)  2months => 1 week 
+train_period_end = datetime(2022,11,19)
 
 test_period_start = datetime(2022,11,21)
-test_period_end = datetime(2022,11,25)
+test_period_end = datetime(2022,11,26)
+
+
+#some_signals = []
+#with open('data/pickles/trade_signals.pkl', 'rb') as fp:
+#	some_signals =pickle.load(fp)
+#
+#fstart_date = min(s.the_date for s in some_signals)
+#fend_date = max(s.the_date for s in some_signals)
+#ect = EconomicCalendarTool(fstart_date,fend_date)
+#ecf = EconomicCalendarFilter(ect.get_df())
+#some_signals = ecf.filter(some_signals)
 
 resolution = 15
-combination = 3
-grace_period = 50
+combination = 5  #4?
+grace_period = 50 #enough?
 
+trigger_block_func = tbl.good_set
+#trigger_block_func = tbl.small_set
 
 lfr = ListFileReader()
 currencies = lfr.read('fx_pairs/currencies.txt')
@@ -79,6 +97,10 @@ backtesting_data = datatool.get_trade_signalling_data()
 #	backtesting_data = pickle.load(f)
 dbf.stopwatch('fetch bt candles')
 
+#pips=5, pip_handle=PipHandler()
+
+
+
 sb = SetupBlock(Harmony(),trade_signalling_data) #, lambda res, npc : res[:,:,0] > 0, lambda res, npc : res[:,:,0] < 0)
 #a breif list of indicators we will use for this 
 
@@ -99,14 +121,24 @@ stops = [
 	#RollingExtremeStop()
 ]
 
-trigger_block_func = tbl.good_set
+
+ect1 = EconomicCalendarTool(train_period_start,train_period_end)
+
+ecf1 = EconomicCalendarFilter(ect1.get_df())
+psf1 = PipSpreadFilter(backtesting_data) 
+tdf1 = TimeOfDayFilter()
+
+training_filters = [ecf1, psf1, tdf1]
+
+
 
 #pdb.set_trace()
 #if False:
 its = ExhaustiveSearch(combination)# increase to 3 for longer (better?) runs
 its.trigger_blocks = trigger_block_func(trade_signalling_data)
 its.stop_operators = stops 
-suggestion_result = its.train(trade_signalling_data,backtesting_data) 
+its.filters = training_filters
+backtest_result = its.train(trade_signalling_data,backtesting_data) 
 
 
 
@@ -147,17 +179,38 @@ currency_thing = CurrencyWrapper(RSI(),fx_pairs,currencies)
 currency_result = currency_thing(np_candles)
 
 
+ect2 = EconomicCalendarTool(test_period_start,test_period_end)
+
+ecf2 = EconomicCalendarFilter(ect2.get_df())
+psf2 = PipSpreadFilter(later_backtesting_data) 
+tdf2 = TimeOfDayFilter()
+
+testing_filters = [ecf2, psf2, tdf2]
+
 btc = BackTesterCandles(later_backtesting_data)
 
 its2 = ExhaustiveSearch(combination)
 its2.trigger_blocks = trigger_block_func(later_trade_signalling_data)
 its2.stop_operators = stops
+its2.filters = testing_filters
 #pdb.set_trace()
-these_signals = its2.infer(later_trade_signalling_data,suggestion_result)
+ #ug = suggestions[(suggestions['N'] > 25) & (suggestions['ratio'] > 0.55)]
+def try_suggestion(suggestion):
+	these_signals = its2.infer(later_trade_signalling_data,suggestion)
 
-these_results = btc.perform(these_signals) 
-bts = BackTestStatistics(later_backtesting_data, these_signals, these_results)
-results = bts.calculate()
+	these_results = btc.perform(these_signals) 
+	bts = BackTestStatistics(later_backtesting_data, these_signals, these_results)
+	results = bts.calculate()
+	print(results)
+
+#pdb.set_trace()
+#with open('data/pickles/suggestions.pkl','rb') as fp:
+#	backtest_result = pickle.load(fp)
+	
+suggestions = backtest_result[backtest_result['objective_value'] > 0]
+suggestions.sort_values('objective_value',ascending=False)
+
+try_suggestion(suggestions.head(250))
 
 if False: 
 	ss1 = SetupSearch() 
