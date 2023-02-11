@@ -81,14 +81,14 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 		self._put_to_database(full_df, instrument)
 		
 		#cleanup as we now have in db 
-		if not errors and False: 
-			os.unlink(bid_loc) #we can safely delete
-			os.unlink(ask_loc)
-		else:
-			if errors.get('bid') or errors.get('ask'):
-				log.warning(f"Missing dates for '{instrument}' - BID:{len(errors.get('bid',[]))}, ASK:{len(errors.get('ask',[]))}")
-			if errors.get('bid_volume') or errors.get('ask_volume'):
-				log.warning(f"Incorrect volumes for '{instrument}' - BID:{len(errors.get('bid_volume',[]))}, ASK:{len(errors.get('ask_volume',[]))}")
+		#if not errors: 
+		os.unlink(bid_loc) 
+		os.unlink(ask_loc)
+		#else:
+		if errors.get('bid') or errors.get('ask'):
+			log.warning(f"Missing dates for '{instrument}' - BID:{len(errors.get('bid',[]))}, ASK:{len(errors.get('ask',[]))}")
+		if errors.get('bid_volume') or errors.get('ask_volume'):
+			log.warning(f"Incorrect volumes for '{instrument}' - BID:{len(errors.get('bid_volume',[]))}, ASK:{len(errors.get('ask_volume',[]))}")
 		
 		return self._errors_to_timeline(instrument,errors) #for fixing 
 		
