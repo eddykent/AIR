@@ -70,9 +70,10 @@ class ChartCollection(TradeSetup):
 				
 				try:
 					result_ch = the_ch._bundle_perform(xtreme_window_bundle) 
-					
 					result_array[:,:,si,ci] = result_ch[:,:,0].astype(np.int)
-					result_cdlen[:,:,si,ci] = result_ch[:,:,1].astype(np.float)
+					#pdb.set_trace()
+					if result_ch.shape[2] > 1: #should also contain breakout size or something for SL later (if needed)
+						result_cdlen[:,:,si,ci] = result_ch[:,:,1].astype(np.float)
 				
 				except Exception as e:
 					result_array[:,:,si,ci] = 0
@@ -281,11 +282,12 @@ class Triangles(ChartCollection):
 	_chart_patterns = [RisingTriangle, FallingTriangle, SymmetricalTriangle, RisingWedge, FallingWedge]
 	settings = []
 	
-	def __init__(self,orders=[1,2,3,4],*args,**kwargs):
+	def __init__(self,orders=[1,2,3],*args,**kwargs):
 		super().__init__(*args,**kwargs)
 		self.settings = []
 		for o in orders:
 			xws = XtremeWindowSettings()
+			xws.required_candles = 150
 			xws.order = o 
 			self.settings.append(xws)
 
@@ -308,12 +310,13 @@ class Shapes(ChartCollection):
 	_chart_patterns = [TripleExtreme, HeadAndShoulders, DoubleExtreme] #HigherHighs/LowerLows
 	settings = []
 	
-	def __init__(self,orders=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],*args,**kwargs):
+	def __init__(self,orders=[3,5,7,11,13,17],*args,**kwargs):
 		super().__init__(*args,**kwargs)
 		self.settings = []
 		for o in orders:
 			xws = XtremeWindowSettings()
 			xws.order = o 
+			xws.required_candles = 200
 			self.settings.append(xws)
 
 #all shapes

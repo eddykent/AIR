@@ -19,7 +19,7 @@ from strategy.setup_search import ExhaustiveSearch, TriggerBlock, SetupBlock, Se
 import strategy.trigger_block_lists as tbl
 import strategy.setup_lists as sul 
 
-from setups.collected_setups import Harmony
+from setups.collected_setups import Harmony, Triangles, Shapes
 
 from charting import candle_stick_functions as csf
 
@@ -53,7 +53,7 @@ resolution = 15
 combination = 5  #4?
 grace_period = 50 #enough?
 
-trigger_block_func = tbl.good_set
+trigger_block_func = tbl.full_set
 #trigger_block_func = tbl.small_set
 
 lfr = ListFileReader()
@@ -101,7 +101,6 @@ dbf.stopwatch('fetch bt candles')
 
 
 
-sb = SetupBlock(Harmony(),trade_signalling_data) #, lambda res, npc : res[:,:,0] > 0, lambda res, npc : res[:,:,0] < 0)
 #a breif list of indicators we will use for this 
 
 #pdb.set_trace()
@@ -113,6 +112,18 @@ np_candles = trade_signalling_data.np_candles
 #pdb.set_trace()
 currency_thing = CurrencyWrapper(RSI(),fx_pairs,currencies)
 currency_result = currency_thing(np_candles)
+
+#get these working! - yay 
+#print('try triangles')
+#sb1 = SetupBlock(Triangles(),trade_signalling_data) #, lambda res, npc : res[:,:,0] > 0, lambda res, npc : res[:,:,0] < 0)
+#bullish, bearish = sb1(np_candles) 
+#
+#print('try shapes')
+#sb2 = SetupBlock(Shapes(),trade_signalling_data)
+#bullish, bearish = sb2(np_candles) 
+#pdb.set_trace()
+
+
 
 #triggers = tbl.good_set(trade_signalling_data)
 
@@ -173,10 +184,10 @@ dbf.stopwatch('fetch bt test candles')
 #ema_lamb_bull = lambda res, npc : npc[:,:,csf.low] > res[:,:,0]
 #ema_lamb_bear = lambda res, npc : npc[:,:,csf.high] < res[:,:,0]
 
-np_candles = trade_signalling_data.np_candles
+#np_candles = trade_signalling_data.np_candles
 #pdb.set_trace()
-currency_thing = CurrencyWrapper(RSI(),fx_pairs,currencies)
-currency_result = currency_thing(np_candles)
+#currency_thing = CurrencyWrapper(RSI(),fx_pairs,currencies)
+#currency_result = currency_thing(np_candles)
 
 
 ect2 = EconomicCalendarTool(test_period_start,test_period_end)

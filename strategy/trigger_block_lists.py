@@ -8,11 +8,11 @@ import numpy as np
 from strategy.strategy_components import TriggerBlock, SetupBlock, MultiTriggerBlock
 from charting import candle_stick_functions as csf
 
-from setups.setup_tools import CandleDataTool, PipStop, ATRStop, DivTool
+from setups.setup_tools import CandleDataTool, PipStop, ATRStop, DivTool, DelayTool, ValueLagTool
 from utils import ListFileReader, Database
 
-from indicators.reversal import RSI, Stochastic #WilliamsPercentRange, MassIndex
-from indicators.trend import ADX, CCI, IchimokuCloud
+from indicators.reversal import RSI, Stochastic, WilliamsPercentRange, MassIndex
+from indicators.trend import ADX, CCI, IchimokuCloud, ParabolicSAR, Aroon, SuperTrend
 from indicators.moving_average import EMA, TEMA, WMA, ZLMA
 from indicators.momentum import MACD, Accelerator, RVI
 from indicators.currency import CurrencyWrapper
@@ -114,6 +114,37 @@ def stoch_bullish(res,npc): #slow
 def stoch_bearish(res,npc):
 	return (res[:,:,1] < res[:,:,2]) & (res[:,:,1] > res[:,:,3])
 
+ich_lag = ValueLagTool(26)#standard
+def ichimoku_bullish(res,npc):
+	clouda = ich_lag.markup(res[:,:,2])
+	cloudb = ich_lag.markup(res[:,:,3])
+	
+	cloud = (clouda > cloudb)
+	base_conv = (res[:,:,0] > res[:,:,1])
+	price_place = (npc[:,:,csf.close] > clouda)
+	
+	return cloud & base_conv & price_place
+	
+def ichimoku_bearish(res,npc):
+	clouda = ich_lag.markup(res[:,:,2])
+	cloudb = ich_lag.markup(res[:,:,3])
+	
+	cloud = (clouda < cloudb)
+	base_conv = (res[:,:,0] < res[:,:,1])
+	price_place = (npc[:,:,csf.close] < clouda)
+	
+	return cloud & base_conv & price_place
+
+def mass_index_func(vv=26):
+	mi_lag = ValueLagTool(1)
+	def inner_mass_index_func(res,npc):
+		current = res[:,:,0]
+		lag = mi_lag.markup(current)
+		return (current < vv) & (lag > vv)
+		
+	
+
+
 #define some islands of instability - when a strat has two or more of these in it should not be calculated
 moving_averages = [EMA,VWAP,WMA,TEMA,ZLMA] #no need to put these together in same strats ?
 chart_patterns = [SupportAndResistance,PivotPoints] #triangles? 
@@ -144,7 +175,7 @@ def small_set(anything=None):
 		
 	]
 
-def good_set(trade_signalling_data):
+def full_set(trade_signalling_data):
 	#match_pattern = MatchPattern()
 	#match_pattern.set_haystack(trade_signalling_data.np_candles)
 	return [
@@ -162,15 +193,15 @@ def good_set(trade_signalling_data):
 		TriggerBlock(SupportAndResistance(), default_bullish, default_bearish),
 		TriggerBlock(PivotPoints(trade_signalling_data.timeline), default_bullish, default_bearish),
 		SetupBlock(Harmony(),trade_signalling_data), 
-		#SetupBlock(Triangles(),trade_signalling_data),
-		#SetupBlock(Shapes(),trade_signalling_data),
+		SetupBlock(Triangles(),trade_signalling_data),
+		SetupBlock(Shapes(),trade_signalling_data),
 		MultiTriggerBlock([csp() for csp in csps], multi_any_bullish, multi_any_bearish, 'candle stick patterns'),
 		
 		#some common divergences - could also use Stochastic or Awesome
 		TriggerBlock(RSI(14),divergences_bullish, divergences_bearish,'divergence'), 
-		#TriggerBlock(RSI(14),hidden_divergences_bullish, hidden_divergences_bearish,'hidden divergence'), 
-		#TriggerBlock(MACD(),divergences_bullish, divergences_bearish,'divergence'), 
-		#TriggerBlock(MACD(),hidden_divergences_bullish, hidden_divergences_bearish,'hidden divergence'), 
+		TriggerBlock(RSI(14),hidden_divergences_bullish, hidden_divergences_bearish,'hidden divergence'), 
+		TriggerBlock(MACD(),divergences_bullish, divergences_bearish,'divergence'), 
+		TriggerBlock(MACD(),hidden_divergences_bullish, hidden_divergences_bearish,'hidden divergence'), 
 		
 		#oscillators & reversals 
 		TriggerBlock(RSI(20), oscillator_reversal_bullish(0.2), oscillator_reversal_bearish(0.8), '0.2 and 0.8'),
@@ -180,8 +211,11 @@ def good_set(trade_signalling_data):
 		TriggerBlock(MACD(), lambda res, npc : (res[:,:,2] > 0) & (res[:,:,0] < 0), lambda res, npc : (res[:,:,2] < 0) & (res[:,:,0] > 0),'included everything after cross, but macd below 0 for buy'),
 		TriggerBlock(MoneyFlowIndex(), oscillator_reversal_bullish(0.2), oscillator_reversal_bearish(0.8), '0.2 and 0.8'),		
 		TriggerBlock(Accelerator(), lambda res, npc : res[:,:,0] > 0, lambda res, npc : res[:,:,0] < 0,'zero line based'), 
+		#Awesome?
 		TriggerBlock(RVI(), lambda res,npc : res[:,:,0] > res[:,:,1], lambda res,npc : res[:,:,0] < res[:,:,1], 'signal cross'),
 		TriggerBlock(Stochastic(), stoch_bullish, stoch_bearish, 'checks overbought/sold and crossover (slow)'), 
+		TriggerBlock(WilliamsPercentRange(),lambda res, npc: res[:,:,0] < 0.1, lambda res, npc: res[:,:,0] > 0.9, 'over bought/sold'), 
+		TriggerBlock(WilliamsPercentRange(),lambda res, npc: res[:,:,0] > 0.6, lambda res, npc: res[:,:,0] < 0.4, 'trend following'),
 		
 		#custom metrics
 		TriggerBlock(CurrencyWrapper(RSI(14),fx_pairs,currencies), lambda res, npc : (npc[:,:,0] > 0.6) & (npc[:,:,1] < 0.4), lambda res,npc : (npc[:,:,1] > 0.6) & (npc[:,:,0] < 0.4), '.4 .6 activation'),
@@ -200,10 +234,18 @@ def good_set(trade_signalling_data):
 		
 		
 		#super trend
-		#psar
 		#aroon
+		TriggerBlock(IchimokuCloud(),ichimoku_bullish,ichimoku_bearish,'standard ichimoku'),
+		TriggerBlock(ParabolicSAR(), lambda res, npc : ~np.isnan(res[:,:,0]), lambda res, npc : ~np.isnan(res[:,:,1]), 'check for stars'),
+		TriggerBlock(Aroon(), lambda res, npc: res[:,:,1] > res[:,:,2], lambda res, npc : res[:,:,2] > res[:,:,1], 'up bigger than down'),
+		TriggerBlock(Aroon(), lambda res, npc: res[:,:,1] == 1.0, lambda res, npc : res[:,:,2] == 1.0, ' == 1.0'),
+		TriggerBlock(SuperTrend(), lambda res, npc: npc[:,:,csf.close] > res[:,:,0], lambda res, npc: npc[:,:,csf.close] < res[:,:,0], 'price above = bullish'),
+		TriggerBlock(CCI(), lambda res, npc : res[:,:,0] > 1.0, lambda res, npc : res[:,:,0] < 1.0, 'outside 1.0 and -1.0'),
+		TriggerBlock(MassIndex(), mass_index_func() , mass_index_func() ,'dropped below 25'),
 		
-		#TriggerBlock(FourierGradient(), ma_bullish, ma_bearish , 'simple ma style')
+		
+		#TriggerBlock(FourierGradient(), ma_bullish, ma_bearish , 'simple ma style'), #need to figure best settings for this 
+		
 		TriggerBlock(BollingerBands(), lambda res, npc : npc[:,:,csf.close] < res[:,:,2], lambda res, npc : npc[:,:,csf.close] > res[:,:,1] ,'standard close above/below upper/lower bands'),
 		TriggerBlock(KeltnerChannel(), lambda res, npc : npc[:,:,csf.high] > res[:,:,1], lambda res, npc : npc[:,:,csf.low] > res[:,:,2]),
 		
@@ -211,7 +253,7 @@ def good_set(trade_signalling_data):
 		
 	]
 
-#WMA, TMMA, PivotPoints, Fibbonacci? TrianglePatterns, CandlestickPatterns, BollingerBands, KeltnerChannel, DonchianChannel, Divergences
-#Shapes, Ichimoku, Trends
-#awesome, accelerator
+#WMA, TMMA, PivotPoints, Fibbonacci? TrianglePatterns, CandlestickPatterns, BollingerBands, KeltnerChannel, DonchianChannel?, Divergences
+#Shapes, Ichimoku, Trends, MassIndex, CCI, WilliamsPercentRange
+#awesome?, accelerator
 
