@@ -692,11 +692,18 @@ class PivotPoints(ChartPattern):
 	
 	_day_turnover_hour = 22 #USA markets close this hour (10pm our time)
 	
+	@overrides(ChartPattern)
+	def __init__(self,timeline,*args,**kwargs):
+		super().__init__(*args,**kwargs)
+		self.timeline = timeline
+		
+	
+	
 	#todo: fix for any case, not just 10pm no bank holidays - move to utils - TimeHandler or something?
 	def _day_indices(self):
 		
 		t0 = time.time() 
-		timeline = self.timeline[:,0]
+		timeline = self.timeline[:]
 		
 		np_timeline = np.empty((timeline.shape[0],6)).astype(np.int)
 		stack_num = np.zeros((timeline.shape[0],)).astype(np.int) #store the stack number here (the number the time belongs to) 

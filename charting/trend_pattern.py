@@ -339,9 +339,11 @@ class Rectangle(ApproximateChannel):
 	
 	@overrides(ApproximateChannel)
 	def _check_trendlines(self,lines,x_start_pos,average_true_ranges):
+		minlines,maxlines = lines 
 		is_channel = super()._check_trendlines(lines,x_start_pos,average_true_ranges)
-		is_level = (level_grad * self._required_candles) < average_true_ranges
-		return is_channel & is_level
+		is_min_level = (tlf.gradient(minlines) * self._required_candles) < average_true_ranges
+		is_max_level = (tlf.gradient(maxlines) * self._required_candles) < average_true_ranges
+		return is_channel & is_min_level & is_max_level
 	
 #divergent patterns?
 

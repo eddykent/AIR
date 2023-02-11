@@ -77,8 +77,8 @@ class MatchPatternInstance(ChartPattern):
 		"""
 	
 	#ensure the haystack is always before np_candles to not get a biased result! 
-	def set_haystack(self,haystack_candle_streams):
-		haystack_candles, _ = self._construct(haystack_candle_streams) #remember - construct builds the candle block.
+	def set_haystack(self,haystack_npc):
+		haystack_candles = haystack_npc #remember - construct builds the candle block.
 		#consider allowing streams of different lengths so we can dump anything in  & use nans for padding 
 		
 		haystack_values = haystack_candles[:,:,csf.close]
@@ -241,8 +241,8 @@ class MatchPattern(ChartPattern):
 	
 
 	#from a bunch of data, create a load of haystacks of length _haystack_window
-	def set_haystack(self,haystack_candle_streams):
-		haystack_candles, _ = self._construct(haystack_candle_streams) #remember - construct builds the candle block.
+	def set_haystack(self,haystack_npc):
+		haystack_candles = haystack_npc #remember - construct builds the candle block.
 		#consider allowing streams of different lengths so we can dump anything in  & use nans for padding 
 		
 		haystack_values = haystack_candles[:,:,csf.close]
