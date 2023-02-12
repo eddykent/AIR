@@ -53,8 +53,8 @@ class EconomicCalendarTool:
 		#now expand with currency using apply
 		return the_df
 	
-	
-class EconomicCalendarFilter(TimelineTradeFilter):
+
+class EconomicCalendarFilter(ExtractableFilter):
 	
 	events_df = None 
 	
@@ -62,9 +62,11 @@ class EconomicCalendarFilter(TimelineTradeFilter):
 	before = 300 #ok 5 hours before event 
 	after = 60 #ok 1 hour after the event 
 	
+	@overrides(TimelineTradeFilter)
 	def __init__(self,events_df):
 		self.events_df = events_df
 	
+	@overrides(TimelineTradeFilter)
 	def check_instrument(self,instrument, direction, the_date):
 		#pdb.set_trace()
 		#print(instrument + ' @ ' + str(the_date))
@@ -83,32 +85,65 @@ class EconomicCalendarFilter(TimelineTradeFilter):
 			#pdb.set_trace() #check a few of em 
 			return not indexer.any() #esnure there are not any economic events about to happen 
 		return True 
-		
-		
+	
+	
+	@overrides(ExtractableFilter)
+	def extract_mask(self,instruments,timeline):
+		result = np.full((len(instruments),len(timeline)),True)
+		using_df = self.events_df[self.events_df['impact'] >= self.impact][['the_date','currency']].copy() 
+		pdt = pd.Series(timeline)
+		pdt.index = pdt
+		#USE IN BT OPTIMISATION
+		using_df['tl_start_index'] = pdt.index.get_indexer(using_df['the_date'] - datetime.timedelta(minutes=self.before),method='nearest') 
+		using_df['tl_end_index'] = pdt.index.get_indexer(using_df['the_date'] + datetime.timedelta(minutes=self.after),method='nearest') 
+		ia = np.array([ifx.split('/') for ifx in instruments]) #replace with list of currencies per instrument for stocks data?
+		#np.where((ia[:,0] == 'AUD') | (ia[:,1] == 'AUD'))[0]
+		using_df['instrument_indexs'] = using_df.apply(lambda row, ia=ia : np.where((ia[:,0] == row['currency']) | (ia[:,1] == row['currency']))[0] ,axis=1)
+		#index_df.apply(lambda row, result=result : result[row[instrument_indexs],row['tl_start_index']:row['tl_end_index']+1] = False)
+		pdb.set_trace()
+		for (start,end,iis) in using_df[['tl_start_index','tl_end_index','instrument_indexs']].to_numpy():	
+			result[iis,start:end] = False   #+1 on end?
+			
+		return result
 		
 
 ###filters that are time based or that are based on events in time 
 ##filter that stops any trade signal that has a particular time of day (eg 10pm to 10:30pm where the spreads are fucking wild) to stop trades
-class TimeOfDayFilter(TimelineTradeFilter): #think of daylight savings
+class TimeOfDayFilter(ExtractableFilter): #think of daylight savings
 	
 	timespans = [((21,0),(22,30))] #convert to minutes from start of day (simple timespans) 
 	#consider creating class TimeSpanOfDay, also a dataframe? 
 	sbs = 30 #30 mins either side of the bad spread times 
 	
+	@overrides(TimelineTradeFilter)
 	def __init__(self,timespans=None):
 		if timespans:
 			self.timespans = timespans 
 	
+	@overrides(TimelineTradeFilter)
 	def check_instrument(self,instrument, direction, the_date):
+		return self._check_time(the_date)
 	
+	def _check_time(self,the_date):
+		
 		day_mins = the_date.minute + 60*the_date.hour 
 		
 		for ((sh,sm),(eh,em)) in self.timespans:	
 			if (sh*60 + sm) <= day_mins <= (eh*60 + em):  
 				return False #this time is within the bad spread time - do not execute! 
 		return True
+	
+	@overrides(ExtractableFilter)
+	def extract_mask(self,instruments,timeline):
+		ok_times = [self._check_time(the_date) for the_date in timeline]
+		mult = len(instruments)
+		ok_block = [ok_times]*mult
+		return np.array(ok_block)
+		
+		
+		
 
-class PipSpreadFilter(TimelineTradeFilter):#eg, if spread is over 5 pips skip it. Used only for backtest as we got live broker for forward
+class PipSpreadFilter(ExtractableFilter):#eg, if spread is over 5 pips skip it. Used only for backtest as we got live broker for forward
 	
 	max_pips = 5
 	pip_handle = None
@@ -117,6 +152,7 @@ class PipSpreadFilter(TimelineTradeFilter):#eg, if spread is over 5 pips skip it
 	#calc'd values 
 	_spreads = None 
 	
+	@overrides(TimelineTradeFilter)
 	def __init__(self, backtest_data, max_pips=5, pip_handle=None):
 		if not pip_handle:
 			pip_handle = PipHandler() #default one 
@@ -134,13 +170,17 @@ class PipSpreadFilter(TimelineTradeFilter):#eg, if spread is over 5 pips skip it
 		#pdb.set_trace()
 		#print('calc typical spreads')
 	
+	@overrides(TimelineTradeFilter)
 	def check_instrument(self,instrument, direction, the_date):
 		ti = self.backtest_data.closest_time_index(the_date) - 1 #back 1 since we want start time of candle 
 		ii = self.backtest_data.instrument_index(instrument) #these func calls might be slow :( 
 		return self._spreads[ii,ti] < self.max_pips
 		
-	
-	
+	@overrides(ExtractableFilter)
+	def extract_mask(self,instruments,timeline): #could add capacity to use diff timeline & instruments but for now not needed
+		assert len(instruments) == self._spreads.shape[0], 'instruments diff length to spreads'
+		assert len(timeline) == self._spreads.shape[1], 'timeline diff length to spreads'
+		return self._spreads < self.max_pips
 		
 	
 ##filter based on the economic calendar events from the database - consider a database free one (read info first) 

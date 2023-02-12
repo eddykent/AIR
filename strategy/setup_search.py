@@ -143,12 +143,15 @@ class ExhaustiveSearch(SignalGenerator):
 	stop_operators = []
 	N = 3 #number of indicators to combine
 	likeness = 1.0 #try 0.99   (any value > 1 means don't prune. 1.0 means exact matches only 
+	cache_backtests = True #always by default - check for equality
 	
 	filters = []
 	
 	#calculated values (for pruning the search)
 	_ignored_triggers = [] 
 	_invalid_trigger_pairs = []
+	
+	_backtest_cache_df = None 
 	
 	def __init__(self, N = 3):
 		self.N = N
@@ -311,6 +314,13 @@ class ExhaustiveSearch(SignalGenerator):
 	def get_signals(self,trigger_results, trade_signalling_data, stop_data, combinations):				
 		all_signals = []
 		
+		instruments = trade_signalling_data.instruments
+		timeline = trade_signalling_data.timeline
+		filter_mask = np.full((len(instruments),len(timeline)),True)
+		
+		for f in self.filters:
+			filter_mask = filter_mask & f.extract_mask(instruments,timeline)
+		
 		for comb in tqdm(combinations):
 			#pdb.set_trace()
 				
@@ -322,10 +332,10 @@ class ExhaustiveSearch(SignalGenerator):
 				bullish = Zero2OneTool.markup(bullish)
 				bearish = Zero2OneTool.markup(bearish)
 			
-			signals = SignalGenerator.create_signals(name,bullish,bearish,stop_data,trade_signalling_data)
+			bullish = bullish & filter_mask
+			bearish = bearish & filter_mask
 			
-			for f in self.filters:
-				signals = f.filter(signals)
+			signals = SignalGenerator.create_signals(name,bullish,bearish,stop_data,trade_signalling_data)
 			
 			all_signals.append(signals)
 		return all_signals
@@ -335,9 +345,11 @@ class ExhaustiveSearch(SignalGenerator):
 		
 		print('get all signals')
 		num_containers = len(self.trigger_blocks)
-		container_combs = itertools.combinations(range(num_containers),self.N) 
+		container_combs = list(itertools.combinations(range(num_containers),self.N))
 		
 		pruned_comb = [comb for comb in container_combs if not self.pruned(comb)]
+		
+		print(f"Combinations: {len(container_combs)}, Pruned: {len(pruned_comb)}")
 		all_signals = self.get_signals(trigger_results,trade_signalling_data,stop_data,pruned_comb)
 			
 		full_results = [] 
@@ -347,13 +359,15 @@ class ExhaustiveSearch(SignalGenerator):
 		
 		#use a cache? 
 		
-		#pdb.set_trace() 
-		#signals_ns = [len(signals) for signals in all_signals]
+		pdb.set_trace() 
+		signals_ns = [len(signals) for signals in all_signals]
 		
 		
 		print('backtest all signals')
 		for comb,signals in tqdm(list(zip(pruned_comb,all_signals))):
 			n_signals = len(signals)
+			#consider using a cache here
+			#print(f"Backtesting {n_signals} signals... ")
 			if 0 < n_signals < 3000: ##TODO calc for: ~1000 / month?
 				results = backtester.perform(signals)
 				statstool = BackTestStatistics(backtesting_data,signals,results)
@@ -369,6 +383,10 @@ class ExhaustiveSearch(SignalGenerator):
 		return full_results_df
 	
 	
+	
+	def _backtest_cache(self,signals):
+		results = [] 
+		#therunther
 	
 	
 	

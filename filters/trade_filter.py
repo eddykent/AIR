@@ -47,6 +47,13 @@ class TimelineTradeFilter:
 		raise NotImplementedError('This method must be overridden')
 		return True  #check to see if doing a buy/sell on this pair is a good idea or not 
 
+
+#filters where we can extract out the filter as a mask to '&' to a trigger array 
+class ExtractableFilter(TimelineTradeFilter):
+	
+	def extract_mask(self,instruments,timeline):
+		raise NotImplementedError('This method must be overridden')
+
 #slow!
 class LateralIndicatorFilter(TimelineTradeFilter):
 	
