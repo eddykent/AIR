@@ -38,15 +38,21 @@ train_period_end = datetime(2022,11,19)
 test_period_start = datetime(2022,11,21)
 test_period_end = datetime(2022,11,26)
 
+hole_end = datetime(2023,2,10)
+hole_start = datetime(2022,1,1)
+
+from data.tools.hole_finder import HoleFinder
+
+hf = HoleFinder(hole_start,hole_end,['EUR/USD','USD/JPY'])
+holes = hf.find_holes()
+
+pdb.set_trace()
 
 #some_signals = []
 #with open('data/pickles/trade_signals.pkl', 'rb') as fp:
 #	some_signals =pickle.load(fp)
 #
-#fstart_date = min(s.the_date for s in some_signals)
-#fend_date = max(s.the_date for s in some_signals)
-#ect = EconomicCalendarTool(fstart_date,fend_date)
-#ecf = EconomicCalendarFilter(ect.get_df())
+
 #some_signals = ecf.filter(some_signals)
 
 resolution = 15
@@ -85,6 +91,13 @@ trade_signalling_data = datatool.get_trade_signalling_data()
 dbf.stopwatch('fetch candles')
 
 
+fstart_date = train_period_start # min(s.the_date for s in some_signals)
+fend_date = train_period_end # max(s.the_date for s in some_signals)
+ect = EconomicCalendarTool(fstart_date,fend_date)
+ecf = EconomicCalendarFilter(ect.get_df())
+fmask = ecf.extract_mask(trade_signalling_data.instruments,trade_signalling_data.timeline)
+pdb.set_trace()
+
 datatool.backtesting = True 
 dbf.stopwatch('fetch bt candles')
 datatool.read_data_from_currencies(currencies)
@@ -108,10 +121,10 @@ dbf.stopwatch('fetch bt candles')
 #ema_lamb_bull = lambda res, npc : npc[:,:,csf.low] > res[:,:,0]
 #ema_lamb_bear = lambda res, npc : npc[:,:,csf.high] < res[:,:,0]
 
-np_candles = trade_signalling_data.np_candles
+#np_candles = trade_signalling_data.np_candles
 #pdb.set_trace()
-currency_thing = CurrencyWrapper(RSI(),fx_pairs,currencies)
-currency_result = currency_thing(np_candles)
+#currency_thing = CurrencyWrapper(RSI(),fx_pairs,currencies)
+#currency_result = currency_thing(np_candles)
 
 #get these working! - yay 
 #print('try triangles')
