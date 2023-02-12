@@ -141,7 +141,7 @@ def mass_index_func(vv=26):
 		current = res[:,:,0]
 		lag = mi_lag.markup(current)
 		return (current < vv) & (lag > vv)
-		
+	return inner_mass_index_func
 	
 
 
@@ -199,9 +199,9 @@ def full_set(trade_signalling_data):
 		
 		#some common divergences - could also use Stochastic or Awesome
 		TriggerBlock(RSI(14),divergences_bullish, divergences_bearish,'divergence'), 
-		TriggerBlock(RSI(14),hidden_divergences_bullish, hidden_divergences_bearish,'hidden divergence'), 
+		#TriggerBlock(RSI(14),hidden_divergences_bullish, hidden_divergences_bearish,'hidden divergence'), 
 		TriggerBlock(MACD(),divergences_bullish, divergences_bearish,'divergence'), 
-		TriggerBlock(MACD(),hidden_divergences_bullish, hidden_divergences_bearish,'hidden divergence'), 
+		#TriggerBlock(MACD(),hidden_divergences_bullish, hidden_divergences_bearish,'hidden divergence'), 
 		
 		#oscillators & reversals 
 		TriggerBlock(RSI(20), oscillator_reversal_bullish(0.2), oscillator_reversal_bearish(0.8), '0.2 and 0.8'),
@@ -215,7 +215,7 @@ def full_set(trade_signalling_data):
 		TriggerBlock(RVI(), lambda res,npc : res[:,:,0] > res[:,:,1], lambda res,npc : res[:,:,0] < res[:,:,1], 'signal cross'),
 		TriggerBlock(Stochastic(), stoch_bullish, stoch_bearish, 'checks overbought/sold and crossover (slow)'), 
 		TriggerBlock(WilliamsPercentRange(),lambda res, npc: res[:,:,0] < 0.1, lambda res, npc: res[:,:,0] > 0.9, 'over bought/sold'), 
-		TriggerBlock(WilliamsPercentRange(),lambda res, npc: res[:,:,0] > 0.6, lambda res, npc: res[:,:,0] < 0.4, 'trend following'),
+		#TriggerBlock(WilliamsPercentRange(),lambda res, npc: res[:,:,0] > 0.6, lambda res, npc: res[:,:,0] < 0.4, 'trend following'),
 		
 		#custom metrics
 		TriggerBlock(CurrencyWrapper(RSI(14),fx_pairs,currencies), lambda res, npc : (npc[:,:,0] > 0.6) & (npc[:,:,1] < 0.4), lambda res,npc : (npc[:,:,1] > 0.6) & (npc[:,:,0] < 0.4), '.4 .6 activation'),
