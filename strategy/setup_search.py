@@ -145,7 +145,7 @@ class ExhaustiveSearch(SignalGenerator):
 	stop_operators = []
 	N = 3 #number of indicators to combine
 	likeness = 1.0 #try 0.99   (any value > 1 means don't prune. 1.0 means exact matches only 
-	cache_backtests = False #always by default - check for equality
+	cache_backtests = False # seems caching is slower
 	
 	filters = []
 	
@@ -301,12 +301,12 @@ class ExhaustiveSearch(SignalGenerator):
 		return results_df
 	
 	def prune_combinations(self,combinations):
-		#TODO: VECTORIZE
+		#could this be vectorized?
 		return [comb for comb in combinations if self.pruned(comb)]
 	
 	def pruned(self,comb): #remove once vectorized
 		#first, check if any comb is in similar_triggers to prevent using  
-		pdb.set_trace()
+		#pdb.set_trace()
 		if np.intersect1d(comb,self._ignored_triggers).size:
 			return True #prune as this combination contains a removed trigger block 
 		
