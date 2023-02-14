@@ -14,7 +14,7 @@ from setups.setup_tools import CandleDataTool, PipStop, ATRStop
 #from setups.trader_dna import *
 from setups.trading_rush import *
 from utils import ListFileReader, Database
-from backtest import BackTesterDatabase, BackTestStatistics
+from backtest import BackTesterDatabase, BackTestStatistics, BackTesterCandles
 from filters.simple_filters import LambdaSelectFilter
 
 from charting.chart_viewer import PlotlyChartPainter
@@ -55,7 +55,8 @@ dbf.stopwatch('fetch candles')
 
 #pdb.set_trace()
 
-#fxss = BollingerBandsRSISetup() #MACD_MFT()
+#fxss = BollingerBandsRSISetup() 
+fxss = MACD_STOCH()
 #fxss = TripleRSIADX()
 #fxss = ICHIMOKU() #from trading_rush
 #fxss = RSIS_EMA_X() 
@@ -71,7 +72,7 @@ fxss.stop_calculator = ATRStop()
 #tt = macd.title()
 #pdb.set_trace()
 
-signals = fxss.get_setups(tsd)
+signals = fxss.get_setups(tsd) #should become a df
 
 trade_setup_view = fxss.draw(tsd,instrument='GBP/USD')
 #check signals here 
@@ -92,8 +93,8 @@ import random
 
 
 
-
-random.shuffle(signals)
+#random.shuffle(signals)#use pandas shuffler instead
+signals = signals.sample(frac=1)
 
 
 
@@ -114,14 +115,21 @@ random.shuffle(signals)
 #signals = lsf.filter(signals)
 
 #now backtest
-cursor = Database(cache=False,commit=False)
-btd = BackTesterDatabase(cursor)
 
+datatool.backtesting = True 
 
+dbf.stopwatch('fetch candles')
+datatool.read_data_from_currencies(currencies)
+bsd = datatool.get_trade_signalling_data()
+dbf.stopwatch('fetch candles')
 
+#cursor = Database(cache=False,commit=True)
+#btd = BackTesterDatabase(cursor)
+btc = BackTesterCandles(bsd)
 # #remove when wanting to do stress tests
 #dbf.stopwatch('backtesting')
-result = btd.perform(signals) #,profit_lock=(0.75,0.5,0)
+#result = btd.perform(signals) #,profit_lock=(0.75,0.5,0)
+result = btc.perform(signals)
 ##backteststats = BacktestStatistics(...) 
 #dbf.stopwatch('backtesting')
 
@@ -130,13 +138,13 @@ trade_setup_view.backtest(signals, result)
 
 pcp = PlotlyChartPainter()
 pcp.paint(trade_setup_view.charts['candlesticks'])
-pcp.show()
+#pcp.show()
 
-
-bts = BackTestStatistics(tsd, signals, result)
+#pdb.set_trace()
+bts = BackTestStatistics(bsd, signals, result)
 bts.set_exchange_rate_tool()
-full_results = bts.calculate() #pass query params
-
+full_results = bts.calculate() #pass query params?
+print(full_results)
 
 #statuses = [r.result_status for r in result]
 #cc = Counter(statuses)

@@ -4,6 +4,7 @@
 from datetime import datetime,timedelta
 from typing import Optional, List
 import numpy as np
+import pandas as pd
 import scipy.signal
 import scipy.optimize
 import string
@@ -78,102 +79,101 @@ class TradeSetupView:
 		
 		self.charts['candlesticks'] = candles_view
 		
-	
 	def signals(self,signals):
 		chart = self.charts['candlesticks']
 		tsd = self.trade_signalling_data
 		np_candles = tsd.np_candles 
-		for signal in signals:
-			if signal.instrument == self.instrument:
-				
-				ii = tsd.instrument_index(signal.instrument)
-				ti = tsd.closest_time_index(signal.the_date) 
-				
-				entry_line = signal.entry if signal.entry else np_candles[ii,ti,csf.open]
-				tp_line = entry_line
-				sl_line = entry_line 
-				
-				if signal.direction == TradeDirection.BUY:
-					tp_line += signal.take_profit_distance
-					sl_line -= signal.stop_loss_distance
-					
-				if signal.direction == TradeDirection.SELL: 
-					tp_line -= signal.take_profit_distance 
-					sl_line += signal.stop_loss_distance
-				
-				#swap for boxes?
-				chart.draw("trades bullish points",chv.Point(ti,tp_line)) #trades
-				chart.draw("trades neutral points",chv.Point(ti,entry_line))
-				chart.draw("trades bearish points",chv.Point(ti,sl_line))
+		these_signals = signals[signals['instrument'] == self.instrument].copy()
+		these_signals['timeline_index'] = self.trade_signalling_data.timeline_indexs(these_signals['the_date'])
+		
+		for signal in these_signals.itertuples(name='PDTradeSignal'):
 			
-	
+			ii = tsd.instrument_index(signal.instrument)
+			ti = signal.timeline_index
+			
+			entry_line = signal.entry if signal.entry else np_candles[ii,ti,csf.open]
+			tp_line = entry_line
+			sl_line = entry_line 
+			
+			if signal.direction == TradeDirection.BUY:
+				tp_line += signal.take_profit_distance
+				sl_line -= signal.stop_loss_distance
+				
+			if signal.direction == TradeDirection.SELL: 
+				tp_line -= signal.take_profit_distance 
+				sl_line += signal.stop_loss_distance
+			
+			#swap for boxes?
+			chart.draw("trades bullish points",chv.Point(ti,tp_line)) #trades
+			chart.draw("trades neutral points",chv.Point(ti,entry_line))
+			chart.draw("trades bearish points",chv.Point(ti,sl_line))
+			
 	def filter(self,signals,filtered): 
 		chart = self.charts['candlesticks']
 		
-		signal_tis = {s.signal_id : self.trade_signalling_data.closest_time_index(s.the_date) for s in signals if s.instrument == self.instrument } 
-		filtered_s = {f.signal_id for f in filtered}
+		signal_dates = signals[signals['instrument'] == self.instrument][['signal_id','the_date']].copy()
+		signal_dates['time_index'] = self.trade_signalling_data.timeline_indexs(signal_dates['the_date'])
+		filtered_guids = filtered[filtered['instrument'] == self.instrument]['signal_id']
 		
 		highest, lowest = self._y_bounds()
 		
 		top = highest - ((highest - lowest)* 0.05)
 		bottom = lowest + ((highest - lowest)* 0.05)
 		
-		for sti in signal_tis:	
-			ti = signal_tis[sti]
+		for sd in signal_dates:	
+			ti = self.trade_signalling_data.closest_time_index(sd.the_date)
 			bullbear = ''
-			if sti in filtered_s:
+			if sd.guid in filtered_guids.values:
 				bullbear = 'bearish'
 			else:
 				bullbear = 'bullish'
 			chart.draw(f"caret {bullbear} lines",chv.Line(ti,top,ti,bottom)) #need new draw style?
 			
-	
-	def backtest(self,signals, backtest_result):
+	#change to df
+	def backtest(self,signals, results):
 		chart = self.charts['candlesticks']
 		
-		signal_dict = {s.signal_id : s for s in signals} 
-		backtest_drawings = []
+		this_df = signals[signals['instrument'] == self.instrument].set_index('signal_id',drop=False).join(results.set_index('signal_id'))
+		this_df['timeline_index'] = self.trade_signalling_data.timeline_indexs(this_df['the_date'])
+		this_df['start_loc'] = self.trade_signalling_data.timeline_indexs(this_df['entry_date']) - 0.5 
+		this_df['end_loc'] = self.trade_signalling_data.timeline_indexs(this_df['exit_date']) + 0.5
 		
-		for br in backtest_result:
-			signal = signal_dict.get(br.signal_id)
+		for result in this_df.itertuples(): #could vectorise this but might not be much point for drawing :)
 			
-			if signal is None:
-				continue 
-				
-			if signal.instrument != self.instrument:
-				continue 
+			#pdb.set_trace()
+			#start_ind_old = self.trade_signalling_data.closest_time_index(result.the_date)
+			#start_ind = result.timeline_index  
 			
-			start_ind = self.trade_signalling_data.closest_time_index(signal_dict[br.signal_id].the_date)
-			
-			entry_line = br.entry_price
+			#pdb.set_trace()
+			entry_line = result.entry_price
 			tp_line = entry_line
 			sl_line = entry_line 
 			
 			bullbear = None
 			
-			if signal.direction == TradeDirection.BUY:
-				tp_line += signal.take_profit_distance
-				sl_line -= signal.stop_loss_distance
+			if result.direction == TradeDirection.BUY:
+				tp_line += result.take_profit_distance
+				sl_line -= result.stop_loss_distance
 				
-				if br.entry_price < br.exit_price:
+				if result.entry_price < result.exit_price:
 					bullbear = 'bullish'
 				else:
 					bullbear = 'bearish'
 				
-			if signal.direction == TradeDirection.SELL: 
-				tp_line -= signal.take_profit_distance 
-				sl_line += signal.stop_loss_distance
+			if result.direction == TradeDirection.SELL: 
+				tp_line -= result.take_profit_distance 
+				sl_line += result.stop_loss_distance
 				
-				if br.entry_price < br.exit_price:
+				if result.entry_price < result.exit_price:
 					bullbear = 'bearish'
 				else:
 					bullbear = 'bullish'
 			
 			if bullbear is not None:
-				x1 = self.trade_signalling_data.closest_time_index(br.entry_date) -0.5 
-				x2 = self.trade_signalling_data.closest_time_index(br.exit_date) + 0.5
-				y1 = br.entry_price
-				y2 = br.exit_price
+				x1 = result.start_loc
+				x2 = result.end_loc
+				y1 = result.entry_price
+				y2 = result.exit_price
 				#tp_line  #green box 
 				#sl_line  #red box 
 				#use bullbear for outcome box 
@@ -350,7 +350,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		trade_signalling_data.bullish.signals, trade_signalling_data.bearish.signals = self.trigger(trade_signalling_data)
 		trade_signalling_data.bullish.entries, trade_signalling_data.bearish.entries = self.entry(trade_signalling_data)
 		trade_signalling_data.bullish.entry_cuts,trade_signalling_data.bearish.entry_cuts = self.cancel(trade_signalling_data)
-		(bullish_tp, bearish_tp), (bullish_sl, bearish_sl) = self.stop_calculator.get_stops(trade_signalling_data)
+		(bullish_tp, bullish_sl), (bearish_tp, bearish_sl) = self.stop_calculator.get_stops(trade_signalling_data)
 		trade_signalling_data.bullish.take_profit_distances = bullish_tp
 		trade_signalling_data.bearish.take_profit_distances = bearish_tp  
 		trade_signalling_data.bullish.stop_loss_distances = bullish_sl
@@ -362,47 +362,56 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 	
 	@staticmethod
 	def make_trade_signals(signal_data_extra):	
-		trade_signals = []
-		
-		#export these? would be much faster for any further computation such as filtering...
-		buy_coords = np.stack(np.where(signal_data_extra.bullish.signals),axis=1)
-		sell_coords = np.stack(np.where(signal_data_extra.bearish.signals),axis=1)
-		
 		strategy_ref = signal_data_extra.name if signal_data_extra.name else 'Please set the name to this setup to something more meaningful!' 
-		
 		entry_expire = TradeSignal.entry_expire
+		#start_index = signal_data_extra.closest_time_index()
 		
-		start_index = signal_data_extra.closest_time_index(signal_data_extra.start_date)
+		candle_length = signal_data_extra.chart_resolution
 		
-		for (instrument_index,timeline_index) in buy_coords:
-			timeline_index += 1 #push forward by 1 candle to prevent look ahead bias 
-			if timeline_index >= len(signal_data_extra.timeline) or timeline_index < start_index:
-				continue
-			instrument = signal_data_extra.instruments[instrument_index]
-			the_date = signal_data_extra.timeline[timeline_index]
-			direction = TradeDirection.BUY
-			entry = signal_data_extra.bullish.entries[instrument_index,timeline_index] 
-			entry_cut = signal_data_extra.bullish.entry_cuts[instrument_index,timeline_index]  
-			take_profit_distance = signal_data_extra.bullish.take_profit_distances[instrument_index,timeline_index]
-			stop_loss_distance = signal_data_extra.bullish.stop_loss_distances[instrument_index,timeline_index]
-			ts = TradeSignal.from_full(the_date,instrument,strategy_ref,direction,entry,entry_cut,entry_expire,take_profit_distance,stop_loss_distance)
-			trade_signals.append(ts)
+		trade_signals = pd.DataFrame([])
+
+		#first do buys
+		#if signal_data_extra.bullish.signals.any():
+		buy_df = pd.DataFrame([])
+		(instrument_indexer, timeline_indexer) = np.where(signal_data_extra.bullish.signals)
+		buy_df['instrument'] = signal_data_extra.instruments[instrument_indexer]
+		buy_df['the_date'] = signal_data_extra.timeline[timeline_indexer] + timedelta(minutes=candle_length)#must add to get END of the candle
+		buy_df['strategy_ref'] = str(strategy_ref)
+		buy_df['direction'] = TradeDirection.BUY
+		buy_df['entry'] = signal_data_extra.bullish.entries[instrument_indexer,timeline_indexer]
+		buy_df['entry_cut'] = signal_data_extra.bullish.entry_cuts[instrument_indexer,timeline_indexer]
+		buy_df['entry_expire'] = entry_expire
+		buy_df['take_profit_distance'] = signal_data_extra.bullish.take_profit_distances[instrument_indexer,timeline_indexer]
+		buy_df['stop_loss_distance'] = signal_data_extra.bullish.stop_loss_distances[instrument_indexer,timeline_indexer]
+		buy_df['length'] = TradeSignal.length
+		trade_signals = trade_signals.append(buy_df)
+		#then sells 
+		#if signal_data_extra.bearish.signals.any():
+		sell_df = pd.DataFrame([])
+		(instrument_indexer, timeline_indexer) = np.where(signal_data_extra.bearish.signals)
+		sell_df['instrument'] = signal_data_extra.instruments[instrument_indexer]
+		sell_df['the_date'] = signal_data_extra.timeline[timeline_indexer] + timedelta(minutes=candle_length)#must add to get END of the candle
+		sell_df['strategy_ref'] = str(strategy_ref)
+		sell_df['direction'] = TradeDirection.SELL
+		sell_df['entry'] = signal_data_extra.bearish.entries[instrument_indexer,timeline_indexer]
+		sell_df['entry_cut'] = signal_data_extra.bearish.entry_cuts[instrument_indexer,timeline_indexer]
+		sell_df['entry_expire'] = entry_expire
+		sell_df['take_profit_distance'] = signal_data_extra.bearish.take_profit_distances[instrument_indexer,timeline_indexer]
+		sell_df['stop_loss_distance'] = signal_data_extra.bearish.stop_loss_distances[instrument_indexer,timeline_indexer]
+		sell_df['length'] = TradeSignal.length
+		trade_signals = trade_signals.append(sell_df)
+			
+		#get rid of signals that are in grace period
+		return_df = trade_signals[trade_signals['the_date'] > signal_data_extra.start_date].copy() 
+		#add a unique id
+		return_df['signal_id'] = [str(uuid.uuid4()) for _ in range(len(return_df.index))]
+		assert np.all(~return_df['signal_id'].duplicated()), 'Duplicate guid found! This should never happen...'
+		#return_df.index = return_df['guid'] #good idea?
+		#return_df.set_index('signal_id',drop=False)
+		return return_df
 		
-		for (instrument_index,timeline_index) in sell_coords:
-			timeline_index += 1 #push forward by 1 candle to prevent look ahead bias 
-			if timeline_index >= len(signal_data_extra.timeline) or timeline_index < start_index:
-				continue
-			instrument = signal_data_extra.instruments[instrument_index]
-			the_date = signal_data_extra.timeline[timeline_index]
-			direction = TradeDirection.SELL
-			entry = signal_data_extra.bearish.entries[instrument_index,timeline_index]  
-			entry_cut = signal_data_extra.bearish.entry_cuts[instrument_index,timeline_index]  
-			take_profit_distance = signal_data_extra.bearish.take_profit_distances[instrument_index,timeline_index]
-			stop_loss_distance = signal_data_extra.bearish.stop_loss_distances[instrument_index,timeline_index]
-			ts = TradeSignal.from_full(the_date,instrument,strategy_ref,direction,entry,entry_cut,entry_expire,take_profit_distance,stop_loss_distance)
-			trade_signals.append(ts)
 		
-		return trade_signals
+		
 	
 	##helper functions (can be overridden) 
 	def get_name(self):

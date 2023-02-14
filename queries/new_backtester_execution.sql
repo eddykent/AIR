@@ -21,15 +21,15 @@ AS SELECT
 DROP TABLE IF EXISTS trade_signals; 
 CREATE TEMPORARY TABLE trade_signals 
 AS SELECT * FROM (VALUES 
-	%(trade_signals)s
-) AS ts(signal_id, strategy_ref, the_date, instrument, direction, entry_price, entry_cutoff, entry_expiry, take_profit_difference, stop_loss_difference, duration);
+	%(entry_signals)s
+) AS ts(signal_id, strategy_ref, the_date, instrument, direction, entry, entry_cut, entry_expire, take_profit_distance, stop_loss_distance, length);
 
 
 DROP TABLE IF EXISTS exit_signals;
 CREATE TEMPORARY TABLE exit_signals 
 AS SELECT * FROM (VALUES  
 	%(exit_signals)s
-) AS te(signal_id, strategy_ref, the_date, instrument, direction);
+) AS te(exit_signal_id, strategy_ref, the_date, instrument, direction);
 
 DROP TABLE IF EXISTS candle_selection;
 CREATE TEMPORARY TABLE candle_selection 
@@ -38,8 +38,8 @@ AS SELECT * FROM (
 		SELECT 
 		ts.signal_id,
 		ts.the_date AS start_date, 
-		ts.the_date +(ts.duration || ' minutes')::INTERVAL AS end_date,
-		ts.the_date +(ts.entry_expiry || ' minutes')::INTERVAL AS expire_date,
+		ts.the_date +(ts.length || ' minutes')::INTERVAL AS end_date,
+		ts.the_date +(ts.entry_expire || ' minutes')::INTERVAL AS expire_date,
 		ts.instrument
 		FROM trade_signals ts
 	)
@@ -63,8 +63,8 @@ AS SELECT * FROM (
 	WITH date_range AS (
 		SELECT 
 		min(the_date) as start_date,
-		max(the_date) + (max(duration) || ' minutes')::INTERVAL AS end_date,
-		tsrange(min(the_date),max(the_date) + (max(duration) || ' minutes')::INTERVAL) AS d FROM trade_signals 
+		max(the_date) + (max(length) || ' minutes')::INTERVAL AS end_date,
+		tsrange(min(the_date),max(the_date) + (max(length) || ' minutes')::INTERVAL) AS d FROM trade_signals 
 	),
 	raw_fx_candles_sub AS (
 		SELECT rfc.*  
@@ -123,46 +123,46 @@ DROP TABLE IF EXISTS trade_entry_cross;
 CREATE TEMPORARY TABLE trade_entry_cross AS 
 SELECT ts.signal_id,
 0 AS candle_number,
-(tr.high_price + tr.low_price + tr.close_price) / 3.0 AS entry_price,--typical price 
+(tr.high_price + tr.low_price + tr.close_price) / 3.0 AS entry,--typical price 
 'instant' AS status
 FROM trade_signals ts
 JOIN trade_reels tr ON ts.signal_id = tr.signal_id AND ts.direction = tr.entry_side
 WHERE tr.candle_number = 0
-AND ts.entry_price IS NULL  --enter straight away if the entry price was NULL 
+AND ts.entry IS NULL  --enter straight away if the entry price was NULL 
 UNION
 SELECT ts.signal_id,
 tr.candle_number,
-ts.entry_price::DOUBLE PRECISION,
+ts.entry::DOUBLE PRECISION,
 'between' AS status
 FROM trade_signals ts  --enter at the entry price if it has been crossed by the candles 
 JOIN trade_reels tr ON ts.signal_id = tr.signal_id  AND ts.direction = tr.entry_side
-WHERE ts.entry_price::DOUBLE PRECISION > tr.low_price 
-AND ts.entry_price::DOUBLE PRECISION < tr.high_price
-AND ts.entry_price IS NOT NULL;
+WHERE ts.entry::DOUBLE PRECISION > tr.low_price 
+AND ts.entry::DOUBLE PRECISION < tr.high_price
+AND ts.entry IS NOT NULL;
 
 --catch any sudden moves 
 INSERT INTO trade_entry_cross
 SELECT tr.signal_id,
 tr.candle_number,
-tr.open_price AS entry_price, --we have open as entry since price has skipped from close to open 
+tr.open_price AS entry, --we have open as entry since price has skipped from close to open 
 'pco skip' AS status
 FROM trade_signals ts
 JOIN trade_reels tr ON ts.signal_id = tr.signal_id AND ts.direction = tr.entry_side
-WHERE ts.entry_price IS NOT NULL AND (
-	ts.entry_price::DOUBLE PRECISION > tr.prev_close  
-	AND ts.entry_price::DOUBLE PRECISION <= tr.open_price
+WHERE ts.entry IS NOT NULL AND (
+	ts.entry::DOUBLE PRECISION > tr.prev_close  
+	AND ts.entry::DOUBLE PRECISION <= tr.open_price
 ) OR (
-	ts.entry_price::DOUBLE PRECISION < tr.prev_close 
-	AND ts.entry_price::DOUBLE PRECISION >= tr.open_price
+	ts.entry::DOUBLE PRECISION < tr.prev_close 
+	AND ts.entry::DOUBLE PRECISION >= tr.open_price
 )
 AND NOT EXISTS (SELECT 1 FROM trade_entry_cross tsc WHERE tsc.signal_id = tr.signal_id);
 
 DROP TABLE IF EXISTS trade_starts; 
 WITH earliest_entries AS (
-	SELECT DISTINCT ON (signal_id) signal_id, candle_number, entry_price, status
+	SELECT DISTINCT ON (signal_id) signal_id, candle_number, entry, status
 	FROM trade_entry_cross ORDER BY signal_id, candle_number ASC --anything NOT IN here IS 
 )
-SELECT ee.signal_id, ee.candle_number, ee.entry_price, ee.status 
+SELECT ee.signal_id, ee.candle_number, ee.entry, ee.status 
 INTO TEMPORARY TABLE trade_starts
 FROM earliest_entries ee 
 JOIN trade_reels tr ON tr.signal_id = ee.signal_id AND tr.entry_side = 'BUY' AND tr.candle_number = ee.candle_number
@@ -173,30 +173,30 @@ DROP TABLE IF EXISTS trade_targets;
 SELECT st.signal_id,
 st.candle_number AS start_candle_number,
 ts.direction,
-st.entry_price,
+st.entry,
 CASE 
-	WHEN ts.direction = 'BUY' THEN st.entry_price + ts.take_profit_difference 
-	WHEN ts.direction = 'SELL' THEN st.entry_price - ts.take_profit_difference 
+	WHEN ts.direction = 'BUY' THEN st.entry + ts.take_profit_distance 
+	WHEN ts.direction = 'SELL' THEN st.entry - ts.take_profit_distance 
 	ELSE NULL 
 END AS take_profit_price,
 CASE 
-	WHEN ts.direction = 'BUY' AND NULLIF(params.profit_lock_activation,0) IS NOT NULL THEN st.entry_price + (ts.take_profit_difference * params.profit_lock_activation)
-	WHEN ts.direction = 'SELL' AND NULLIF(params.profit_lock_activation,0) IS NOT NULL THEN st.entry_price - (ts.take_profit_difference * params.profit_lock_activation)
+	WHEN ts.direction = 'BUY' AND NULLIF(params.profit_lock_activation,0) IS NOT NULL THEN st.entry + (ts.take_profit_distance * params.profit_lock_activation)
+	WHEN ts.direction = 'SELL' AND NULLIF(params.profit_lock_activation,0) IS NOT NULL THEN st.entry - (ts.take_profit_distance * params.profit_lock_activation)
 	ELSE NULL 
 END AS profit_lock_activation_price,
 CASE  --new profit lock stop loss 
-	WHEN ts.direction = 'BUY' AND NULLIF(params.profit_lock_adjustment,0) IS NOT NULL THEN st.entry_price + (ts.take_profit_difference * params.profit_lock_adjustment)
-	WHEN ts.direction = 'SELL' AND NULLIF(params.profit_lock_adjustment,0) IS NOT NULL THEN st.entry_price - (ts.take_profit_difference * params.profit_lock_adjustment)
+	WHEN ts.direction = 'BUY' AND NULLIF(params.profit_lock_adjustment,0) IS NOT NULL THEN st.entry + (ts.take_profit_distance * params.profit_lock_adjustment)
+	WHEN ts.direction = 'SELL' AND NULLIF(params.profit_lock_adjustment,0) IS NOT NULL THEN st.entry - (ts.take_profit_distance * params.profit_lock_adjustment)
 	ELSE NULL 
 END AS profit_lock_adjustment_price,
 CASE  --new profit lock take profit 
-	WHEN ts.direction = 'BUY' AND NULLIF(params.profit_lock_activation,0) IS NOT NULL THEN st.entry_price + (ts.take_profit_difference * (1.0 + COALESCE(params.profit_lock_extra,0.0)))
-	WHEN ts.direction = 'SELL' AND NULLIF(params.profit_lock_activation,0) IS NOT NULL THEN st.entry_price - (ts.take_profit_difference * (1.0 + COALESCE(params.profit_lock_extra,0.0)))
+	WHEN ts.direction = 'BUY' AND NULLIF(params.profit_lock_activation,0) IS NOT NULL THEN st.entry + (ts.take_profit_distance * (1.0 + COALESCE(params.profit_lock_extra,0.0)))
+	WHEN ts.direction = 'SELL' AND NULLIF(params.profit_lock_activation,0) IS NOT NULL THEN st.entry - (ts.take_profit_distance * (1.0 + COALESCE(params.profit_lock_extra,0.0)))
 	ELSE NULL 
 END AS profit_lock_extra_price,
 CASE 
-	WHEN ts.direction = 'BUY' THEN st.entry_price - ts.stop_loss_difference 
-	WHEN ts.direction = 'SELL' THEN st.entry_price + ts.stop_loss_difference 
+	WHEN ts.direction = 'BUY' THEN st.entry - ts.stop_loss_distance 
+	WHEN ts.direction = 'SELL' THEN st.entry + ts.stop_loss_distance 
 	ELSE NULL 
 END AS stop_loss_price
 INTO TEMPORARY TABLE trade_targets
@@ -212,9 +212,9 @@ tr.candle_number,
 'low->price->high' AS status
 FROM trade_signals ts  --enter at the entry price if it has been crossed by the candles 
 JOIN trade_reels tr ON ts.signal_id = tr.signal_id  AND ts.direction = tr.entry_side
-WHERE ts.entry_cutoff::DOUBLE PRECISION > tr.low_price 
-AND ts.entry_cutoff::DOUBLE PRECISION < tr.high_price
-AND ts.entry_cutoff IS NOT NULL;
+WHERE ts.entry_cut::DOUBLE PRECISION > tr.low_price 
+AND ts.entry_cut::DOUBLE PRECISION < tr.high_price
+AND ts.entry_cut IS NOT NULL;
 
 INSERT INTO trade_cutoff_cross
 SELECT tr.signal_id,
@@ -222,12 +222,12 @@ tr.candle_number,
 'close->price->open' AS status
 FROM trade_signals ts
 JOIN trade_reels tr ON ts.signal_id = tr.signal_id AND ts.direction = tr.entry_side
-WHERE ts.entry_cutoff IS NOT NULL AND (
-	ts.entry_cutoff::DOUBLE PRECISION > tr.prev_close  --is this wrong? - need to make the case for BUY and SELL separately? 
-	AND ts.entry_cutoff::DOUBLE PRECISION < tr.open_price
+WHERE ts.entry_cut IS NOT NULL AND (
+	ts.entry_cut::DOUBLE PRECISION > tr.prev_close  --is this wrong? - need to make the case for BUY and SELL separately? 
+	AND ts.entry_cut::DOUBLE PRECISION < tr.open_price
 ) OR (
-	ts.entry_cutoff::DOUBLE PRECISION < tr.prev_close 
-	AND ts.entry_cutoff::DOUBLE PRECISION > tr.open_price
+	ts.entry_cut::DOUBLE PRECISION < tr.prev_close 
+	AND ts.entry_cut::DOUBLE PRECISION > tr.open_price
 );
 
 --TP 
@@ -487,7 +487,7 @@ WITH results_pre AS (
 	SELECT te.signal_id,
 	tsig.direction,
 	trs.the_date AS entry_date,
-	ts.entry_price,
+	ts.entry,
 	ts.candle_number AS entry_candle,
 	tre.the_date AS exit_date,
 --	tre.high_price, 
@@ -519,7 +519,7 @@ exit_prices AS (
 ),
 result_movements AS (
 	SELECT ep.*, 
-	(ep.exit_price - ep.entry_price) * (
+	(ep.exit_price - ep.entry) * (
 		CASE 
 			WHEN ts.direction = 'BUY' THEN 1.0 
 			WHEN ts.direction = 'SELL' THEN -1.0 
@@ -548,13 +548,13 @@ results_post AS (
 )
 SELECT signal_id, 
 entry_date,
-entry_price, 
+entry AS entry_price, 
 entry_candle,
 exit_date,
 typical_exit_price AS exit_price, --should be TP or SL price here 
 exit_candle, 
 result_movement,
-(result_movement / entry_price) * 100 AS result_percent,
+(result_movement / entry) * 100 AS result_percent,
 result_status
 INTO TEMPORARY TABLE trade_results
 FROM results_post;
@@ -583,20 +583,20 @@ FROM results_post;
 --	pps.direction,
 --	pps.candle_number,
 --	CASE 
---		WHEN pps.direction = 'BUY' THEN pps.optimistic_price - ts.entry_price 
---		WHEN pps.direction = 'SELL' THEN ts.entry_price - pps.optimistic_price
+--		WHEN pps.direction = 'BUY' THEN pps.optimistic_price - ts.entry 
+--		WHEN pps.direction = 'SELL' THEN ts.entry - pps.optimistic_price
 --		ELSE NULL 
---	END / tsigs.take_profit_difference AS optimistic,
+--	END / tsigs.take_profit_distance AS optimistic,
 --	CASE 
---		WHEN pps.direction = 'BUY' THEN pps.pessimistic_price - ts.entry_price 
---		WHEN pps.direction = 'SELL' THEN ts.entry_price - pps.pessimistic_price
+--		WHEN pps.direction = 'BUY' THEN pps.pessimistic_price - ts.entry 
+--		WHEN pps.direction = 'SELL' THEN ts.entry - pps.pessimistic_price
 --		ELSE NULL 
---	END / tsigs.take_profit_difference AS pessimistic,
+--	END / tsigs.take_profit_distance AS pessimistic,
 --	CASE 
---		WHEN pps.direction = 'BUY' THEN pps.typical_price - ts.entry_price 
---		WHEN pps.direction = 'SELL' THEN ts.entry_price - pps.typical_price
+--		WHEN pps.direction = 'BUY' THEN pps.typical_price - ts.entry 
+--		WHEN pps.direction = 'SELL' THEN ts.entry - pps.typical_price
 --		ELSE NULL 
---	END / tsigs.take_profit_difference AS typical
+--	END / tsigs.take_profit_distance AS typical
 --	FROM profit_path_prices pps
 --	JOIN trade_starts ts ON pps.signal_id = ts.signal_id 
 --	JOIN trade_ends te ON pps.signal_id = te.signal_id 

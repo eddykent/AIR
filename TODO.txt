@@ -76,9 +76,9 @@ volume indicators - TVI, VWAP, MVWAP, OBV, Delta, AskVWAP, BidVWAP, others?
 
 currency buying/selling pressure from bids & asks (contrarian to currency strength?) (rsi?)
 
-lazy loading for news AI backtesting 
+lazy loading for news AI backtesting ? 
 
-news, currrency-strength, client-sentiment & demand forecasting
+AI: news, currency-strength, client-sentiment & demand forecasting
 
 publish to AWS or similar
 	- dashboard app in android?
@@ -88,7 +88,8 @@ data - broker tool for getting all instrument details
 	broker tool for getting captial, open trades etc 
 data - ensure not to get blocked from news  (refactor news stuff to have instrument keys per story etc)
 data - validate all stuff from dukascopy before pushing to database & unlinking downloads
-	- suspect thread unsafe datetime stuff being used
+	- expand to record errors and retry bits 
+	- restart if connection breaks/ page fails to load 
 
 
 
@@ -220,4 +221,8 @@ grep/find things that should be config settings
 backtest profiling - speed up by getting all time indexs & instrument indexs first? 
 	speed up sql too somehow 
 
+exit signals - if needed later (leave till very end as prob not useful!) 
+	- setup_search - test exits sigs against win/lose trades to see if they're prevented 
+	- trade_setup implement a few exit() methods
+	- use pandas get_indexer & multiindex for getting closest exit times 
 

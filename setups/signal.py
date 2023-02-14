@@ -4,6 +4,7 @@ import uuid
 import datetime
 
 import numpy as np
+import pandas as pd
 
 #looks like you're setting up some kind of grammar!
 class TradeDirection(Enum):
@@ -98,12 +99,12 @@ class TradeSignal:
 		return self.take_profit_distance / self.stop_loss_distance
 		
 	def to_dict_row(self):
-		direction_str = 'BUY' if self.direction == TradeDirection.BUY else 'SELL' if self.direction == TradeDirection.SELL else 'VOID'
+		#direction_str = 'BUY' if self.direction == TradeDirection.BUY else 'SELL' if self.direction == TradeDirection.SELL else 'VOID'
 		return {
 			'signal_id':self.signal_id,
 			'the_date':self.the_date,
 			'instrument':self.instrument,
-			'direction':direction_str,
+			'direction':self.direction,
 			'strategy_ref':self.strategy_ref,
 			'entry':self.entry,
 			'entry_cut':self.entry_cut,
@@ -151,7 +152,7 @@ class TradeExitSignal:
 	direction = TradeDirection.VOID 
 	
 	signal_notes = ''  #anything that could be used later for reporting (eg filter results) 
-	
+	_fields = ['exit_signal_id','the_date','instrument','direction','strategy_ref']
 	
 	sql_row = "(%(exit_signal_id)s,%(strategy_ref)s,%(the_date)s,%(instrument)s,%(direction)s)"
 	
@@ -159,12 +160,12 @@ class TradeExitSignal:
 		self.exit_signal_id = str(uuid.uuid4())
 
 	def to_dict_row(self):
-		direction_str = 'BUY' if self.direction == TradeDirection.BUY else 'SELL' if self.direction == TradeDirection.SELL else 'VOID'
+		#direction_str = 'BUY' if self.direction == TradeDirection.BUY else 'SELL' if self.direction == TradeDirection.SELL else 'VOID'
 		return {
 			'exit_signal_id':self.exit_signal_id,
 			'the_date':self.the_date,
 			'instrument':self.instrument,
-			'direction':direction_str,
+			'direction':self.direction,
 			'strategy_ref':self.strategy_ref
 		}
 	
@@ -208,7 +209,7 @@ class TradeSignallingData:  #need to force this to break if attemping to set som
 	bullish = TradeSignallingPartial()
 	bearish = TradeSignallingPartial() 
 	
-	#perfect this so it can be used everywhere 
+	#perfect this so it can be used everywhere  - perhaps drop this 
 	def closest_time_index(self,the_date):
 		end_date = the_date 
 		start_date = the_date - datetime.timedelta(minutes=1440*3) #just get all indexs less than or equal to the_date - 3 days
@@ -219,6 +220,19 @@ class TradeSignallingData:  #need to force this to break if attemping to set som
 		raise ValueError('Unable to find closest time index')
 		return None #not found 
 	
+	def timeline_indexs(self,the_dates,ensure_later=False): #TODO
+		pdt = pd.Series(self.timeline)
+		pdt.index = pdt
+		timeline_indexs = pdt.index.get_indexer(the_dates,method='nearest')
+		if ensure_later:
+			timeline_indexs[pdt[timeline_indexs] < np.array(the_dates)] += 1#put to next index 
+		return timeline_indexs
+	
+	def instrument_indexs(self,instruments):
+		pdi = pd.Series(self.instruments)
+		pdi.index = pdi 
+		return pdi.index.get_indexer(instruments)
+
 	def instrument_index(self,instrument):
 		if not self._instrument_map:
 			self.set_instruments(self.instruments) 

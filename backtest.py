@@ -7,6 +7,8 @@ from typing import Optional,List
 from psycopg2.extensions import AsIs as Inject
 import numpy as np 
 import pandas as pd
+import re
+import io
 import dateutil.parser
 
 from enum import Enum
@@ -184,7 +186,7 @@ class BackTestStatistics:
 	def __init__(self,ts_data,signals,results):
 		self.signalling_data = ts_data #use for the scope of the backtest (from date, to date, etc) and for calculating drawdowns 
 		self.signals = signals
-		self.results = results 
+		self.results = results
 		self.mainframe = self.get_df()
 	
 	def set_exchange_rate_tool(self,exchange_rates=None):
@@ -199,26 +201,37 @@ class BackTestStatistics:
 	
 	def get_df(self):
 		#get all time to index data wrt backtest data (only do this once as expensive)
-		dft = pd.DataFrame.from_records([{
-			'signal_id':s.signal_id, 
-			'start_index':self.signalling_data.closest_time_index(s.the_date),
-			'instrument_index':self.signalling_data.instrument_index(s.instrument)
-		} for s in self.signals]) 
-		dft2 = pd.DataFrame.from_records([{
-			'signal_id':r.signal_id, 
-			'entry_index': self.signalling_data.closest_time_index(r.entry_date),
-			'exit_index': self.signalling_data.closest_time_index(r.exit_date),
-		} for r in self.results])
-		dft = dft.merge(dft2,on='signal_id')
-		dfr = pd.DataFrame(self.results,columns=TradeResult._fields)
-		dfs = pd.DataFrame.from_records(s.to_dict() for s in self.signals)
-		#pdb.set_trace() #append the start indexs here 
-		dfs = dfs.merge(dft,on='signal_id')
-		dfs = dfs.merge(dfr,on='signal_id')
-		dfs = dfs.sort_values(['entry_date']) #sort all trades in order ready for later
-		dfs['win'] = dfs['result_status'].isin(win_statuses) #wack every win/lose in a separate column for later too 
-		dfs['lose'] = dfs['result_status'].isin(lose_statuses)
-		return dfs
+		#dft = pd.DataFrame.from_records([{
+		#	'signal_id':s.signal_id, 
+		#	'start_index':self.signalling_data.closest_time_index(s.the_date),
+		#	'instrument_index':self.signalling_data.instrument_index(s.instrument)
+		#} for s in self.signals]) 
+		#dft2 = pd.DataFrame.from_records([{
+		#	'signal_id':r.signal_id, 
+		#	'entry_index': self.signalling_data.closest_time_index(r.entry_date),
+		#	'exit_index': self.signalling_data.closest_time_index(r.exit_date),
+		#} for r in self.results])
+		#dft = dft.merge(dft2,on='signal_id')
+		#dfr = pd.DataFrame(self.results,columns=TradeResult._fields)
+		#dfs = pd.DataFrame.from_records(s.to_dict() for s in self.signals)
+		##pdb.set_trace() #append the start indexs here 
+		#dfs = dfs.merge(dft,on='signal_id')
+		#dfs = dfs.merge(dfr,on='signal_id')
+		#dfs = dfs.sort_values(['entry_date']) #sort all trades in order ready for later
+		#dfs['win'] = dfs['result_status'].isin(win_statuses) #wack every win/lose in a separate column for later too 
+		#dfs['lose'] = dfs['result_status'].isin(lose_statuses)		
+		full_df = self.signals.merge(self.results,on='signal_id') 
+		full_df['start_index'] = self.signalling_data.timeline_indexs(full_df['the_date'].to_numpy())
+		full_df['instrument_index'] = self.signalling_data.instrument_indexs(full_df['instrument'].to_numpy())
+		full_df['entry_index'] = self.signalling_data.timeline_indexs(full_df['entry_date'].to_numpy())
+		full_df['exit_index'] = self.signalling_data.timeline_indexs(full_df['exit_date'].to_numpy())
+		full_df['win'] = full_df['result_status'].isin(win_statuses)
+		full_df['lose'] = full_df['result_status'].isin(lose_statuses)
+		
+		if 'currency' not in full_df.columns:
+			full_df['currency'] = full_df['instrument'].str[0:3] #hack to get to work for now (will need to be changed when working with stocks) 
+		
+		return full_df
 	
 	#calc individual strategy ref performances 
 	def calculate(self,query_params=None):
@@ -244,7 +257,7 @@ class BackTestStatistics:
 		
 		#pdb.set_trace()
 		#strat = df[(df['strategy_ref']=='setups.trade_pro.RSIS_EMA_X') & (df['instrument'] == 'GBP/USD')]
-		strat_result = self.per_instrument(df,self.strategy_result)
+		#strat_result = self.per_instrument(df,self.strategy_result)
 		#dbf.stopwatch('calc objective and strategy results')
 		
 		#pdb.set_trace()
@@ -615,22 +628,68 @@ class BackTester:
 	#def test_trade(trade_signal : TradeSignal) -> TradeResult:
 	#	pass
 	
-	def perform(trade_signals : List[TradeSignal], exit_signals : Optional[List[TradeExitSignal]]) -> List[TradeResult]: 
+	def perform(trade_signals : pd.DataFrame, exit_signals : Optional[pd.DataFrame]) -> pd.DataFrame: 
 		'''
 		Function to perform the backtesting. The method is defined in the subclass. 
 		
 		Parameters
 		----------
-		trade_signals : list(TradeSignal)
-			The list of trade signals that need to be backtested 
+		trade_signals : pd.DataFrame
+			The dataframe of trade signals that need to be backtested 
 		
 		Returns
 		-------
-		list(TradeResult)
-			The list of results (one per trade signal) of what happened with that trade 
+		pd.DataFrame
+			The dataframe of results (one per trade signal) of what happened with that trade 
 		'''
 		raise NotImplementedError("This method must be overridden")
+
+#wrapper for caching backtest results using pandas dataframes 
+#do not use when performing any fuzz (monte carlo stuff) 
+#turns out this is slower :) 
+class BackTesterCache:
+	
+	backtester : BackTester
+	results_cache : pd.DataFrame
+	
+	_key_columns : List[str] = ['instrument','the_date','direction','take_profit_distance','stop_loss_distance','entry', 'entry_cut', 'entry_expire', 'length'] #entry, entry_cut, entry_expire, length
+	_result_columns : List[str] = list(TradeResult._fields)
+	_signal_columns : List[str] = ['signal_id','the_date','strategy_ref','instrument','direction','entry','entry_cut','entry_expire','take_profit_distance','stop_loss_distance','length']
+	
+	def __init__(self,backtester,key_columns=[]):
+		self.backtester = backtester 
+		self.results_cache = pd.DataFrame([])
+		if key_columns:
+			self._key_columns = key_columns
+		#if 'signal_id' in self._result_columns:
+		#	self._result_columns.remove('signal_id')
 		
+	def invalidate(self):
+		self.results_cache.drop(self.results_cache.index,inplace=True)
+	
+	def perform(self,trade_signals,exit_signals=None): #ignore exit signals?
+		
+		new_signals = trade_signals.copy()
+		old_results = pd.DataFrame()
+		new_results = pd.DataFrame()
+		
+		if trade_signals.empty:
+			return old_results#blank - no need to do anything
+		
+		if not self.results_cache.columns.empty:
+			old_results = pd.merge(self.results_cache,new_signals,on=self._key_columns)[self._result_columns]
+			new_signals = pd.merge(new_signals,self.results_cache,on=self._key_columns, how='left', indicator=True)
+			new_signals = new_signals[new_signals['_merge'] == 'left_only'][self._signal_columns] #select only the new signals that are not in the cache
+			
+		if not new_signals.empty:
+			new_results = self.backtester.perform(new_signals,exit_signals)
+			new_cache_rows = pd.merge(trade_signals,new_results,how='inner',on='signal_id')
+			new_cache_rows.drop(columns=['signal_id','strategy_ref'],inplace=True) #drop signal id and strategy ref from cached data
+			self.results_cache = pd.concat([self.results_cache,new_cache_rows],ignore_index=True) #add the new rows 
+		
+		return pd.concat([old_results,new_results],ignore_index=True)
+	
+	
 
 #perform a backtest by passing the trade signals directly into the database and using a sql query to get the results. 
 #Due to using the database, there is no way to be able to expose this to a loss function in tensorflow 
@@ -638,6 +697,7 @@ class BackTesterDatabase(BackTester):
 	
 	sql_query_file = 'queries/new_backtester_execution.sql'
 	cursor = None #the database cursor - handled from something else 
+	channel = 0 #used to ensure temp table exclusivity
 	
 	trade_result = {
 		'INVALID':TradeResultStatus.INVALID,
@@ -654,26 +714,49 @@ class BackTesterDatabase(BackTester):
 	}
 	
 	
-	def __init__(self,cursor):
+	def __init__(self,cursor,channel=0):
 		self.cursor = cursor
+		self.channel = channel
 	
+	
+	def to_table_row_string(self,dataframe,columns):
+		sql_tuple = ','.join('%('+col+')s' for col in columns)					
+		records = dataframe.to_dict('records')
+		for record in records:#annoying hack to get the fucking thing to work in psycopg2
+			the_date = record['the_date'] 
+			record['the_date'] = datetime.datetime(the_date.year,the_date.month,the_date.day,the_date.hour,the_date.minute)
+		tuples = [self.cursor.cur.mogrify(sql_tuple,record).decode() for record in records]
+		return ','.join('('+t+')' for t in tuples)
 	
 	@overrides(BackTester)
-	def perform(self,trade_signals,exit_signals=[]):		
+	def perform(self,trade_signals,exit_signals=None):		
 		
+		trade_signals = trade_signals.copy() #enure we get a copy to not edit original - possibly a common thing to do 
 		if not exit_signals: 
-			exit_signals = [TradeExitSignal.mock()]
+			exit_signals = pd.DataFrame([TradeExitSignal.mock().to_dict_row()],columns=TradeExitSignal._fields)
 		
-		entry_sql_rows = [self.cursor.mogrify(TradeSignal.sql_row,ts.to_dict_row()).decode() for ts in trade_signals]
-		exit_sql_rows = [self.cursor.mogrify(TradeExitSignal.sql_row,te.to_dict_row()).decode() for te in exit_signals]
+		trade_signals['direction'] = trade_signals['direction'].apply(lambda r : r.name)
+		exit_signals['direction'] = exit_signals['direction'].apply(lambda r : r.name)
+		trade_signals['signal_id'] = trade_signals['signal_id'].apply(lambda g : str(g))
+		exit_signals['exit_signal_id'] = exit_signals['exit_signal_id'].apply(lambda g : str(g))
+		
+		##create temp tables  
+		entry_columns = ['signal_id', 'strategy_ref', 'the_date', 'instrument', 'direction', 'entry', 'entry_cut', 'entry_expire', 'take_profit_distance', 'stop_loss_distance', 'length'] 
+		exit_columns = ['exit_signal_id', 'strategy_ref', 'the_date', 'instrument', 'direction']
+		
+		trade_signal_rows = self.to_table_row_string(trade_signals, columns=entry_columns)
+		exit_signal_rows = self.to_table_row_string(exit_signals, columns=exit_columns)
+		
+		#entry_sql_rows = [self.cursor.mogrify(TradeSignal.sql_row,ts.to_dict_row()).decode() for ts in trade_signals]
+		#exit_sql_rows = [self.cursor.mogrify(TradeExitSignal.sql_row,te.to_dict_row()).decode() for te in exit_signals]
 		
 		sql_query = None
 		with open(self.sql_query_file,'r') as f:
 			sql_query = f.read()
 		
 		query_params = {
-			'trade_signals':Inject(','.join(entry_sql_rows)),
-			'exit_signals':Inject(','.join(exit_sql_rows)),
+			'entry_signals':Inject(trade_signal_rows),
+			'exit_signals':Inject(exit_signal_rows),
 			'profit_lock_activation':None,
 			'profit_lock_adjustment':None,
 			'profit_lock_extra':None,
@@ -688,6 +771,8 @@ class BackTesterDatabase(BackTester):
 		self.cursor.execute(sql_query,query_params)
 		query_result = self.cursor.fetchall()
 		
+		
+		
 		trade_results = []
 		for result in query_result:
 			result_row = result[0] #unpack 
@@ -697,9 +782,11 @@ class BackTesterDatabase(BackTester):
 			result_row['exit_date'] = dateutil.parser.parse(result_row['exit_date'])
 			trade_result = TradeResult(**result_row)
 			trade_results.append(trade_result)
-		return trade_results
+		
+		return_df = pd.DataFrame(trade_results,columns=TradeResult._fields)
+		return return_df
 	
-
+	
 
 #pass streams candles (labelled with their instrument name) to this class and then perfrom backtesting using this data
 #this class might be exposable to an AI loss function. 
@@ -713,13 +800,14 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		self.signalling_data = candle_data
 			
 	@overrides(BackTester)
-	def perform(self,trade_signals,exit_signals=[]):
+	def perform(self,trade_signals,exit_signals=None):
 		
 		#this is what each result needs: 
 		#signal_id entry_date entry_price entry_candle exit_date exit_price exit_candle result_movement result_percent result_status profit_path
-		
+		N = len(trade_signals)
+			
 		trade_tracks, timeline_indexs = self._get_trade_tracks_and_timeline_indexs(trade_signals)
-		trade_directions = np.array([ts.direction for ts in trade_signals])
+		trade_directions = trade_signals['direction'].to_numpy()
 		trade_directions_end = (trade_directions == TradeDirection.SELL).astype(np.int) 
 		trade_directions_start = 1 - trade_directions_end 
 		
@@ -727,22 +815,16 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		trade_tracks_start = bid_ask_trade_tracks[(trade_directions_start,np.arange(trade_tracks.shape[0]))]
 		trade_tracks_end = bid_ask_trade_tracks[(trade_directions_end,np.arange(trade_tracks.shape[0]))]
 		
-		entry_prices, entry_indexs = self._get_start_prices_and_positions(trade_signals, trade_tracks_start)
-		signal_ids = [ts.signal_id for ts in trade_signals]
+		entry_prices, entry_indexs = self._get_start_prices_and_positions(trade_signals['entry'].to_numpy(np.float64), trade_tracks_start)
 		
 		ci_max = np.full(trade_tracks.shape[0],trade_tracks.shape[1]-1) #if any index is equal or larger than this it never happened
 		timeline_max = self.signalling_data.timeline.shape[0] - 1
 		overflows = timeline_indexs + ci_max - timeline_max
 		
 		ci_max[overflows > 0] -= overflows[overflows > 0]
-		
-		
-		trade_directions = np.array([ts.direction for ts in trade_signals])
-		
-		result_statuses = np.array([TradeResultStatus.STAGNATED for ts in trade_signals])
-		exit_indexs = ci_max.copy() + 1
-		
-		
+			
+		result_statuses = np.full(N,TradeResultStatus.STAGNATED)
+		exit_indexs = ci_max.copy() + 1		
 		exit_prices = entry_prices.copy()
 		
 		
@@ -806,7 +888,7 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		exit_timeline_signal_indexs = None 
 		if self.exit_per_entry :
 			assert len(trade_signals) == len(exit_signals), "Number of exit signals must match number of entry signals"
-			self._get_timeline_indexs_from_datetimes([es.the_date for es in exit_signals])
+			exit_timeline_signal_indexs = self.signalling_data.timeline_indexs(exit_signals['the_date'].to_numpy())
 		else:
 			exit_timeline_signal_indexs = self._get_exit_signal_indexs(trade_signals, exit_signals) 
 		exit_signal_indexs = exit_timeline_signal_indexs - timeline_indexs
@@ -840,82 +922,131 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		result_percents = (result_movements / entry_prices) * 100 
 		
 		exit_indexs[exit_signal_mask] = exit_signal_indexs[exit_signal_mask] 
-			
+		
 		result_statuses[~cutoff_mask & depleated_mask & (result_movements <= 0)] = TradeResultStatus.LOSING 
 		result_statuses[~cutoff_mask & depleated_mask & (result_movements > 0)] = TradeResultStatus.WINNING 
 		result_statuses[~cutoff_mask & exit_signal_mask & (result_movements <= 0)] = TradeResultStatus.LOST_EXIT 
 		result_statuses[~cutoff_mask & exit_signal_mask & (result_movements > 0)] = TradeResultStatus.WON_EXIT 
-
 		
-		all_results = [] 
-		for result in zip(signal_ids,entry_dates,entry_prices,entry_indexs,exit_dates,exit_prices,exit_indexs,result_movements,result_percents,result_statuses):	
-			all_results.append(TradeResult._make(result))
+		result_df = pd.DataFrame(trade_signals['signal_id'],columns=['signal_id']) #preserve index
+		result_df['entry_date'] = entry_dates
+		result_df['entry_price'] = entry_prices
+		result_df['entry_candle'] = entry_indexs
+		result_df['exit_date'] = exit_dates
+		result_df['exit_price'] = exit_prices 
+		result_df['exit_candle'] = exit_indexs
+		result_df['result_movement'] = result_movements 
+		result_df['result_percent'] = result_percents
+		result_df['result_status'] = result_statuses
 		
-		#pdb.set_trace()
-		return all_results 
+		#result_df = result_df.set_index('signal_id',drop=False)
 		
+		return result_df
 		
-	def _get_timeline_indexs_from_datetimes(self, datetimes):
-		return [self.signalling_data.closest_time_index(dt) for dt in datetimes] #check for later ones to ensure they don't just all end up as at the end
 	
 	
 	#for every trade, get the list of candles associated with it ordered from the start to end & get the associated timeline index
 	def _get_trade_tracks_and_timeline_indexs(self,trade_signals):
 		
-		trade_tracks = [] 
-		trade_lengths = [] 
-		timeline_indexs = [] 
+		#dbf.stopwatch('new backtest way')
+		timeline_ub = self.signalling_data.timeline.shape[0] 
+		chart_res = self.signalling_data.chart_resolution
+		n_signals = len(trade_signals)
+		np_candles = self.signalling_data.np_candles
 		
-		for ts in trade_signals: #TODO: see if this can be optimised further (use dataframes and fancy indexing) 
-			ii = self.signalling_data.instrument_index(ts.instrument)
-			ti = self.signalling_data.closest_time_index(ts.the_date)
-			timeline_indexs.append(ti)
-			#if we are not on a weekend 
-			ti_ub = ti + (ts.length // self.signalling_data.chart_resolution) 
-			
-			#what if weekend? 
-			trade_track = self.signalling_data.np_candles[ii,ti : ti_ub,...]
-			trade_tracks.append(trade_track)
-			trade_lengths.append(trade_track.shape[0])
-			
-			#if not trade_tracks[-1].shape[0] == trade_lengths[-1]:
-			#	pdb.set_trace()
-			#	print('hit a problem building tts')
-			#	assert trade_tracks[-1].shape[0] == trade_lengths[-1]
+		info_df = pd.DataFrame(trade_signals['signal_id'],columns=['signal_id']) #preserves index
+		info_df['timeline_start_index'] = self.signalling_data.timeline_indexs(trade_signals['the_date'])
+		info_df['instrument_index'] = self.signalling_data.instrument_indexs(trade_signals['instrument'])
+		info_df['length'] = trade_signals['length']
 		
-		maxlen = np.max(trade_lengths)
-		result = np.full((len(trade_signals),maxlen,2,4),np.nan)
-		#pdb.set_trace()
-		for i,(tt,tl) in enumerate(zip(trade_tracks,trade_lengths)):
-			try:	
-				result[i,:tl] = tt[:tl,:,:4] #length,(bid0 or ask1),ohlc
-			except Exception as e:
-				pdb.set_trace()
-				print('hit a problem')
-			
-		return result, np.array(timeline_indexs)
+		
+		info_df['timeline_end_index'] = info_df['timeline_start_index'] + (info_df['length'] // chart_res)
+		#upper bound on timeline_end_index
+		info_df.loc[info_df['timeline_end_index'] > timeline_ub,'timeline_end_index'] = timeline_ub
+		
+		
+		info_df['n_candles'] = info_df['timeline_end_index'] - info_df['timeline_start_index']
+		maxlen = info_df['n_candles'].max()
+		
+		result = np.full((n_signals,maxlen,2,4),np.nan)
+		#pdb.set_trace() 
+		trade_indexs = np.arange(n_signals)
+		candle_indexs = info_df['n_candles'].to_numpy()
+		instrument_indexs = info_df['instrument_index'].to_numpy()
+		timeline_start_indexs = info_df['timeline_start_index'].to_numpy()
+		timeline_end_indexs = info_df['timeline_end_index'].to_numpy() #not needed?
+		
+		trade_indexs_lhs = np.repeat(trade_indexs,candle_indexs)
+		instrument_indexs_rhs = np.repeat(instrument_indexs,candle_indexs)
+		cumulatives = np.concatenate([[0],np.cumsum(candle_indexs)[:-1]])
+		cumulatives_bloat = np.repeat(cumulatives,candle_indexs)
+		candle_indexs_lhs = np.arange(cumulatives_bloat.shape[0]) - cumulatives_bloat #0 to n_candle
+		candle_indexs_rhs = np.repeat(timeline_start_indexs,candle_indexs) + candle_indexs_lhs #start to end time indexs
+		result[trade_indexs_lhs,candle_indexs_lhs] = np_candles[instrument_indexs_rhs,candle_indexs_rhs]
+		
+		#dbf.stopwatch('new backtest way')
+		
+		#dbf.stopwatch('old backtest way')
+		#trade_tracks = [] 
+		#trade_lengths = [] 
+		#timeline_indexs = []
+		#
+		#for ts in trade_signals.itertuples(): #TODO: see if this can be optimised further (use dataframes and fancy indexing) 
+		#	ii = self.signalling_data.instrument_index(ts.instrument)
+		#	ti = self.signalling_data.closest_time_index(ts.the_date)
+		#	timeline_indexs.append(ti)
+		#	#if we are not on a weekend 
+		#	ti_ub = ti + (ts.length // self.signalling_data.chart_resolution) 
+		#	
+		#	#what if weekend? 
+		#	trade_track = self.signalling_data.np_candles[ii,ti : ti_ub,...]
+		#	trade_tracks.append(trade_track)
+		#	trade_lengths.append(trade_track.shape[0])
+		#	
+		#	#if not trade_tracks[-1].shape[0] == trade_lengths[-1]:
+		#	#	pdb.set_trace()
+		#	#	print('hit a problem building tts')
+		#	#	assert trade_tracks[-1].shape[0] == trade_lengths[-1]
+		#
+		#maxlen = np.max(trade_lengths)
+		#result_old = np.full((len(trade_signals),maxlen,2,4),np.nan)
+		##pdb.set_trace()
+		#for i,(tt,tl) in enumerate(zip(trade_tracks,trade_lengths)):
+		#	try:	
+		#		result_old[i,:tl] = tt[:tl,:,:4] #length,(bid0 or ask1),ohlc
+		#	except Exception as e:
+		#		pdb.set_trace()
+		#		print('hit a problem')
+		#
+		#dbf.stopwatch('old backtest way')
+		
+		#diffs = ~((result == result_old) | (np.isnan(result) & np.isnan(result_old)))
+		#erroneous = np.unique(np.where(diffs)[0])
+		#pdb.set_trace() 
+		
+		return result, timeline_start_indexs
 	
 	def _get_exit_signal_indexs(self, trade_signals, exit_signals):
 		
 		#st = time.time()
 		exit_indexs = np.full(len(trade_signals),-1)
-		if not exit_signals:
+		if exit_signals is None or exit_signals.empty: 
 			return exit_indexs
 		
 		#looks mad but this works well and is faster than iterating in loops (test!)
 		#firstly, turn every comparat to np arrays
-		exit_signal_dates = np.array([es.the_date for es in exit_signals]).astype(np.datetime64)
-		entry_start_dates = np.array([ts.the_date for ts in trade_signals]).astype(np.datetime64)
-		entry_end_dates = np.array([ts.the_date + datetime.timedelta(minutes=ts.length) for ts in trade_signals]).astype(np.datetime64)
+		exit_signal_dates = exit_signals['the_date'].to_numpy() #np.array([es.the_date for es in exit_signals]).astype(np.datetime64)
+		entry_start_dates = trade_signals['the_date'].to_numpy() #np.array([ts.the_date for ts in trade_signals]).astype(np.datetime64)
+		entry_end_dates = (trade_signals['the_date'] + pd.TimeDelta(minutes=trade_signals['length'])).to_numpy() #np.array([ts.the_date + datetime.timedelta(minutes=ts.length) for ts in trade_signals]).astype(np.datetime64)
 		
-		entry_strategy_refs = np.array([ts.strategy_ref for ts in trade_signals])
-		exit_strategy_refs = np.array([es.strategy_ref for es in exit_signals])
+		entry_strategy_refs = trade_signals['strategy_ref'].to_numpy() #np.array([ts.strategy_ref for ts in trade_signals])
+		exit_strategy_refs = exit_signals['strategy_ref'].to_numpy() #np.array([es.strategy_ref for es in exit_signals])
 		
-		entry_instruments  = np.array([ts.instrument for ts in trade_signals])
-		exit_instruments  = np.array([es.instrument for es in exit_signals])
+		entry_instruments  = trade_signals['instrument'].to_numpy() #np.array([ts.instrument for ts in trade_signals])
+		exit_instruments  =  exit_signals['instrument'].to_numpy() #np.array([es.instrument for es in exit_signals])
 		
-		entry_directions = np.array([ts.direction for ts in trade_signals])
-		exit_directions = np.array([es.direction for es in exit_signals])
+		entry_directions = trade_signals['direction'].to_numpy() #np.array([ts.direction for ts in trade_signals])
+		exit_directions = exit_signals['direction'].to_numpy() #np.array([es.direction for es in exit_signals])
 		
 		#next, calculate the truthy matrices for every conditional 
 		#pdb.set_trace()
@@ -937,30 +1068,17 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		exit_indexs[exit_mask] = [self.signalling_data.closest_time_index(the_date) for the_date in exit_signal_dates_np[exit_mask]]
 		#print("time took with np = "+str(time.time() - st))
 		
-		#st = time.time()
-		#test with regular python
-		#exit_signal_dates_py = [None] * len(trade_signals)
-		#for i,ts in enumerate(trade_signals):
-		#	for es in exit_signals:
-		#		if (ts.strategy_ref, ts.direction, ts.instrument) == (es.strategy_ref, es.direction, es.instrument):
-		#			if es.the_date >= ts.the_date and es.the_date <= ts.the_date + datetime.timedelta(minutes=ts.length):
-		#				if exit_signal_dates_py[i] is None or exit_signal_dates_py[i] > es.the_date:
-		#					exit_signal_dates_py[i] = es.the_date
-		#
-		##finally, use the earliest exit signal datetimes to get the timeline indexs 
-		#exit_indexs2 = [-1 if the_date is None else self.signalling_data.closest_time_index(the_date) for the_date in exit_signal_dates_py]
-		#print("time took with py = "+str(time.time() - st))
-		#pdb.set_trace()
-		
 		return exit_indexs
 	
-	def _get_start_prices_and_positions(self, trade_signals, trade_tracks):	
+	def _get_start_prices_and_positions(self, signal_start_prices, trade_tracks):	
 		
-		signal_start_prices = np.array([ts.entry for ts in trade_signals],dtype=np.float64)
+		
+		#signal_start_prices = np.array([ts.entry for ts in trade_signals],dtype=np.float64)
+		N = trade_tracks.shape[0]
 		nanmask = np.isnan(signal_start_prices)
 		
-		start_prices = np.full(len(trade_signals),np.nan)
-		start_positions = np.full(len(trade_signals),0)
+		start_prices = np.full(N,np.nan)
+		start_positions = np.full(N,0)
 		
 		start_candles = trade_tracks[:,0,:]
 		start_prices[nanmask] = np.mean(start_candles[nanmask,1:],axis=1) #typical price (csf.open = 0)
@@ -975,12 +1093,13 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		
 	def _get_key_price_points(self,trade_signals,start_prices):
 		
-		tpd = np.array([ts.take_profit_distance for ts in trade_signals],dtype=np.float64)
-		sld = np.array([ts.stop_loss_distance for ts in trade_signals],dtype=np.float64)
+		tpd = trade_signals['take_profit_distance'].to_numpy(np.float64)#np.array([ts.take_profit_distance for ts in trade_signals],dtype=np.float64)
+		sld = trade_signals['stop_loss_distance'].to_numpy(np.float64)#np.array([ts.stop_loss_distance for ts in trade_signals],dtype=np.float64)
+		cutoffs = trade_signals['entry_cut'].to_numpy(np.float64)
 		
-		dirs = np.array([1 if ts.direction == TradeDirection.BUY else -1 if ts.direction == TradeDirection.SELL else 0 for ts in trade_signals],dtype=np.float64)
+		#pdb.set_trace()
 		
-		cutoffs = np.array([ts.entry_cut for ts in trade_signals],dtype=np.float64)
+		dirs = (trade_signals['direction'] == TradeDirection.BUY).to_numpy(np.int) - (trade_signals['direction'] == TradeDirection.SELL).to_numpy(np.int)
 		
 		take_profits = start_prices + (dirs * tpd)
 		stop_losses = start_prices - (dirs * sld)

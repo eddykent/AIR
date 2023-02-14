@@ -43,10 +43,8 @@ hole_start = datetime(2022,1,1)
 
 from data.tools.hole_finder import HoleFinder
 
-hf = HoleFinder(hole_start,hole_end,['EUR/USD','USD/JPY'])
-holes = hf.find_holes()
-
-pdb.set_trace()
+#hf = HoleFinder(hole_start,hole_end,['EUR/USD','USD/JPY'])
+#holes = hf.find_holes()
 
 #some_signals = []
 #with open('data/pickles/trade_signals.pkl', 'rb') as fp:
@@ -56,11 +54,11 @@ pdb.set_trace()
 #some_signals = ecf.filter(some_signals)
 
 resolution = 15
-combination = 5  #4?
+combination = 3  #4?
 grace_period = 50 #enough?
 
-trigger_block_func = tbl.full_set
-#trigger_block_func = tbl.small_set
+#trigger_block_func = tbl.full_set
+trigger_block_func = tbl.small_set
 
 lfr = ListFileReader()
 currencies = lfr.read('fx_pairs/currencies.txt')
@@ -96,7 +94,7 @@ fend_date = train_period_end # max(s.the_date for s in some_signals)
 ect = EconomicCalendarTool(fstart_date,fend_date)
 ecf = EconomicCalendarFilter(ect.get_df())
 fmask = ecf.extract_mask(trade_signalling_data.instruments,trade_signalling_data.timeline)
-pdb.set_trace()
+#pdb.set_trace()
 
 datatool.backtesting = True 
 dbf.stopwatch('fetch bt candles')

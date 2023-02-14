@@ -6,7 +6,7 @@
 
 from utils import LogSetup
 LogSetup() #think of how to rmeove this line
-from tests.web_crawling_tests import *  #<<<<<< run this to get latest volume indicators from dukascopy bank 
+#from tests.web_crawling_tests import *  #<<<<<< run this to get latest volume indicators from dukascopy bank 
 
 #from tests.typedlist_test import *
  
@@ -99,9 +99,10 @@ from tests.web_crawling_tests import *  #<<<<<< run this to get latest volume in
 
 
 
-#from tests.strategy_test import *
+from tests.strategy_test import *
 
-
+#AUD/CAD broke db query (no results?) - re-run this! - keep latest AUD/CAD files!
+#AUD/USD used wrong file so re-ran whole thing (check date in filename) 
 
 
 

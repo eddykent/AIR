@@ -314,7 +314,7 @@ class ATRStop(StopTool):
 		average_true_range_values = average_true_range(trade_signalling_data.candlesticks) [:,:,0]
 		tp_distances = self.tpm * average_true_range_values
 		sl_distances = self.slm * average_true_range_values
-		return (tp_distances, tp_distances), (sl_distances, sl_distances) #a stop can be differnet values in diff directions
+		return (tp_distances, sl_distances), (tp_distances, sl_distances) #a stop can be differnet values in diff directions
 
 
 
@@ -339,7 +339,7 @@ class PipStop(StopTool):
 		candle_stream_length = trade_signalling_data.np_candles.shape[1]
 		pip_distances = np.transpose(np.array([unitpiplen]*candle_stream_length))
 		
-		return (pip_distances * self.tpp, pip_distances * self.tpp), (pip_distances * self.slp, pip_distances * self.slp)  
+		return (pip_distances * self.tpp, pip_distances * self.slp), (pip_distances * self.tpp, pip_distances * self.slp)  
 
 class RollingExtremeStop(StopTool):
 	
@@ -438,7 +438,7 @@ class CandleDataTool:
 			candle_result = composer.result(as_json=True)
 			candlesticks = DataComposer.as_candles_volumes(candle_result,self.instruments) if self.volumes else DataComposer.as_candles(candle_result,self.instruments)
 			self._candlesticks = np.array([candlesticks[instr] for instr in self.instruments if candlesticks.get(instr)]) #always used a block 
-			self._instruments = [instr for instr in self.instruments if candlesticks.get(instr)]
+			self._instruments = np.array([instr for instr in self.instruments if candlesticks.get(instr)])
 			
 			candlesticks_pre = CandleSticks()
 			if self.volumes:
@@ -456,7 +456,7 @@ class CandleDataTool:
 			candle_result = composer.result(as_json=True)
 			candlesticks = DataComposer.as_full_candles(candle_result,self.instruments)
 			self._candlesticks = np.array([candlesticks[instr] for instr in self.instruments if candlesticks.get(instr)]) #always used a block 
-			self._instruments = [instr for instr in self.instruments if candlesticks.get(instr)]
+			self._instruments = np.array([instr for instr in self.instruments if candlesticks.get(instr)])
 			candlesticks_pre = CandleSticks()
 			candlesticks_pre.candle_type = CandleType.FULL_CANDLE
 			bidaskcandles = candlesticks_pre.calculate_multiple(self._candlesticks)
@@ -480,7 +480,7 @@ class CandleDataTool:
 			candle_result = composer.result(as_json=True)
 			candlesticks = DataComposer.as_candles_volumes(candle_result,instruments) if self.volumes else DataComposer.as_candles(candle_result,instruments)
 			self._candlesticks = np.array([candlesticks[instr] for instr in instruments if candlesticks.get(instr)]) #always used a block 
-			self._instruments = [instr for instr in instruments if candlesticks.get(instr)]
+			self._instruments = np.array([instr for instr in instruments if candlesticks.get(instr)])
 			candlesticks_pre = CandleSticks()
 			if self.volumes:
 				candlesticks_pre.candle_type = CandleType.CANDLE_VOLUME
@@ -498,7 +498,7 @@ class CandleDataTool:
 			candle_result = composer.result(as_json=True)
 			candlesticks = DataComposer.as_full_candles(candle_result,instruments)
 			self._candlesticks = np.array([candlesticks[instr] for instr in instruments if candlesticks.get(instr)]) #always used a block 
-			self._instruments = [instr for instr in instruments if candlesticks.get(instr)]
+			self._instruments = np.array([instr for instr in instruments if candlesticks.get(instr)])
 			candlesticks_pre = CandleSticks()
 			candlesticks_pre.candle_type = CandleType.FULL_CANDLE
 			idaskcandles = candlesticks_pre.calculate_multiple(self._candlesticks)

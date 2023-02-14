@@ -11,7 +11,7 @@ from tqdm import tqdm
 import pdb
 
 
-from backtest import BackTesterCandles, BackTestStatistics
+from backtest import BackTesterCandles, BackTesterCache, BackTestStatistics
 from charting import candle_stick_functions as csf
 
 from setups.trade_setup import blank_result, TradeSetup
@@ -22,6 +22,8 @@ from strategy.strategy_components import TriggerBlock, SetupBlock
 from strategy.trigger_block_lists import moving_averages, chart_patterns #more? 
 
 from utils import overrides 
+
+import debugging.functs as dbf
 	
 class SignalGenerator:
 	
@@ -143,7 +145,7 @@ class ExhaustiveSearch(SignalGenerator):
 	stop_operators = []
 	N = 3 #number of indicators to combine
 	likeness = 1.0 #try 0.99   (any value > 1 means don't prune. 1.0 means exact matches only 
-	cache_backtests = True #always by default - check for equality
+	cache_backtests = False #always by default - check for equality
 	
 	filters = []
 	
@@ -151,7 +153,6 @@ class ExhaustiveSearch(SignalGenerator):
 	_ignored_triggers = [] 
 	_invalid_trigger_pairs = []
 	
-	_backtest_cache_df = None 
 	
 	def __init__(self, N = 3):
 		self.N = N
@@ -168,7 +169,7 @@ class ExhaustiveSearch(SignalGenerator):
 		stop_data = stop_op.get_stops(trade_signalling_data)
 		
 		full_results = self.try_all_combinations(all_trigger_results,trade_signalling_data, backtesting_data,stop_data)
-		return self.process_full_results(full_results)
+		return self.set_objective_value(full_results) #pass an objective function if there is one 
 	
 	#return signals!
 	@overrides(SignalGenerator)
@@ -188,28 +189,33 @@ class ExhaustiveSearch(SignalGenerator):
 		print('check actuals') 
 		executable_combs = defaultdict(list) 
 		used_indicators = np.zeros(len(self.trigger_blocks)).astype(np.int)
-		for comb, df in infer_df.groupby('combination'):
-			executable_combs[comb] = list(df['instrument'])
-			#pdb.set_trace()
-			used_indicators[list(comb)] += 1
 		
-		trigger_results = self.run_triggers(trade_signalling_data,np.where(used_indicators > 0)[0])
+		#pdb.set_trace()
+		combs = np.array(infer_df['combination'].to_list())
+		used_indicators = np.full(len(self.trigger_blocks),False)
+		used_indicators[combs] = True #nice trick! 
+		
+		
+		keep_combinations = infer_df[['combination','instrument']].copy()
+		keep_combinations['key'] = keep_combinations['combination'].astype(str)
+		trigger_results = self.run_triggers(trade_signalling_data,np.where(used_indicators)[0])
 		
 		stop_op = self.stop_operators[0]#work out how to do this with multiple stop tools 
 		stop_data = stop_op.get_stops(trade_signalling_data)
 		
 		#pdb.set_trace()
-		combs = executable_combs.keys()
-		all_signals = self.get_signals(trigger_results, trade_signalling_data, stop_data,combs)
+		#pdb.set_trace()
+		run_combs = np.unique(combs,axis=0)
+		all_signals = self.get_signals(trigger_results, trade_signalling_data, stop_data,run_combs)
+	
+		print('fix this to use with dataframes')
+		return_signals = pd.DataFrame([])
 		
-		return_signals = [] 
-		#remove any instruments on combinations we do not want 
-		for comb, signals in zip(combs,all_signals): #crude but works 
-			return_signals += [s for s in signals if s.instrument in executable_combs[comb]]
-		
-		#pdb.set_trace() 
-		#print('todo')
-		
+		keys = [str(list(comb)) for comb in run_combs] #match up with astype(str) from DF above 
+		for this_key, signals in zip(keys,all_signals):
+			keep_instruments = keep_combinations[keep_combinations['key'] == this_key]['instrument']
+			return_signals = return_signals.append(signals[signals['instrument'].isin(keep_instruments)])
+			
 		return return_signals
 			
 	
@@ -280,25 +286,27 @@ class ExhaustiveSearch(SignalGenerator):
 				
 		return pairs 
 	
-	#objective is to maximise profits - this always max 
-	def process_full_results(self,results_df,objective='output_balance'): #sort by money on each instrument 
+	def set_objective_value(self,results_df,objective='output_balance'): #sort by money on each instrument 
 		
-		full_results = results_df.copy()
+		#full_results = results_df.copy()
 		#pdb.set_trace()
-		if callable(objective):
-			full_results['objective_value'] = objective(full_results) #check - may need lambda or something
-		elif objective in results_df.columns:
-			full_results['objective_value'] = full_results[objective]
-		else:
-			raise ValueError(f"Unsure what to do with objective '{objective}'")
-		
-		#for every instrument, lets get the top combinations? better to get highest performers? 
-		#pdb.set_trace()
-		return full_results[['instrument','combination','objective_value','ratio','N']] 
+		if objective is not None and 'objective_value' not in results_df.columns:
+			if callable(objective):
+				results_df['objective_value'] = objective(results_df) #check - may need lambda or something
+			elif objective in results_df.columns:
+				results_df['objective_value'] = results_df[objective]
+		#else:
+		#	raise ValueError(f"Unsure what to do with objective '{objective}'")
+
+		return results_df
 	
-	def pruned(self,comb):
+	def prune_combinations(self,combinations):
+		#TODO: VECTORIZE
+		return [comb for comb in combinations if self.pruned(comb)]
+	
+	def pruned(self,comb): #remove once vectorized
 		#first, check if any comb is in similar_triggers to prevent using  
-		#pdb.set_trace()
+		pdb.set_trace()
 		if np.intersect1d(comb,self._ignored_triggers).size:
 			return True #prune as this combination contains a removed trigger block 
 		
@@ -312,23 +320,24 @@ class ExhaustiveSearch(SignalGenerator):
 	
 	
 	def get_signals(self,trigger_results, trade_signalling_data, stop_data, combinations):				
-		all_signals = []
 		
 		instruments = trade_signalling_data.instruments
 		timeline = trade_signalling_data.timeline
 		filter_mask = np.full((len(instruments),len(timeline)),True)
 		
+		all_signals = [] #change from list to df? 
+		
 		for f in self.filters:
 			filter_mask = filter_mask & f.extract_mask(instruments,timeline)
 		
 		for comb in tqdm(combinations):
-			#pdb.set_trace()
-				
-			name = comb #necessary?
+
 			bullish = np.all(trigger_results[:,:,comb,0],axis=2) #zero to 1 tools?
 			bearish = np.all(trigger_results[:,:,comb,1],axis=2)
 			
-			if True:
+			name = self.__class__.__name__+'@'+str(list(comb)) #use a human-readable name for later
+			
+			if True: #before or after filter?
 				bullish = Zero2OneTool.markup(bullish)
 				bearish = Zero2OneTool.markup(bearish)
 			
@@ -336,50 +345,54 @@ class ExhaustiveSearch(SignalGenerator):
 			bearish = bearish & filter_mask
 			
 			signals = SignalGenerator.create_signals(name,bullish,bearish,stop_data,trade_signalling_data)
-			
 			all_signals.append(signals)
+	
 		return all_signals
+		
 	
 	def try_all_combinations(self, trigger_results, trade_signalling_data, backtesting_data, stop_data):
 		
 		
 		print('get all signals')
 		num_containers = len(self.trigger_blocks)
-		container_combs = list(itertools.combinations(range(num_containers),self.N))
 		
-		pruned_comb = [comb for comb in container_combs if not self.pruned(comb)]
+		#any way to cast to lists without loop?
+		container_combs = list(list(comb) for comb in itertools.combinations(range(num_containers),self.N))
+		pruned_comb = self.prune_combinations(container_combs)
 		
 		print(f"Combinations: {len(container_combs)}, Pruned: {len(pruned_comb)}")
 		all_signals = self.get_signals(trigger_results,trade_signalling_data,stop_data,pruned_comb)
 			
 		full_results = [] 
 		
-		#pdb.set_trace()
 		backtester = BackTesterCandles(backtesting_data)
 		
-		#use a cache? 
+		backtester_cache = backtester
+		if self.cache_backtests: #cache 
+			backtester_cache = BackTesterCache(backtester)
 		
-		pdb.set_trace() 
-		signals_ns = [len(signals) for signals in all_signals]
+		#pdb.set_trace() 
+		#signals_ns = [len(signals) for signals in all_signals]
 		
 		
-		print('backtest all signals')
+		dbf.stopwatch('backtest all signals')
 		for comb,signals in tqdm(list(zip(pruned_comb,all_signals))):
-			n_signals = len(signals)
-			#consider using a cache here
-			#print(f"Backtesting {n_signals} signals... ")
-			if 0 < n_signals < 3000: ##TODO calc for: ~1000 / month?
-				results = backtester.perform(signals)
+			
+			n_signals = len(signals.index)
+			
+			if 0 < n_signals:# < 3000: ##TODO calc for: ~1000 / month?
+				results = backtester_cache.perform(signals)
 				statstool = BackTestStatistics(backtesting_data,signals,results)
 				result_df = statstool.calculate()  #add to pile for sorting 
 				result_df.insert(0,'combination',[comb]*len(result_df))
 				full_results.append(result_df)
-
+		
+		dbf.stopwatch('backtest all signals')
+		
 		full_results_df = pd.concat(full_results) 
 		
 		#with open('results/full_results.pkl','wb') as f: #save result for faster playing with later 
 		#	pickle.dump(full_results_df,f)
-			
 		return full_results_df
 	
 	
