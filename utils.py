@@ -561,7 +561,10 @@ class Database:
 				f.write(self.query)
 		except:
 			pass #should log here 
-			
+		
+	def copy_from(self,*args,**kwargs):
+		self.cur.copy_from(*args,**kwargs)
+	
 	def fetchall(self):
 		return self.rows
 	
