@@ -54,16 +54,18 @@ from data.tools.hole_finder import HoleFinder
 #some_signals = ecf.filter(some_signals)
 
 resolution = 15
-combination = 3  #4?
+combination = 5#3  #4?
 grace_period = 50 #enough?
 
-#trigger_block_func = tbl.full_set
-trigger_block_func = tbl.small_set
+trigger_block_func = tbl.full_set
+#trigger_block_func = tbl.small_set
 
 lfr = ListFileReader()
 currencies = lfr.read('fx_pairs/currencies.txt')
 fx_pairs = lfr.read('fx_pairs/fx_mains.txt')
 
+
+backtest_fn = f"backtest-{train_period_start.year}{train_period_start.month}{train_period_start.day}-{train_period_end.year}{train_period_end.month}{train_period_end.day}.pkl" 
 
 datatool = CandleDataTool() 
 datatool.start_date = train_period_start
@@ -162,6 +164,8 @@ its.stop_operators = stops
 its.filters = training_filters
 backtest_result = its.train(trade_signalling_data,backtesting_data) 
 
+with('data/pickles/'+backtest_fn,'wb') as btfn:
+	pickle.dump(backtest_result,btfn)
 
 
 datatool = CandleDataTool() 

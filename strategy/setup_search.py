@@ -19,7 +19,7 @@ from setups.setup_tools import Zero2OneTool
 from setups.collected_setups import Harmony, Trends, Shapes
 
 from strategy.strategy_components import TriggerBlock, SetupBlock
-from strategy.trigger_block_lists import moving_averages, chart_patterns #more? 
+from strategy.trigger_block_lists import moving_averages, chart_patterns, trends_group, oscillators_group, momentum_group #more? 
 
 from utils import overrides 
 
@@ -136,6 +136,7 @@ class SetupSearch(SignalGenerator):
 	
 
 		
+#class CombinationCutter #consider for handling the pruning of combinations 
 
 #used to iterate and find best settings/indicators to use for a signal provider. train and test modes 
 #have an aggregate mode - get only the top winners then collect signals together by instrument & time 
@@ -300,11 +301,25 @@ class ExhaustiveSearch(SignalGenerator):
 
 		return results_df
 	
+	#consider a pruning class
+	def prune_max_island(self,combinations,class_island,max_num):
+		#pdb.set_trace()
+		class_names = [clz.__name__ for clz in class_island]
+		trigger_indexs = [i for (i,tb) in enumerate(self.trigger_blocks) if type(tb) == TriggerBlock and tb.indicator.__class__.__name__ in class_names]
+		combination_hits = np.isin(combinations,trigger_indexs)
+		comb_indexer = np.sum(combination_hits,axis=1) <= max_num
+		return combinations[comb_indexer]
+		
+		
 	def prune_combinations(self,combinations):
-		#could this be vectorized?
+	#	print(f"combs before max islands: {len(combinations)}")
+		combinations = self.prune_max_island(combinations,trends_group,2)
+		combinations = self.prune_max_island(combinations,oscillators_group,3)
+		combinations = self.prune_max_island(combinations,momentum_group,2)
+	#	print(f"combs after max islands: {len(combinations)}")
 		return [comb for comb in combinations if self.pruned(comb)]
 	
-	def pruned(self,comb): #remove once vectorized
+	def pruned(self,comb): #remove once vectorized (if it is possible!)
 		#first, check if any comb is in similar_triggers to prevent using  
 		#pdb.set_trace()
 		if np.intersect1d(comb,self._ignored_triggers).size:
@@ -357,7 +372,7 @@ class ExhaustiveSearch(SignalGenerator):
 		num_containers = len(self.trigger_blocks)
 		
 		#any way to cast to lists without loop?
-		container_combs = list(list(comb) for comb in itertools.combinations(range(num_containers),self.N))
+		container_combs = np.array([list(comb) for comb in itertools.combinations(range(num_containers),self.N)])
 		pruned_comb = self.prune_combinations(container_combs)
 		
 		print(f"Combinations: {len(container_combs)}, Pruned: {len(pruned_comb)}")
@@ -384,7 +399,7 @@ class ExhaustiveSearch(SignalGenerator):
 				results = backtester_cache.perform(signals)
 				statstool = BackTestStatistics(backtesting_data,signals,results)
 				result_df = statstool.calculate()  #add to pile for sorting 
-				result_df.insert(0,'combination',[comb]*len(result_df))
+				result_df.insert(0,'combination',[list(comb)]*len(result_df))
 				full_results.append(result_df)
 		
 		dbf.stopwatch('backtest all signals')

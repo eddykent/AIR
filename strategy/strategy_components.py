@@ -33,6 +33,7 @@ class MultiTriggerBlock:
 	bullish_funct = None 
 	bearish_funct = None
 	indicators = None 
+	indicator = None  #needed for later :/
 	note = 'blank'
 	
 	indicator = None #needed for later
