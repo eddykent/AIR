@@ -14,6 +14,8 @@ log = logging.getLogger(__name__)
 from web.crawler import SeleniumHandler, Crawler, XPathNavigator, By, TimeoutException #perhaps just crawler for specialist stuff?
 from utils import Database, Inject, Configuration, ListFileReader, TimeHandler
 
+from data.tools.prep import TimelineMerge
+
 import debugging.functs as dbf
 
 class DukascopyCSVProcessor:
@@ -52,16 +54,18 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 	
 	#consider this_date 
 	the_date = None 
-	error_space_days = 3 #if there are no errors for 4 days, we can put a boundary here and split the timeline 
+	#error_space_days = 3 #if there are no errors for 4 days, we can put a boundary here and split the timeline 
+	timeline_merge = None
 	
 	def __init__(self, directory, cursor, the_date=datetime.datetime.now()): #probably never need to specify this? 
 		self.directory = directory
 		self.cursor = cursor
 		self.the_date = datetime.datetime(the_date.year,the_date.month,the_date.day) #drop HMS 
+		self.timeline_merge = TimelineMerge()
 	
-	def acquire(self, instrument):
+	def acquire(self, instrument, date_from=None, date_to=None):
 		
-		bid_filename, ask_filename = self._find_filenames(instrument)
+		bid_filename, ask_filename = self._find_filenames(instrument,date_from,date_to)
 		
 		bid_loc = os.path.join(self.directory,bid_filename)
 		ask_loc = os.path.join(self.directory,ask_filename)
@@ -93,7 +97,7 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 		return self._errors_to_timeline(instrument,errors) #for fixing 
 		
 	#only investigate the directory to get the relevant (fully qualified?) filenames 
-	def _find_filenames(self, instrument):
+	def _find_filenames(self, instrument, date_from, date_to):
 		
 		def suitable_file_name(fn):
 			fnl = fn.lower()
@@ -111,12 +115,21 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 			dir_paths = [(base_name,os.path.join(self.directory,base_name)) for base_name in dir_files]
 			timed_files = [(fn,fp,os.path.getctime(fp)) for (fn,fp) in dir_paths]
 			
+			if date_from is not None and date_to is not None: #add filter to find more specific files 
+				date_from_str = date_from.strftime("%d.%m.%Y")
+				date_to_str = date_to.strftime("%d.%m.%Y")
+				print(f"Finding \"{instrument.replace('/','')}_*_{date_from_str}-{date_to_str}\"")
+				timed_files = [(fn,fp,ft) for (fn,fp,ft) in timed_files if date_from_str in fn and date_to_str in fn]
+			
 			latest_files = [(fn,fp,ft) for (fn,fp,ft) in timed_files if start_time < ft + self.file_age_limit]
 			
 			latest_files.sort(key=lambda x: x[2],reverse=True)
 			
+			
+			
 			latest_bid_files = [fn for (fn,fp,ft) in latest_files if 'bid' in fn.lower()]
 			latest_ask_files = [fn for (fn,fp,ft) in latest_files if 'ask' in fn.lower()]
+			
 			
 			if latest_bid_files:
 				bid_file = latest_bid_files[0]
@@ -190,6 +203,7 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 		
 		#dbf.stopwatch(f"{instrument} - covert to sql")
 		sql_rows_full = list(full_df.apply(to_sql_string,axis=1)) #slowish but works )
+		sql_rows_full = [row for row in sql_rows_full if 'Gmt' not in row] #happens sometimes where the top line is put in 
 		#dbf.stopwatch(f"{instrument} - covert to sql")	
 		
 		print(f"Uploading {instrument} to database... ")
@@ -205,16 +219,17 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 			return []
 		
 		error_dates = list(set([a_date for some_dates in errors.values() for a_date in some_dates]))
-		error_dates = sorted(error_dates)
-		n_errors = len(error_dates)
-		paired_dates = [x for x in zip(error_dates[:-1],error_dates[1:])]
-		gap_indexs = [-1] \
-				+ [i for i,(ed1,ed2) in enumerate(paired_dates) if (ed2 - ed1) > datetime.timedelta(days=self.error_space_days)] \
-				+ [n_errors-1]
-		
-		timeline_block_indexs = [(i+1,j) for (i,j) in zip(gap_indexs[:-1],gap_indexs[1:])]
-		timeline_blocks = [(error_dates[i],error_dates[j]) for (i,j) in timeline_block_indexs]
-		timeline_blocks = [(ts1.floor(freq='D'),ts2.ceil(freq='D')) for (ts1,ts2) in timeline_blocks] 
+		timeline_blocks = self.timeline_merge.get_blocks(error_dates)
+		#error_dates = sorted(error_dates)
+		#n_errors = len(error_dates)
+		#paired_dates = [x for x in zip(error_dates[:-1],error_dates[1:])]
+		#gap_indexs = [-1] \
+		#		+ [i for i,(ed1,ed2) in enumerate(paired_dates) if (ed2 - ed1) > datetime.timedelta(days=self.error_space_days)] \
+		#		+ [n_errors-1]
+		#
+		#timeline_block_indexs = [(i+1,j) for (i,j) in zip(gap_indexs[:-1],gap_indexs[1:])]
+		#timeline_blocks = [(error_dates[i],error_dates[j]) for (i,j) in timeline_block_indexs]
+		#timeline_blocks = [(ts1.floor(freq='D'),ts2.ceil(freq='D')) for (ts1,ts2) in timeline_blocks] 
 		return timeline_blocks
 		
 	
@@ -286,6 +301,7 @@ class Dukascopy(Crawler): #change to Crawler?
 		self.from_date = from_date
 		self.to_date = to_date
 		self.attempt = attempt
+		print(f"Settings: Instruments: {instruments} - {from_date.strftime('%d.%m.%Y')} - {to_date.strftime('%d.%m.%Y')} - attempt {attempt}")
 		
 	def begin(self):		
 		if self.began:
@@ -334,6 +350,7 @@ class Dukascopy(Crawler): #change to Crawler?
 		
 	def input_settings(self,settings={}):
 		
+		#pdb.set_trace()
 		settings = self.default_settings if not settings else settings 
 		
 		chart_res = Dukascopy.resolution_map[settings['chart_resolution']]
@@ -352,8 +369,11 @@ class Dukascopy(Crawler): #change to Crawler?
 		number_click = self.browser.find_element(By.XPATH, "//div[contains(@class,'a-L')]/div[contains(@class,'a-L-l') and contains(text(),'"+str(candle_num)+"')]")
 		number_click.click()
 		
+		##do twice to ensure their from/to date bound check doesnt catch us out 
 		self.handle_from_date_select(self.from_date)
 		self.handle_to_date_select(self.to_date)
+		self.handle_from_date_select(self.from_date)
+		self.handle_to_date_select(self.to_date) 
 		
 		self.handle_filter_flats(settings['filter_flats'])		
 		
@@ -583,7 +603,7 @@ class Dukascopy(Crawler): #change to Crawler?
 			self.press_download() 
 			got_ask_str = self.long_poll_click_save_csv()
 			
-			return self.csv_handle.acquire(instrument) 
+			return self.csv_handle.acquire(instrument,self.from_date,self.to_date) 
 		else:
 			return [{'instrument':instrument,'date_from':self.from_date, 'date_to':self.to_date}] #return full back
 	
@@ -605,148 +625,148 @@ class Dukascopy(Crawler): #change to Crawler?
 
 	
 
-	#move to DukascopyCSVProcessor
-	def fetch_file_data_and_delete(self,instrument):
-		expire = 14400 #half an hour ago ?
-		t1 = time.time()
-		#settings = DukascopyData.default_settings if not settings else settings 
-		
-			
-		#perform wait on os ? 
-		tries = 0
-		max_tries = 3
-		latest_bid = None 
-		latest_ask = None 
-		while tries < max_tries: #try a few times since files might be still open in the browser file handle
-			dir_files = [filename for filename in os.listdir(self.downloads_folder) if suitable_file_name(filename)]
-			bid_files = [filename for filename in dir_files if 'bid' in filename.lower()]
-			ask_files = [filename for filename in dir_files if 'ask' in filename.lower()]
-			
-			bid_file_paths = [os.path.join(self.downloads_folder,base_name) for base_name in bid_files]
-			ask_file_paths = [os.path.join(self.downloads_folder,base_name) for base_name in ask_files]
-			
-			latest_bid_file_paths = [(file_path,os.path.getctime(file_path)) for file_path in bid_file_paths if os.path.getctime(file_path) > t1 - expire]
-			latest_bid_file_paths.sort(key=lambda x: x[1],reverse=True)
-			latest_bid_file_paths = [x[0] for x in latest_bid_file_paths]
-			
-			latest_ask_file_paths = [(file_path,os.path.getctime(file_path)) for file_path in ask_file_paths if os.path.getctime(file_path) > t1 - expire]
-			latest_ask_file_paths.sort(key=lambda x: x[1],reverse=True)
-			latest_ask_file_paths = [x[0] for x in latest_ask_file_paths]
-			
-			if not latest_ask_file_paths or not latest_bid_file_paths:
-				time.sleep(0.5) #wait half a second (might have to be longer for bigger downloads) 
-				tries += 1
-				if tries == max_tries:
-					#this could be caused when the files were not downloaded or your download directory is not writable
-					raise OSError("Not able to get both files") 
-				continue 
-			
-			latest_ask = latest_ask_file_paths[0]
-			latest_bid = latest_bid_file_paths[0]
-			break
-		
-		lfr = ListFileReader()
-		
-		ask_data = lfr.read_csv(latest_ask)
-		bid_data = lfr.read_csv(latest_bid)
-		
-		#should only unlink if  there were no issues 
-		#if not self.validate(bid_data, ask_data) 
-		#	pdb.set_trace()
-		#else: 
-		#os.unlink(latest_bid) #delete them 
-		#os.unlink(latest_ask) 
-	
-		all_data = {} 
-		time_index = 'Gmt time' #change for other settings 
-		
-		def handle_date(datestr): #consider rolling back to nearest candle if found non-aligning one here 
-			return TimeHandler.from_str_1(datestr)
-			
-		def float_conv(floatstr):
-			return float(floatstr)
-		
-		for bid in bid_data:
-			bid_datm = {'bid_open':float_conv(bid['Open']), 'bid_high':float_conv(bid['High']), 'bid_low':float_conv(bid['Low']), 'bid_close':float_conv(bid['Close']), 'bid_volume':float_conv(bid['Volume']) }
-			the_date_str = bid[time_index] 
-			the_date = handle_date(the_date_str)
-			bid_datm['the_date'] = the_date
-			all_data[the_date_str] = bid_datm 
-		
-		for ask in ask_data:
-			ask_datm = {'ask_open':float_conv(ask['Open']), 'ask_high':float_conv(ask['High']), 'ask_low':float_conv(ask['Low']), 'ask_close':float_conv(ask['Close']), 'ask_volume':float_conv(ask['Volume']) }
-			the_date_str = ask[time_index] 
-			the_date = handle_date(the_date_str)			
-			data_here = all_data.get(the_date_str,{})
-			data_here.update(ask_datm)
-			data_here['the_date'] = the_date
-			all_data[the_date_str] = data_here
-		
-		#data_list = [(k,v) for k,v in all_data.items()] 
-		data_list = list(all_data.values())
-		return data_list
-	
-	
-	#move to DukascopyCSVProcessor
-	def fix_end_volumes(self,data_list,ave_n=3): #ensure it is known these are actually projected values from dukasopy and may be different when finding them again another day
-		today = datetime.datetime.now(datetime.timezone.utc) 
-		today_12am = datetime.datetime(today.year,today.month,today.day, 0, 0)
-		
-		todays_data = [d for d in data_list if d['the_date'] >= today_12am] #the current day data volume is usually incorrect & needs scaling
-		historic_data = [d for d in data_list if d['the_date'] < today_12am] #historic data is usually at correct scale
-		
-		todays_data.sort(key=lambda d: d['the_date'])
-		historic_data.sort(key=lambda d: d['the_date'])
-		
-		today_ave_comps = todays_data[:ave_n]
-		historic_ave_comps = historic_data[-ave_n:]
-		
-		for td in today_ave_comps:  #any of these indicates there is a bug 
-			if 'bid_volume' not in td:
-				pdb.set_trace() 
-				print('bid volume not found')
-		
-			if 'ask_volume' not in td:
-				pdb.set_trace() 
-				print('ask volume not found')
-			
-		for td in historic_ave_comps:
-			if 'bid_volume' not in td:
-				pdb.set_trace() 
-				print('bid volume not found')
-		
-			if 'ask_volume' not in td:
-				pdb.set_trace() 
-				print('ask volume not found')
-			
-			
-		today_ave_bid_volume = sum([td['bid_volume'] for td in today_ave_comps]) / ave_n
-		today_ave_ask_volume = sum([td['ask_volume'] for td in today_ave_comps]) / ave_n  
-		
-		hist_ave_bid_volume = sum([td['bid_volume'] for td in historic_ave_comps]) / ave_n
-		hist_ave_ask_volume = sum([td['ask_volume'] for td in historic_ave_comps]) / ave_n #ask_volume not found
-		
-		if today_ave_bid_volume and today_ave_ask_volume: #ensure there is some sort of reading for today
-			bid_scale = hist_ave_bid_volume / today_ave_bid_volume 
-			ask_scale = hist_ave_ask_volume / today_ave_ask_volume 
-		
-		todays_data_skip_bid_overrun = [] #happens when we pull data and one file contains later version than the other 
-		missing_dates = []
-		for td in todays_data:
-			if 'bid_volume' not in td or 'ask_volume' not in td:
-				missing_dates.append(td['the_date']) 
-			td['bid_volume'] = td['bid_volume'] * bid_scale
-			td['ask_volume'] = td['ask_volume'] * ask_scale
-			todays_data_skip_bid_overrun.append(td)
-		
-		if missing_dates:
-			log.warning('Missing dates when calculating volumes') #log the data?
-			log.warning(missing_dates)
-		
-		return historic_data + todays_data_skip_bid_overrun
-	#move to DukascopyCSVProcessor
-	def upload_to_database(self,data,instrument,batch_size):
-		raise NotImplementedError('This method must be overridden')
+#	#move to DukascopyCSVProcessor
+#	def fetch_file_data_and_delete(self,instrument):
+#		expire = 14400 #half an hour ago ?
+#		t1 = time.time()
+#		#settings = DukascopyData.default_settings if not settings else settings 
+#		
+#			
+#		#perform wait on os ? 
+#		tries = 0
+#		max_tries = 3
+#		latest_bid = None 
+#		latest_ask = None 
+#		while tries < max_tries: #try a few times since files might be still open in the browser file handle
+#			dir_files = [filename for filename in os.listdir(self.downloads_folder) if suitable_file_name(filename)]
+#			bid_files = [filename for filename in dir_files if 'bid' in filename.lower()]
+#			ask_files = [filename for filename in dir_files if 'ask' in filename.lower()]
+#			
+#			bid_file_paths = [os.path.join(self.downloads_folder,base_name) for base_name in bid_files]
+#			ask_file_paths = [os.path.join(self.downloads_folder,base_name) for base_name in ask_files]
+#			
+#			latest_bid_file_paths = [(file_path,os.path.getctime(file_path)) for file_path in bid_file_paths if os.path.getctime(file_path) > t1 - expire]
+#			latest_bid_file_paths.sort(key=lambda x: x[1],reverse=True)
+#			latest_bid_file_paths = [x[0] for x in latest_bid_file_paths]
+#			
+#			latest_ask_file_paths = [(file_path,os.path.getctime(file_path)) for file_path in ask_file_paths if os.path.getctime(file_path) > t1 - expire]
+#			latest_ask_file_paths.sort(key=lambda x: x[1],reverse=True)
+#			latest_ask_file_paths = [x[0] for x in latest_ask_file_paths]
+#			
+#			if not latest_ask_file_paths or not latest_bid_file_paths:
+#				time.sleep(0.5) #wait half a second (might have to be longer for bigger downloads) 
+#				tries += 1
+#				if tries == max_tries:
+#					#this could be caused when the files were not downloaded or your download directory is not writable
+#					raise OSError("Not able to get both files") 
+#				continue 
+#			
+#			latest_ask = latest_ask_file_paths[0]
+#			latest_bid = latest_bid_file_paths[0]
+#			break
+#		
+#		lfr = ListFileReader()
+#		
+#		ask_data = lfr.read_csv(latest_ask)
+#		bid_data = lfr.read_csv(latest_bid)
+#		
+#		#should only unlink if  there were no issues 
+#		#if not self.validate(bid_data, ask_data) 
+#		#	pdb.set_trace()
+#		#else: 
+#		#os.unlink(latest_bid) #delete them 
+#		#os.unlink(latest_ask) 
+#	
+#		all_data = {} 
+#		time_index = 'Gmt time' #change for other settings 
+#		
+#		def handle_date(datestr): #consider rolling back to nearest candle if found non-aligning one here 
+#			return TimeHandler.from_str_1(datestr)
+#			
+#		def float_conv(floatstr):
+#			return float(floatstr)
+#		
+#		for bid in bid_data:
+#			bid_datm = {'bid_open':float_conv(bid['Open']), 'bid_high':float_conv(bid['High']), 'bid_low':float_conv(bid['Low']), 'bid_close':float_conv(bid['Close']), 'bid_volume':float_conv(bid['Volume']) }
+#			the_date_str = bid[time_index] 
+#			the_date = handle_date(the_date_str)
+#			bid_datm['the_date'] = the_date
+#			all_data[the_date_str] = bid_datm 
+#		
+#		for ask in ask_data:
+#			ask_datm = {'ask_open':float_conv(ask['Open']), 'ask_high':float_conv(ask['High']), 'ask_low':float_conv(ask['Low']), 'ask_close':float_conv(ask['Close']), 'ask_volume':float_conv(ask['Volume']) }
+#			the_date_str = ask[time_index] 
+#			the_date = handle_date(the_date_str)			
+#			data_here = all_data.get(the_date_str,{})
+#			data_here.update(ask_datm)
+#			data_here['the_date'] = the_date
+#			all_data[the_date_str] = data_here
+#		
+#		#data_list = [(k,v) for k,v in all_data.items()] 
+#		data_list = list(all_data.values())
+#		return data_list
+#	
+#	
+#	#move to DukascopyCSVProcessor
+#	def fix_end_volumes(self,data_list,ave_n=3): #ensure it is known these are actually projected values from dukasopy and may be different when finding them again another day
+#		today = datetime.datetime.now(datetime.timezone.utc) 
+#		today_12am = datetime.datetime(today.year,today.month,today.day, 0, 0)
+#		
+#		todays_data = [d for d in data_list if d['the_date'] >= today_12am] #the current day data volume is usually incorrect & needs scaling
+#		historic_data = [d for d in data_list if d['the_date'] < today_12am] #historic data is usually at correct scale
+#		
+#		todays_data.sort(key=lambda d: d['the_date'])
+#		historic_data.sort(key=lambda d: d['the_date'])
+#		
+#		today_ave_comps = todays_data[:ave_n]
+#		historic_ave_comps = historic_data[-ave_n:]
+#		
+#		for td in today_ave_comps:  #any of these indicates there is a bug 
+#			if 'bid_volume' not in td:
+#				pdb.set_trace() 
+#				print('bid volume not found')
+#		
+#			if 'ask_volume' not in td:
+#				pdb.set_trace() 
+#				print('ask volume not found')
+#			
+#		for td in historic_ave_comps:
+#			if 'bid_volume' not in td:
+#				pdb.set_trace() 
+#				print('bid volume not found')
+#		
+#			if 'ask_volume' not in td:
+#				pdb.set_trace() 
+#				print('ask volume not found')
+#			
+#			
+#		today_ave_bid_volume = sum([td['bid_volume'] for td in today_ave_comps]) / ave_n
+#		today_ave_ask_volume = sum([td['ask_volume'] for td in today_ave_comps]) / ave_n  
+#		
+#		hist_ave_bid_volume = sum([td['bid_volume'] for td in historic_ave_comps]) / ave_n
+#		hist_ave_ask_volume = sum([td['ask_volume'] for td in historic_ave_comps]) / ave_n #ask_volume not found
+#		
+#		if today_ave_bid_volume and today_ave_ask_volume: #ensure there is some sort of reading for today
+#			bid_scale = hist_ave_bid_volume / today_ave_bid_volume 
+#			ask_scale = hist_ave_ask_volume / today_ave_ask_volume 
+#		
+#		todays_data_skip_bid_overrun = [] #happens when we pull data and one file contains later version than the other 
+#		missing_dates = []
+#		for td in todays_data:
+#			if 'bid_volume' not in td or 'ask_volume' not in td:
+#				missing_dates.append(td['the_date']) 
+#			td['bid_volume'] = td['bid_volume'] * bid_scale
+#			td['ask_volume'] = td['ask_volume'] * ask_scale
+#			todays_data_skip_bid_overrun.append(td)
+#		
+#		if missing_dates:
+#			log.warning('Missing dates when calculating volumes') #log the data?
+#			log.warning(missing_dates)
+#		
+#		return historic_data + todays_data_skip_bid_overrun
+#	#move to DukascopyCSVProcessor
+#	def upload_to_database(self,data,instrument,batch_size):
+#		raise NotImplementedError('This method must be overridden')
 		
 
 			

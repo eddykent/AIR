@@ -64,7 +64,7 @@ class DataWorker():
 		
 		#need proxy! 
 		#need to be headless! (caused file system issues)
-		hidden = False
+		hidden = True
 		cursor = Database(commit=True, cache=False)
 		selenium_handle = SeleniumHandler(hidden=hidden) #hidden=True?, proxy=? 45.79.110.81
 		selenium_handle.start() 	
@@ -189,8 +189,15 @@ class CandleSnatcherDukascopy: #consider super later if needed
 		
 		#put into worker threads? 		
 		
-	
-	def perform(self,instruments,date_from,date_to=NOW):
+	def get_instruments(self,instruments,date_from,date_to=NOW):
+		
+		start_tasks = [] 
+		
+		for instrument in instruments:
+			start_tasks.append({'instrument':instrument,'date_from':date_from,'date_to':date_to})
+		self.perform(start_tasks)
+			
+	def perform(self,data_tasks):
 		
 		self.setup()
 		
@@ -199,8 +206,13 @@ class CandleSnatcherDukascopy: #consider super later if needed
 		self.task_queue = manager.Queue() 
 		
 		#start threads 
-		for instrument in instruments: 
-			self.task_queue.put({'instrument':instrument,'date_from':date_from,'date_to':date_to,'attempt':1})
+		for data_task in data_tasks: 
+			self.task_queue.put({
+				'instrument':data_task['instrument'],
+				'date_from':data_task['date_from'],
+				'date_to':data_task['date_to'],
+				'attempt':1
+			})
 			#if self.startup_wait: #wait in task queue too to prevent spam? 
 			#	time.sleep(self.startup_wait) 
 		
@@ -221,8 +233,7 @@ class CandleSnatcherDukascopy: #consider super later if needed
 			time.sleep(1) #keep checking if  the queue is empty or not and when it is, tear down 
 		
 		self.tear_down() 
-		
-		
+	
 	def tear_down(self):
 		print('TEAR DOWN CALLED')
 		
