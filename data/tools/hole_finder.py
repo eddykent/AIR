@@ -2,6 +2,7 @@ import datetime
 from dateutil.rrule import rrule, MONTHLY
 from tqdm import tqdm
 
+import pandas as pd
 ##file for finding any missing data between two dates 
 import pdb
 
@@ -36,7 +37,7 @@ class HoleFinder:
 	end_date = datetime.datetime.now() 
 	instruments = fx_pairs
 	
-	def __init__(self,start_date=None,end_date=None,instruments=[]):
+	def __init__(self,instruments=[],start_date=None,end_date=None):
 		self.start_date = start_date or self.start_date
 		self.end_date = end_date or self.end_date
 		self.instruments = instruments or self.instruments
