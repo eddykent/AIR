@@ -4,7 +4,7 @@
 
 import numpy as np 
 import pdb 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pickle
 
@@ -31,12 +31,16 @@ from filters.time_based import EconomicCalendarTool, EconomicCalendarFilter, Pip
 
 from debugging import functs as dbf
 
-#train_period_start = datetime(2022,10,6)#just care about if it runs for now for debugging
-train_period_start = datetime(2022,9,26) #actual serious test (too long?)  2months => 1 week 
-train_period_end = datetime(2022,11,19)
+week = 7
+week_offset = 1
+test_date_offset = timedelta(days=week*week_offset)
 
-test_period_start = datetime(2022,11,21)
-test_period_end = datetime(2022,11,26)
+#train_period_start = datetime(2022,10,6)#just care about if it runs for now for debugging
+train_period_start = datetime(2022,10,17) + test_date_offset #actual serious test (too long?)  1months => 1 week 
+train_period_end = datetime(2022,11,19) + test_date_offset
+
+test_period_start = datetime(2022,11,21) + test_date_offset
+test_period_end = datetime(2022,11,26) + test_date_offset
 
 hole_end = datetime(2023,2,10)
 hole_start = datetime(2022,1,1)
@@ -53,19 +57,38 @@ from data.tools.hole_finder import HoleFinder
 
 #some_signals = ecf.filter(some_signals)
 
-resolution = 15
-combination = 5#3  #4?
+resolution = 15 #required for BT, not for strategy
+combination = 4  #3
 grace_period = 50 #enough?
 
 trigger_block_func = tbl.full_set
+#pdb.set_trace()
 #trigger_block_func = tbl.small_set
 
 lfr = ListFileReader()
 currencies = lfr.read('fx_pairs/currencies.txt')
 fx_pairs = lfr.read('fx_pairs/fx_mains.txt')
 
+stop_tool = PipStop(take_profit_pips=30,stop_loss_pips=20)
 
-backtest_fn = f"backtest-{train_period_start.year}{train_period_start.month}{train_period_start.day}-{train_period_end.year}{train_period_end.month}{train_period_end.day}.pkl" 
+
+
+###LABELLING RESULT
+tbfn = trigger_block_func.__name__
+stopstr = '?' #break on purpose! We want to know what the stops were
+if stop_tool.__class__.__name__ == 'PipStop':
+	stopstr = f"{stop_tool.tpp}pip{stop_tool.slp}"
+if stop_tool.__class__.__name__ == 'ATRStop':
+	stopstr = f"a{stop_tool.atr.period}t{stop_tool.tpm}r{stop_tool.slm}"
+if stop_tool.__class__.__name__ == 'RollingExtremeStop':
+	stopstr = f"r{stop_tool.risk_reward_ratio}p{stop_tool.period}".replace('.','r')
+
+trainstartstr = f"{train_period_start.year}{train_period_start.month}{train_period_start.day}"
+trainendstr = f"{train_period_end.year}{train_period_end.month}{train_period_end.day}"
+backtest_fn = f"backtest-{stopstr}-{tbfn}({combination})-{trainstartstr}-{trainendstr}.pkl" 
+
+
+print(f"results will be saved in {backtest_fn}")
 
 datatool = CandleDataTool() 
 datatool.start_date = train_period_start
@@ -140,11 +163,6 @@ dbf.stopwatch('fetch bt candles')
 
 #triggers = tbl.good_set(trade_signalling_data)
 
-stops = [
-	PipStop(take_profit_pips=35,stop_loss_pips=25)
-	#RollingExtremeStop()
-]
-
 
 ect1 = EconomicCalendarTool(train_period_start,train_period_end)
 
@@ -160,11 +178,11 @@ training_filters = [ecf1, psf1, tdf1]
 #if False:
 its = ExhaustiveSearch(combination)# increase to 3 for longer (better?) runs
 its.trigger_blocks = trigger_block_func(trade_signalling_data)
-its.stop_operators = stops 
+its.stop_tool = stop_tool 
 its.filters = training_filters
 backtest_result = its.train(trade_signalling_data,backtesting_data) 
 
-with('data/pickles/'+backtest_fn,'wb') as btfn:
+with open('results/pickles/'+backtest_fn,'wb') as btfn:
 	pickle.dump(backtest_result,btfn)
 
 
@@ -217,7 +235,7 @@ btc = BackTesterCandles(later_backtesting_data)
 
 its2 = ExhaustiveSearch(combination)
 its2.trigger_blocks = trigger_block_func(later_trade_signalling_data)
-its2.stop_operators = stops
+its2.stop_tool = stop_tool
 its2.filters = testing_filters
 #pdb.set_trace()
  #ug = suggestions[(suggestions['N'] > 25) & (suggestions['ratio'] > 0.55)]

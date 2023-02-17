@@ -299,19 +299,21 @@ class StopTool:
 	def get_stops(self,trade_signalling_data):
 		raise NotImplementedError('This method must be overridden')
 
-#used as default in TradeSetup
+#used as default in TradeSetup - default ATR?
 class ATRStop(StopTool):
 
 	tpm = 3
 	slm = 2
+	atr = None
 
-	def __init__(self,take_profit_mult=3,stop_loss_mult=2):
+	def __init__(self,take_profit_mult=3,stop_loss_mult=2,atr_period=14):
 		self.tpm = take_profit_mult
 		self.slm = stop_loss_mult
+		self.atr = ATR(atr_period)
 
 	def get_stops(self,trade_signalling_data):
-		average_true_range = ATR()
-		average_true_range_values = average_true_range(trade_signalling_data.candlesticks) [:,:,0]
+		
+		average_true_range_values = self.atr(trade_signalling_data.candlesticks) [:,:,0]
 		tp_distances = self.tpm * average_true_range_values
 		sl_distances = self.slm * average_true_range_values
 		return (tp_distances, sl_distances), (tp_distances, sl_distances) #a stop can be differnet values in diff directions

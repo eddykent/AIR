@@ -143,7 +143,7 @@ class SetupSearch(SignalGenerator):
 class ExhaustiveSearch(SignalGenerator):  
 	
 	trigger_blocks = [] 
-	stop_operators = []
+	stop_tool = []
 	N = 3 #number of indicators to combine
 	likeness = 1.0 #try 0.99   (any value > 1 means don't prune. 1.0 means exact matches only 
 	cache_backtests = False # seems caching is slower
@@ -166,10 +166,7 @@ class ExhaustiveSearch(SignalGenerator):
 		self._invalid_trigger_pairs = self.find_invalid_pairs()
 		self._ignored_triggers = self.find_similar_triggers(all_trigger_results)
 		
-		stop_op = self.stop_operators[0]
-		stop_data = stop_op.get_stops(trade_signalling_data)
-		
-		full_results = self.try_all_combinations(all_trigger_results,trade_signalling_data, backtesting_data,stop_data)
+		full_results = self.try_all_combinations(all_trigger_results,trade_signalling_data, backtesting_data)
 		return self.set_objective_value(full_results) #pass an objective function if there is one 
 	
 	#return signals!
@@ -313,9 +310,9 @@ class ExhaustiveSearch(SignalGenerator):
 		
 	def prune_combinations(self,combinations):
 	#	print(f"combs before max islands: {len(combinations)}")
-		combinations = self.prune_max_island(combinations,trends_group,2)
-		combinations = self.prune_max_island(combinations,oscillators_group,3)
-		combinations = self.prune_max_island(combinations,momentum_group,2)
+		#combinations = self.prune_max_island(combinations,trends_group,3)
+		#combinations = self.prune_max_island(combinations,oscillators_group,3)
+		#combinations = self.prune_max_island(combinations,momentum_group,3)
 	#	print(f"combs after max islands: {len(combinations)}")
 		return [comb for comb in combinations if self.pruned(comb)]
 	
@@ -334,11 +331,13 @@ class ExhaustiveSearch(SignalGenerator):
 		return False
 	
 	
-	def get_signals(self,trigger_results, trade_signalling_data, stop_data, combinations):				
+	def get_signals(self,trigger_results, trade_signalling_data, combinations):				
 		
 		instruments = trade_signalling_data.instruments
 		timeline = trade_signalling_data.timeline
 		filter_mask = np.full((len(instruments),len(timeline)),True)
+		
+		stop_data = self.stop_tool.get_stops(trade_signalling_data)
 		
 		all_signals = [] #change from list to df? 
 		
@@ -365,7 +364,7 @@ class ExhaustiveSearch(SignalGenerator):
 		return all_signals
 		
 	
-	def try_all_combinations(self, trigger_results, trade_signalling_data, backtesting_data, stop_data):
+	def try_all_combinations(self, trigger_results, trade_signalling_data, backtesting_data):
 		
 		
 		print('get all signals')
@@ -376,7 +375,7 @@ class ExhaustiveSearch(SignalGenerator):
 		pruned_comb = self.prune_combinations(container_combs)
 		
 		print(f"Combinations: {len(container_combs)}, Pruned: {len(pruned_comb)}")
-		all_signals = self.get_signals(trigger_results,trade_signalling_data,stop_data,pruned_comb)
+		all_signals = self.get_signals(trigger_results,trade_signalling_data,pruned_comb)
 			
 		full_results = [] 
 		
@@ -395,7 +394,7 @@ class ExhaustiveSearch(SignalGenerator):
 			
 			n_signals = len(signals.index)
 			
-			if 0 < n_signals:# < 3000: ##TODO calc for: ~1000 / month?
+			if 0 < n_signals < 1500: ##TODO calc for: ~1000 / month?
 				results = backtester_cache.perform(signals)
 				statstool = BackTestStatistics(backtesting_data,signals,results)
 				result_df = statstool.calculate()  #add to pile for sorting 
