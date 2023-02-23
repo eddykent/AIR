@@ -100,7 +100,8 @@ class EconomicCalendarFilter(ExtractableFilter):
 		#np.where((ia[:,0] == 'AUD') | (ia[:,1] == 'AUD'))[0]
 		using_df['instrument_indexs'] = using_df.apply(lambda row, ia=ia : np.where((ia[:,0] == row['currency']) | (ia[:,1] == row['currency']))[0] ,axis=1)
 		#index_df.apply(lambda row, result=result : result[row[instrument_indexs],row['tl_start_index']:row['tl_end_index']+1] = False)
-		pdb.set_trace()
+		#pdb.set_trace()
+		#consider fancy indexing for speedup later (might not be much though!) 
 		for (start,end,iis) in using_df[['tl_start_index','tl_end_index','instrument_indexs']].to_numpy():	
 			result[iis,start:end] = False   #+1 on end?
 			
@@ -221,7 +222,8 @@ class DatabaseEconomicCalendarFilter(TimelineTradeFilter):
 		mask_arr = []
 		event_guids = []
 		print('Analysing economic calendar...')
-		for ttsc in tqdm([ttts[i:i+self.chunk_size] for i in range(0,len(ttts),self.chunk_size)]):
+		#could fancy index this
+		for ttsc in tqdm([ttts[i:i+self.chunk_size] for i in range(0,len(ttts),self.chunk_size)]): 
 			sql_rows = [] 
 			for tts in ttsc:
 				countries = self.mapping_to_currencies.get(tts[0],[]) + self.mapping_to_currencies.get(tts[1],[])
