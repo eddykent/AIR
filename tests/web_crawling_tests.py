@@ -35,27 +35,40 @@ def client_sentiment():
 
 	print(client_sentiment)
 
-def get_volumes():
+def get_instruments():
 
 	from data.tools.dukascopy import Dukascopy #DukascopyCandles
+	from data.tools.hole_finder import HoleFinder
+	from data.tools.prep import TimelineMerge
 	from web.crawler import Crawler, SeleniumHandler
 	
 	url = 'https://www.dukascopy.com/swiss/english/marketwatch/historical/'
 	
 	lfr = ListFileReader()
 	
-	instruments = lfr.read('fx_pairs/fx_mains.txt') #['EUR/USD','USD/JPY','GBP/AUD']
-	#instruments = ['GBP/CHF','GBP/JPY','GBP/NZD','GBP/USD','NZD/CAD','NZD/CHF','NZD/JPY','NZD/USD','USD/CAD','USD/CHF','USD/JPY']
-	date_from = datetime.datetime(2023,1,23)
+	fx_pairs = lfr.read('fx_pairs/fx_mains.txt') #['EUR/USD','USD/JPY','GBP/AUD']
+	#fx_pairs = ['GBP/CHF','GBP/JPY','GBP/NZD','GBP/USD','NZD/CAD','NZD/CHF','NZD/JPY','NZD/USD','USD/CAD','USD/CHF','USD/JPY']
+	#date_from = datetime.datetime(2023,1,23)
 	#date_to = datetime.datetime(2022,10,6,0,0)
-	date_to = datetime.datetime.now() 
+	#date_to = datetime.datetime.now() 
 	#date_from = date_to - datetime.timedelta(days=20)
+	
+	date_from = datetime.datetime(2022,7,1)
+	date_to = datetime.datetime.now() - datetime.timedelta(days=1)
 	
 	cursor = Database(commit=True,cache=False)
 	with SeleniumHandler() as sh:
 		duk = Dukascopy(sh,cursor)
-		duk.set_gets(instruments, date_from, date_to)
-		duk.perform()
+		
+		holefinder = HoleFinder(fx_pairs,date_from,date_to)
+		holes = holefinder.find_holes()
+		
+		tlm = TimelineMerge()
+		data_tasks = tlm.hole_finder_tasks(holes)
+		
+		for data_task in data_tasks:
+			duk.set_gets([data_task['instrument']], data_task['date_from'], data_task['date_to'],1)
+			duk.perform()
 		wait_for_me()
 
 
@@ -72,8 +85,8 @@ def get_single_test():
 	
 
 
-#get_volumes()
-get_single_test()
+get_instruments()
+#get_single_test()
 
 
 
