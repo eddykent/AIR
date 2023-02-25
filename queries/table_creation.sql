@@ -43,15 +43,29 @@ CREATE TABLE debug_log (
 --
 --indexs?
 
---table for historical sentiment and sentiment analysis data - don't store relevant keys etc as they all must be calculated
-CREATE TABLE news_article (
-	guid TEXT DEFAULT uuid_generate_v4() PRIMARY KEY, --unique identifier for the database
-	hash_identifier TEXT NOT NULL, --don't forget this! prevents duplicate articles being stored in the database
-	published_date TIMESTAMP, --always GMT, wherever you are in the world 
-	source_ref TEXT, --for human readability, keep it small 
-	title_head TEXT, --for human readability, kept at around 50 chars 
-	compression BYTEA --never store the FULL info IN the DATABASE because we have limited room :(
+
+CREATE TABLE public.news_article (
+	--useful fields 
+	link TEXT NULL,
+	title TEXT NULL,
+	summary TEXT NULL,
+	published_date timestamp NULL,
+	author TEXT NULL,
+	source_ref text NULL,
+	full_text TEXT NULL,
+	instruments TEXT[] NULL,
+	--utility fields 
+	captured_date TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+	guid TEXT NOT NULL DEFAULT uuid_generate_v4(),
+	CONSTRAINT news_article_pkey PRIMARY KEY (guid)
 );
+
+CREATE INDEX news_article_link_idx ON news_article USING btree(link);
+CREATE INDEX news_article_source_ref_idx ON news_article USING btree(source_ref);
+CREATE INDEX news_article_instruments_idx ON news_article USING btree(instruments);
+CREATE INDEX news_article_captured_date_idx ON news_article USING btree(captured_date);
+
+
 
 --table for economic calendar information 
 CREATE TABLE economic_calendar (
