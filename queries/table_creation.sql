@@ -57,6 +57,7 @@ CREATE TABLE public.news_article (
 	--utility fields 
 	captured_date TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
 	guid TEXT NOT NULL DEFAULT uuid_generate_v4(),
+	last_update TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
 	CONSTRAINT news_article_pkey PRIMARY KEY (guid)
 );
 
@@ -65,7 +66,21 @@ CREATE INDEX news_article_source_ref_idx ON news_article USING btree(source_ref)
 CREATE INDEX news_article_instruments_idx ON news_article USING btree(instruments);
 CREATE INDEX news_article_captured_date_idx ON news_article USING btree(captured_date);
 
+--trigger for updates
+CREATE  FUNCTION update_news_article_trf()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.last_update = now();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
 
+CREATE TRIGGER update_news_article_tr
+	BEFORE UPDATE 
+	ON 
+		news_article
+	FOR EACH ROW
+EXECUTE PROCEDURE update_news_article_trf();
 
 --table for economic calendar information 
 CREATE TABLE economic_calendar (
