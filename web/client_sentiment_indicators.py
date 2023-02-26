@@ -21,8 +21,8 @@ class ClientSentimentScraper(Scraper):
 	instruments = ['all fx pairs we want to check for, including stem branches']
 	tolerance = 30 #percentage 
 	
-	def __init__(self,source,instruments):
-		super().__init__(source)
+	def __init__(self,source,instruments,render=False):
+		super().__init__(source,render=render)
 		self.instruments = instruments + [pair.replace('/','') for pair in instruments] #add the non-slash versions too 
 	
 	#override in classes below
@@ -163,6 +163,32 @@ class MyFXBook(ClientSentimentScraper):
 			instrument = instrument[:3] + '/' + instrument[3:] #add the slash back 
 			info.append(ClientSentimentInfo('myfxbook',instrument,timeframe,src_bias,netlong,netshort,parse_error))
 		return info
+
+
+class ForexClientSentimentScrape(ClientSentimentScraper):
+	
+	@staticmethod
+	def __decode_number(num_str):
+		num_str = num_str.replace('%','')
+		return float(num_str)
+
+	def scrape(self):
+		#pdb.set_trace()
+		sentiment_boxes = self.html.xpath("//a[@class='sentiment']")
+		client_sentiments = {} 
+		for sb in sentiment_boxes:
+			instrument_box = sb.xpath('//h3')
+			instrument = instrument_box[0].text if len(instrument_box) else None
+			
+			long_box = sb.xpath(".//*[@class='sentiment--values--numbers--long']") 
+			short_box = sb.xpath(".//*[@class='sentiment--values--numbers--short']")
+			if not (long_box and short_box):
+				continue
+			long_val = long_box[0].text
+			short_val = short_box[0].text
+			client_sentiments[instrument] = {'long':self.__decode_number(long_val), 'short':self.__decode_number(short_val)}
+		return client_sentiments
+		
 
 #use crawlers for harder websites
 class ForexClientSentiment(ClientSentimentCrawler):

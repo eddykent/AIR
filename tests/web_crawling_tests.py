@@ -13,6 +13,8 @@ from utils import ListFileReader, Database
 #sh.finish()
 
 
+import pdb
+
 def wait_for_me():
 	input()
 
@@ -20,18 +22,23 @@ def wait_for_me():
 def client_sentiment():
 	
 	from web.crawler import Crawler, SeleniumHandler
-	from web.client_sentiment_indicators import Dukascopy
+	#from web.client_sentiment_indicators import Dukascopy, ForexClientSentiment 
+	from web.client_sentiment_indicators import ForexClientSentimentScrape
 	from utils import ListFileReader
 
-	#url = 'forexclientsentiment.com/client-sentiment'
-	url = 'https://www.dukascopy.com/swiss/english/marketwatch/sentiment/'
+	url = 'http://forexclientsentiment.com/client-sentiment'
+	#url = 'https://www.dukascopy.com/swiss/english/marketwatch/sentiment/'
 	lfr = ListFileReader()
 	fx_pairs = lfr.read('fx_pairs/fx_mains.txt') + lfr.read('fx_pairs/currencies.txt')
 
-	with SeleniumHandler(hidden=True) as sh:
-		fcsc = Dukascopy(sh,fx_pairs)
-		client_sentiment = fcsc.get_client_sentiment_info()
-		#wait_for_me()
+	#with SeleniumHandler(hidden=True) as sh:
+	#	#fcsc = Dukascopy(sh,fx_pairs)
+	#	client_sentiment = fcsc.get_client_sentiment_info()
+	#	#wait_for_me()
+	
+	fcss = ForexClientSentimentScrape(url, fx_pairs, True)
+	scraped = fcss.scrape()
+	pdb.set_trace()
 
 	print(client_sentiment)
 
@@ -85,9 +92,9 @@ def get_single_test():
 	
 
 
-get_instruments()
+#get_instruments()
 #get_single_test()
-
+client_sentiment()
 
 
 

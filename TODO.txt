@@ -193,6 +193,8 @@ divergence tool isnt using non-lookahead stuff
 
 fxstreet archive does not read anymore - use search indexer
 
+fxstreet dates wrong - MM/DD/YYYY - fix & datafix needed
+
 dailyfx blocked - ask them nicely to unblock ip (use proxies in future!)
 
 not sure setups open trade on current candle or next candle (should always be next candle)
@@ -207,9 +209,9 @@ all chart patterns need tuning & testing properly - need refactor to use numpy o
 some drawing indicators eg ichimoku, macd
 
 add new styles to charts?:
-	wealthy -golden / dark yellow
-	emerald -dark green
-	hotglow -dark orangey
+	wealthy - golden / dark yellow
+	emerald - dark green
+	hotglow - dark orangey
 	sangria - deep purple
 	seanavy - deep blue
 	sunglow - bright yellow
