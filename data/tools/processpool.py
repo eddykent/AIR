@@ -1,6 +1,11 @@
 import multiprocessing 
-from multiprocessing import Queue, Manager
+from multiprocessing import Queue, Manager, Process
 
+import time 
+import pdb
+
+import logging 
+log = logging.getLogger(__name__)
 
 class ProcessWorker:
 	
@@ -27,25 +32,28 @@ class ProcessWorker:
 		looping = True 
 		while looping:
 			task = self.task_queue.get()
-			if task:
+			log.debug(f"Process ({self.worker_num}) got {task} from the queue")
+			if task is not None:
 				result = self.perform_task(task)
-				if self.result_queue:
-					self.result_queue.put(result)
+				log.debug(f"Putting {len(result)} onto the result queue")
+				self.result_queue.put(result)
 			else:
 				looping = False
+			log.debug(f"Process ({self.worker_num}) marked {task} as done")
 			self.task_queue.task_done() 
 		
 		self.post_loop() 
 	
 	def pre_loop(self):
-		pass
+		log.debug(f"Starting process ({self.worker_num})")
 	
 	def post_loop(self):
-		pass
+		log.debug(f"Ending process ({self.worker_num})")
 	
 	def perform_task(self,task):
 		raise NotImplementedError('This method must be overridden') 
 	
+
 
 class ProcessPool:
 	
@@ -53,27 +61,24 @@ class ProcessPool:
 	
 	pool_processes = []
 	task_queue = None #store all data processing tasks 
-	result_queue = None 
+	result_queue = [] 
+	startup_wait = 1 #seconds - prevents being blocked by websites due to spamming many all at once 
 	
-	def __init__(self, pool_size=None):
-		if pool_size is not None:
-			self.pool_size = pool_size
-	
-	#make a load of selenium handlers and put them in the pool 
-	def pass_workers(self,workers):
+	def __init__(self, workers):
 		self.worker_pool = workers
-		
+			
 	def perform(self,process_tasks):
 		
 		self.pool_processes = [] #flat list of available browsers 
 		manager = multiprocessing.Manager()
 		self.task_queue = manager.Queue()
-		self.result_queue = Queue()
+		self.result_queue = manager.Queue()
 		
-		#start threads 
+		#add tasks
 		for process_task in process_tasks: 
 			self.task_queue.put(process_task)
 		
+		#start threads
 		for worker in self.worker_pool:
 		#or i in range(self.pool_size):
 			#worker = CandleTaskProcess(i,self.task_queue)
@@ -95,19 +100,22 @@ class ProcessPool:
 		
 		self.tear_down() 
 		
-		#return results somehow 
-		return [r for r in self.result_queue]
-	
+		results = [] #then grab all them results 
+		while not self.result_queue.empty():
+			results.append(self.result_queue.get())
+		 
+		return results
+			
 	def tear_down(self):
-		#print('TEAR DOWN CALLED')
+		log.debug('TEAR DOWN CALLED')
 		
 		for worker in self.pool_processes: 
 			self.task_queue.put(None) #flag a worker to finish
 			
 		for worker in self.pool_processes: 
-			worker.join() 
+			worker.join() #wait for all processes to finish first 
 		
-
+		
 
 
 

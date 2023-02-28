@@ -25,11 +25,13 @@ class Scraper:
 	html = None
 	#session = None
 	proxy = None 
+	session = None
+	response = None
 		
-	def __init__(self,source=None,proxy=None,render=False):
+	def __init__(self,source=None,proxy=None):
 		self.proxy = proxy
 		if source: #delay the scrape if we dont know yet and this tool is being used iteratively :) 
-			self.change_link(source,render)
+			self.change_link(source)
 		
 		
 	
@@ -37,19 +39,19 @@ class Scraper:
 	def scrape(self):
 		raise NotImplementedError('This method must be overridden')
 	
-	def change_link(self,link,render=False):
+	def change_link(self,link):
 		self.source = link
-		session = requests_html.HTMLSession()
+		self.session = requests_html.HTMLSession()
 		if self.proxy: 
 			print(f"proxy = {self.proxy}")
 			session.proxies.update({'http':self.proxy})
 		log.debug(f"Performing get to {link}")
-		response = session.get(self.source)
-		self.html = response.html
-		if render:
-			self.html.render() #render the html from js first
+		self.response = self.session.get(self.source)
+		self.html = self.response.html
 
-
+	def render(self,**kwargs):
+		self.response.html.render(**kwargs) #render the html from js first
+		self.html = self.response.html
 	
 
 

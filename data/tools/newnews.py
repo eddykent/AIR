@@ -1,13 +1,18 @@
 
-
+from enum import Enum
+from collections import defaultdict
 import multiprocessing
-from multiprocessing import Process, Queue
+
+#from multiprocessing import Process, Queue
 from typing import List
 import datetime
 import time
 import re
 import feedparser
+from tqdm import tqdm
+import itertools
 
+import psycopg2
 import pandas as pd
 ##file for handling reading from a number of news sources and putting the articles into the database 
 ##if the link is already in the database, the news article is ignored to prevent spamming news websites 
@@ -23,13 +28,18 @@ import pdb
 from web.scraper import Scraper 
 from web.crawler import Crawler #for more complex news grabbing tasks
 
-from utils import TimeHandler
+
+from data.tools.processpool import ProcessPool, ProcessWorker
+from utils import TimeHandler, overrides, Inject
+
+from data.text import NewsArticle
 
 NOW = datetime.datetime.now()
 
 sql = {}
 
-#get the contents of the page as a string into "full_text" field 
+
+#REFACTOR = return a dict of whatever keys we could get (including full_text)
 class DailyFXNews(Scraper):
 	
 	def scrape(self):
@@ -43,7 +53,8 @@ class DailyFXNews(Scraper):
 				possible_video = article_body[0].xpath(".//*[contains(@class,'youTubeVideo')]")
 				if possible_video:
 					full_text = 'VIDEO'
-		return full_text
+		
+		return {'full_text':full_text}
 
 class FXStreet(Scraper):
 	
@@ -53,28 +64,40 @@ class FXStreet(Scraper):
 	
 	def scrape(self):
 		#if text_ln
+		#render?
+		result = {'full_text':None}
+		
 		short_article_body = self.html.xpath("//*[@class='fxs_article_content']") #change if website changes!
 		
+		the_date_str = self.get_date_str()
+		
+		the_date = datetime.datetime.strptime(the_date_str,"%Y-%m-%dT%H:%M:%SZ")
+		result['the_date'] = the_date
+		
+		
 		if not short_article_body:
-			return '' #report error
+			return result 
 			
 		all_anchs = short_article_body[0].find('a')
 		readmores = [a for a in all_anchs if a.text.lower().startswith('read more')]
 		
 		if not readmores:
-			return short_article_body[0].text 
+			result['full_text'] = short_article_body[0].text 
+			return result
 			
 		read_more_links = readmores[0].xpath("//@href")
 		if not read_more_links:
-			return short_article_body[0].text
+			result['full_text'] =  short_article_body[0].text
+			return result
 			
 		self.change_link(read_more_links[0])
 		
 		full_text = ''
 		story_body = self.html.xpath("//*[@class='fxs_article_content']")
 		if story_body:
-			full_text = story_body[0].text
-		return full_text
+			result['full_text'] = story_body[0].text
+				
+		return result
 
 
 ##this one doesnt give much info so currently using the title + summary 
@@ -86,7 +109,9 @@ class ForexLive(Scraper):
 		if not article_elems:
 			return ''
 		ps = article_elems[0].xpath("//p")
-		return '\n'.join([p.text for p in ps])
+		full_text = '\n'.join([p.text for p in ps])
+		
+		return {'full_text':full_text} 
 		
 		
 
@@ -101,17 +126,15 @@ class ForexCrunch(Scraper):
 		ps = entry_content[0].xpath("//p[@class='p3']") + entry_content[0].xpath("//p[@class='p4']") + entry_content[0].xpath("//p[@class='p6']")
 		if not ps:
 			ps = entry_content[0].find('p')
-		return '\n'.join([p.text for p in ps])
+		full_text = '\n'.join([p.text for p in ps])
+		return {'full_text':full_text} 
 
 
 
 
-#list of scrapers to get the current set of news and create into news fetch tasks 
+#scrapers to get all the headlines as news fetch tasks from a set of urls 
 class NewsFinder(Scraper):
 	pass
-	#def __init__(self,*args,**kwargs):
-	#	super().__init__(*args,**kwargs,render=True) #allowed?
-	
 	
 
 class FXStreetSearch(NewsFinder):
@@ -167,6 +190,11 @@ class DailyFXArchive(NewsFinder):
 
 	monthly_url_str = 'https://www.dailyfx.com/archive/{year:0>4}/{month:0>2}'
 	
+	
+	@staticmethod
+	def get_months_years(date_from,date_to):
+		myds = pd.period_range(start=date_from,end=date_to,freq='M')
+		return [(my.month,my.year) for my in myds]
 	
 	@staticmethod
 	def get_url(monthyear):  #consider going up a level to NewsLoader - not here! put in News() or somewhere
@@ -261,8 +289,6 @@ class RSSFeedParser(NewsFinder):
 		parsed = feedparser.parse(self.source)
 		article_data = [] 
 		
-		print(source_ref)
-				
 		for entry in parsed.get('entries',[]):
 		
 			title = self.extract_title(entry,source_ref)
@@ -270,206 +296,271 @@ class RSSFeedParser(NewsFinder):
 			author = self.extract_author(entry,source_ref)
 			link = self.extract_link(entry,source_ref)
 			
-			article_data.append({
+			article = {
 				'title':title,
 				'the_date':the_date,
 				'author':author,
 				'link':link,
 				'source_ref':source_ref
-			})
+			}
+			
+			if 'content' in entry:
+				contents = [content_item['value'] for content_item in entry['content']]
+				article['full_text'] = '\n--break--\n'.join(contents)
+			
+			article_data.append(article)
 			
 		return article_data
 		
+class NewsHeadlineWorker(ProcessWorker):
 	
+	@overrides(ProcessWorker)
+	def perform_task(self,archive_url):
+		news_items = [] 
+		matched = False 
+		
+		if archive_url.startswith("https://www.fxstreet.com/"):
+			fxstreet = FXStreetSearch(archive_url)
+			news_items += fxstreet.scrape()
+			matched = True
+		
+		if archive_url.startswith("https://www.dailyfx.com/"):
+			dailyfx = DailyFXArchive(archive_url)
+			news_items += dailyfx.scrape() 
+			matched = True
+		
+		if not matched:
+			log.warning(f"News archive URL {archive_url} did not match any of the archive classes")
+		
+		#print(news_items)
+		return news_items
 	
 #from a set of news loaders, identify and get news items that can be passed to a news fetch worker 
 ##The purpose of this task is to get a load of new links to news articles that we do not already have, ready for loading into the db 
-class News: #turn into multi-process! 
+class NewsHeadlines: #turn into multi-process! 
 
+	class ArchiveBehaviour(Enum):
+		SKIP = -1 #do not gather any archive news 
+		CHECK = 0 #check using the date if archive news needs to be fetched
+		FORCE = 1 #always gather archive news 
 	
-	news_finders : List[NewsFinder]
+	archive_behaviour = ArchiveBehaviour.FORCE
 	
-	def __init__(self,news_finders,cur):
-		self.news_finders = news_finders 
+	rss_feeds : List[NewsFinder]
+	news_archive_urls : List[NewsFinder]
+	last_news_date : datetime.datetime
+	
+	num_workers = 7
+	
+	#get_older_news : bool = False #if true, run the news headline multiprocess no fxstreet, dailyfx and any other 
+	
+	def __init__(self,rss_feeds,news_archive_urls=[],last_news_date=datetime.datetime(1990,1,1)):
+		self.news_archive_urls = news_archive_urls 
+		self.rss_feeds = rss_feeds
+		self.last_news_date = last_news_date
+
+	def get_rss_items(self):
+		news_items = []
+		for rss_feed in self.rss_feeds:
+			news_items += rss_feed.scrape() 
+		return news_items
+
+	def check_last_date(self,news_items):
+		source_min_dates = defaultdict(list)
+		for ni in news_items: #check only the archivables? 
+			source_min_dates[ni['source_ref']].append(ni['the_date'])
+		max_min_date = max([min(dates) for (source_ref,dates) in source_min_dates.items()])
+		return max_min_date > self.last_news_date
+	
+	def perform_archive(self):#multi process func
+		scrape_workers = [NewsHeadlineWorker(i) for i in range(self.num_workers)]
+		scraper_pool = ProcessPool(scrape_workers)
+		return itertools.chain.from_iterable(scraper_pool.perform(self.news_archive_urls)) #implode
+	
+	def get_archive_items(self): 
 		
-	@staticmethod
-	def get_months_years(date_from,date_to):
-		myds = pd.period_range(start=date_from,end=date_to,freq='M')
-		return [(my.month,my.year) for my in myds]
+		news_items = []
+		if self.archive_behaviour == NewsHeadlines.ArchiveBehaviour.SKIP:
+			return news_items 
+			
+		perform_archive = len(news_items) == 0 or \
+				self.check_last_date(news_items) or \
+				self.archive_behaviour == NewsHeadlines.ArchiveBehaviour.FORCE 
+		
+		if perform_archive:
+			news_items = self.perform_archive()
+		
+		return news_items
+		
 	
-	#deprecate once multiprocess 
 	def get_items(self):
 		
 		#months_years = self.get_months_years(date_from,date_to)
-		news_items = [] 
-		
-		for news_loader in self.news_finders:
-			#if news_loader.monthy_url:
-			#	for my in months_years:
-					#news_loader.set_month_year(my)
-			news_items += news_loader.scrape() 
+		news_items = self.get_rss_items()
+		rss_links = [ni['link'] for ni in news_items]
+		news_items += [ni for ni in self.get_archive_items() if ni['link'] not in rss_links] #only add extra items to the list
 		
 		return news_items # News.filter_old(self.cur,news_items)
 	
-	#MOVE TO news selection - process that decorates with instrument and also filters the news items based on database  
-	@staticmethod #use after we got all the links from the headlines (rss, fxstreet & dailyfx)
-	def filter_old(cur,news_items):
-		links = [ni['link'] for ni in news_items]
-		cur.execute(sql['new_links'],{'links':links})
-		new_links = [nl[0] for nl in cur.fetchall()]
-		return [ni for ni in news_items if ni['link'] in new_links]
-		
-#multiprocess version of News? (refactor into ProcessPool & ProcessWorker classes) for Dukascopy, NewsSnatcher and this) 
-
-#class for decorating news stories with an instrument, checking for irrelevant articles (eg tutorials) and checking against the db if the news has already been captured 
-#class NewsItemProcessor:
-#	pass
 
 #class for performing a news fetch task - Scrape, crawl or both depending on phase (first scrape jobs then crawl jobs) 
-class NewsFetchWorker: #(ProcessWorker) 
+#rm in favour of ProcessPool
+class NewsItemWorker(ProcessWorker):
 		
-	news_queue = None 
-	news_results = None
+	scraper_map = {
+		'dailyfx.com':DailyFXNews,
+		'fxstreet.com':FXStreet,
+		'forexlive.com':ForexLive,
+		'forexcrunch.com':ForexCrunch
+	}
 	
-	def set_queues(self,news_queue, news_results):
-		self.news_queue = news_queue
-		self.news_results = news_results
-	
-	#def pre_loop(self):
-	#	pass
-	
-	def run(self):
+	def perform_task(self, news_item):
+		#use scraper/crawler to get the text - use source_ref to determine scraper
+		source_ref = news_item['source_ref']
+		link = news_item['link']
 		
-		looping = True
-		
-		while looping:
-			 
-			news_task = self.news_queue.get()
+		#short circut anything that already has been loaded - can happen with RSS feeds 
+		if 'full_text' in news_item and news_item['full_text']: #better validation needed!
+			return news_item
 			
-			if news_task is not None:
-				#try
-				self.perform_task(news_task) 
-			else:
-				looping = False #indicate that we are done 
-			
-			self.news_queue.task_done()
+		scraper = self.scraper_map.get(source_ref)
 		
+		result_dict = None
+		if scraper is None:
+			log.warning(f"No scraper found for {source_ref}. Item will not be saved with null full_text field.")
+			result_dict = {'full_text': None}
+		else:
+			scraper_obj = scraper(link)
+			result_dict = scraper_obj.scrape()
+		
+		if 'error' not in result_dict:
+			#replemist any keys with the scraped results as they are more accurate 
+			news_item = {**news_item, **result_dict}
+		return news_item
+
+#class for decorating news stories with an instrument, checking for irrelevant articles (eg tutorials) and checking against the db if the news has already been captured 
+class NewsItemProcessor: 
 	
-	def perform_task(self):
-		#use scraper/crawler to get the text 
-		pass
+	#cur : psycopg2.cursor
+	dkim = None
+	cur = None
+	num_workers = 3
+	db_chunk_size = 100
+	use_progress = True
 	
-	def __call__(self,**kwargs): #absorb args
-		self.run()
+	def __init__(self,cur, direct_keyword_instrument_map):
+		self.cur = cur 
+		self.dkim = direct_keyword_instrument_map
+	
+	def get_subject_items(self,news_items, return_all=False):	
+		for news_item in news_items:
+			news_item['instruments'] = self.dkim.get_relevent_instruments(news_item['title'])
+		
+		if return_all:
+			return news_items
+	
+		return [ni for ni in news_items if ni['instruments']]
+	
+	def get_new_items(self,news_items):
+		links = [ni['link'] for ni in news_items]
+		self.cur.execute(sql['new_links'],{'links':links})
+		new_links = [nl[0] for nl in self.cur.fetchall()]
+		return [ni for ni in news_items if ni['link'] in new_links]
+	
+	def get_outdated_items(self,news_items):	
+		sqlrow = "(%(link)s,%(the_date)s)"
+		sqlrows = [self.cur.mogrify(sqlrow,ni).decode() for ni in news_items]
+		self.cur.flush()
+		self.cur.execute(sql['outdated_or_empty_links'],{'link_date_pairs':Inject(','.join(sqlrows))})
+		new_links = [nl[0] for nl in self.cur.fetchall()]
+		return [ni for ni in news_items if ni['link'] in new_links]
+	
+	def prune_items(self,news_items):
+		subject_news_items = self.get_subject_items(news_items) #get only news items that have a subject (instrument)
+		new_news_items = self.get_new_items(subject_news_items)
+		outdated_news_items = self.get_outdated_items(subject_news_items)
+		return new_news_items + outdated_news_items #should be unique but might wanna check? 
+	
+	def perfrom_scraping(self, news_items):
+		scrape_workers = [NewsItemWorker(i) for i in range(self.num_workers)]
+		scraper_pool = ProcessPool(scrape_workers)
+		full_news_stories = scraper_pool.perform(news_items)
+		return full_news_stories
+		#save to db here... 
+	
+	def put_to_database(self,news_articles):
+		news_articles_full = [ni for ni in news_articles if ni['full_text']]
+		if len(news_articles) > len(news_articles_full):
+			log.warning("News articles with null full_text found - skipping these.")
+		
+		for news_article in news_articles_full:
+			if 'summary' not in news_article:
+				#add a blank summary - summary is not important but useful if we had it (eg for checking scraped story) 
+				news_article['summary'] = '' 
+			
+			news_article['published_date'] = news_article['the_date'] #rename column for NewsArticle
+			
+		news_article_chunks = [news_articles_full[i:i+self.db_chunk_size] for i in range(0,len(news_articles_full),self.db_chunk_size)]
+		news_article_chunks = tqdm(news_article_chunks) if self.use_progress else news_article_chunks
+		for news_chunk in news_article_chunks:	
+			sql_rows = [self.cur.mogrify(NewsArticle.sql_row,ni).decode() for ni in news_chunk]
+			self.cur.execute(sql['news_article_upserts'],{'news_articles':Inject('\n,'.join(sql_rows))})
+		self.cur.con.commit()
 
 
-#from a load of links from News, get all the news stories (multiprocess) and put them into the database
-class NewsSnatcher:
+		
 	
-	pool_size = 1
-	#browser_threads = None #store available browsers 
-	worker_pool = []
-	browser_threads = []
-	startup_wait = 0.5 # wait this long to ensure no spam of dukascopy and disconnect 
-	
-	news_queue = None #store all data processing tasks 
-	news_results = None
-	
-	def __init__(self, pool_size=None):
-		if pool_size is not None:
-			self.pool_size = pool_size
-	
-	#make a load of selenium handlers and put them in the pool 
-	def setup(self,configs=[]):
-		#account setups
-		config = Configuration() #use configs 
-		username = config.get('dukascopy','username')
-		password = config.get('dukascopy','password')
-		fetch_details = {'username':username, 'password':password} 
-		
-		
-		for i in range(self.pool_size):
-			#setup selenium objects here
-			worker = NewsFetchWorker(i,credentials)
-			self.worker_pool.append(worker)
-			#pass
-		
-		#put into worker threads? 		
-		
-	def get_instruments(self,instruments,date_from,date_to=NOW):
-		
-		start_tasks = [] 
-		
-		for instrument in instruments:
-			start_tasks.append({'instrument':instrument,'date_from':date_from,'date_to':date_to})
-		self.perform(start_tasks)
-			
-	def perform(self,news_tasks):
-		
-		self.setup()
-		
-		self.browser_threads = [] #flat list of available browsers 
-		manager = multiprocessing.Manager()
-		self.news_queue = manager.Queue() 
-		self.news_results = manage.Queue()
-		
-		
-		
-		for news_task in news_tasks: 
-			self.news_queue.put(news_task)
-
-		#start threads 
-		for worker in self.worker_pool:
-		#or i in range(self.pool_size):
-			#worker = CandleTaskProcess(i,self.task_queue)
-			worker.set_queues(self.news_queue,self.news_results)
-			
-			#worker()#for debugging 
-			
-			browser_thread = Process(target=worker,args={})
-			browser_thread.start()
-			self.browser_threads.append(browser_thread)
-			if self.startup_wait:
-				time.sleep(self.startup_wait) 
-		
-		
-		##should now be running all at once
-		#wait until completion 
-		while not self.news_queue.empty():
-			time.sleep(1) #keep checking if  the queue is empty or not and when it is, tear down 
-		
-		self.tear_down() 
-	
-	def tear_down(self):
-		#print('TEAR DOWN CALLED')
-		
-		for worker in self.browser_threads: 
-			self.news_queue.put(None) #flag a worker to finish
-			
-		for worker in self.browser_threads: 
-			worker.join() 
-	
-	
-	
-	
-	
-
+#for insert
 sql['new_links'] = """
 WITH links AS (
 	SELECT UNNEST(%(links)s) AS link
 )
-SELECT link FROM links ls WHERE NOT EXISTS (
+SELECT ls.link FROM links ls WHERE NOT EXISTS (
 	SELECT 1 FROM news_article na WHERE na.link = ls.link
 );
 """
 
-sql['outdated_links'] = """
-
+#for update
+sql['outdated_or_empty_links'] = """
+WITH link_dates AS (
+	SELECT link, the_date FROM (
+		VALUES %(link_date_pairs)s
+	) AS vals(link,the_date)
+)
+SELECT ld.link FROM link_dates ld
+JOIN news_article na ON ld.link = na.link AND na.last_update < ld.the_date
+UNION 
+SELECT ld.link FROM link_dates ld
+JOIN news_article na ON ld.link = na.link AND NULLIF(na.full_text ,'') IS NULL;
 """
 
-
-sql['empty_links'] = """
+sql['news_article_upserts'] = """
+WITH these_news_articles AS (
+	SELECT * FROM (VALUES
+		%(news_articles)s
+	) AS na(link,title,summary,published_date,author,source_ref,full_text,instruments)
+),
+updated_articles AS (
+	UPDATE news_article AS na
+	SET title = tna.title,
+	summary = COALESCE(NULLIF(tna.summary,''),na.summary), --keep old if new is blank!
+	published_date = COALESCE(tna.published_date,na.published_date), 
+	author = COALESCE(NULLIF(tna.author,''),na.author),
+	source_ref = COALESCE(NULLIF(tna.source_ref,''),na.source_ref),
+	full_text = COALESCE(NULLIF(tna.full_text,''),na.full_text),
+	--merge any instruments together if there are already some
+	instruments = ARRAY(SELECT DISTINCT instrument FROM UNNEST(tna.instruments || na.instruments) AS a(instrument) ORDER BY instrument) 
+	FROM these_news_articles AS tna
+	WHERE na.link = tna.link
+	RETURNING na.link
+)
+INSERT INTO news_article(link,title,summary,published_date,author,source_ref,full_text,instruments)
+SELECT link,title,summary,published_date,author,source_ref,full_text,instruments 
+FROM these_news_articles tna 
+WHERE NOT EXISTS (
+	SELECT 1 FROM updated_articles ua 
+	WHERE ua.link = tna.link 
+);
 
 """
-
 
