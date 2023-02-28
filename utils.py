@@ -462,7 +462,7 @@ class Database:
 	previous_query_filename = 'queries/previous_query.txt'
 	commit = False
 	
-	default_parameters = {
+	default_parameters = { #eww
 		'take_profit_factor':10, #movement required (in multiples of average true range) to hit a take profit
 		'stop_loss_factor':7, #movement required (in multiples of average true range) to hit a stop loss
 		'spread_penalty':3, #penalty added (in multiples of average true range) that change the price at 10pm to account for crazy spread times
@@ -514,6 +514,7 @@ class Database:
 		return self.cur.mogrify(query,new_params)
 	
 	def execute(self,query,params={},no_results=False):
+		self.flush() #flush old result to prevent bugs
 		self.query = self.mogrify(query,params) #already in bytes
 		
 		if self.cache:
