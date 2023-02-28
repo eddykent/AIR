@@ -55,9 +55,9 @@ CREATE TABLE public.news_article (
 	full_text TEXT NULL,
 	instruments TEXT[] NULL,
 	--utility fields 
-	captured_date TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+	captured_date TIMESTAMP NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
 	guid TEXT NOT NULL DEFAULT uuid_generate_v4(),
-	last_update TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+	last_update TIMESTAMP NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
 	CONSTRAINT news_article_pkey PRIMARY KEY (guid)
 );
 
@@ -161,6 +161,15 @@ CREATE INDEX IF NOT EXISTS raw_fx_candles_15m_from_currency_the_date_idx ON raw_
 CREATE INDEX IF NOT EXISTS raw_fx_candles_15m_from_currency_full_name_the_date_idx ON raw_fx_candles_15m USING btree(full_name,the_date);
 
 
-
+CREATE TABLE market_snapshot_dump ( --just hold json dumps of any website data about anything in the market 
+	snapshot JSONB NOT NULL,
+	captured_date TIMESTAMP NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+	guid TEXT NOT NULL DEFAULT uuid_generate_v4(),
+	CONSTRAINT market_snapshot_dump_pkey PRIMARY KEY (guid)
+);
 --CREATE TABLE trade_journal ( ... )
+
+
+
+
 
