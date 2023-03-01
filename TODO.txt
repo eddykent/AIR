@@ -13,10 +13,11 @@ refactor fundamental stuff
 journaling  
 	- make trade_journal.py
 	- capture any website data in capture/snapshot/tracking from forex factory, forex client sentiment etc (json blobs)
-		- forex factory
+		- forex factory - people, trades, news
 		- forex client sentiment 
-		- etoro
+		- etoro - people, trades
 		- tradingview analyst & technical ratings
+		- koyfin - fundamental news etc 
 		- the weather? :) 
 	- keep all trades (demo & live) in a table called trade_journal 
 
@@ -81,7 +82,7 @@ lazy loading for news AI backtesting ?
 AI: news, currency-strength, client-sentiment & demand forecasting
 
 publish to AWS or similar
-	- dashboard app in android?
+	- dashboard app in android? - see trade central for idea of GUI
 
 data - hole finder
 data - broker tool for getting all instrument details 
