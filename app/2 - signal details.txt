@@ -1,0 +1,7 @@
+chart - draw the candles
+signal origin (eg from combination, saved setup etc) 
+technical analysis indicators
+passed filters
+chance of winning from historic data
+go button? 
+result data (if signal is old)
