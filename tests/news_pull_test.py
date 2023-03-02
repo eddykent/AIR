@@ -17,9 +17,9 @@ lfr = ListFileReader()
 fx_pairs = lfr.read('fx_pairs/fx_mains.txt')
 
 
-dailyfxurl1 = DailyFXArchive.get_url((2,2023))
-dailyfxurl2 = DailyFXArchive.get_url((1,2023))
-dailyfxurl3 = DailyFXArchive.get_url((12,2022))
+dailyfxurl1 = DailyFXArchive.get_url((3,2023))
+dailyfxurl2 = DailyFXArchive.get_url((2,2023))
+dailyfxurl3 = DailyFXArchive.get_url((1,2023))
 fxstreeturl1 = FXStreetSearch.get_url('GBP/USD')
 fxstreeturl2 = FXStreetSearch.get_url('EUR/USD')
 fxstreeturl3 = FXStreetSearch.get_url('AUD/CAD')
@@ -39,8 +39,8 @@ RSSFeedParser("https://www.forexlive.com/feed/")
 
 archive_urls = [
 dailyfxurl1,
-dailyfxurl2,
-dailyfxurl3, 
+#dailyfxurl2,
+#dailyfxurl3, 
 #fxstreeturl1,
 #fxstreeturl2,
 #fxstreeturl3,

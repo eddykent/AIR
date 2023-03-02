@@ -130,7 +130,7 @@ class ForexCrunch(Scraper):
 		return {'full_text':full_text} 
 
 
-
+#class BabyPips
 
 #scrapers to get all the headlines as news fetch tasks from a set of urls 
 class NewsFinder(Scraper):
