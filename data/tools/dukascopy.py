@@ -7,6 +7,8 @@ import tqdm
 import numpy as np
 import pandas as pd
 
+import pickle
+
 import logging 
 log = logging.getLogger(__name__)
 
@@ -42,6 +44,22 @@ UPDATE raw_fx_candles_15m SET note = 'calculated'
 WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional column above for this for general case 
 	"""
 	
+	data_integrity_check = """
+WITH slot_errors AS (
+	SELECT UNNEST(%(bid)s::TIMESTAMP[] || %(ask)s::TIMESTAMP[]) AS the_date
+),
+volume_errors AS (
+	SELECT UNNEST(%(bid_volume)s::TIMESTAMP[] || %(ask_volume)s::TIMESTAMP[]) AS the_date
+)
+SELECT DISTINCT se.the_date, 'slot'::TEXT AS err_type FROM raw_fx_candles_15m rfc 
+JOIN slot_errors se ON rfc.the_date = se.the_date AND rfc.full_name = %(instrument)s
+UNION
+SELECT DISTINCT ve.the_date, 'volume'::TEXT AS err_type  FROM raw_fx_candles_15m rfc 
+JOIN volume_errors ve ON rfc.the_date = ve.the_date AND rfc.full_name = %(instrument)s
+WHERE bid_volume > %(volume_threshold)s AND ask_volume > %(volume_threshold)s;
+	"""
+
+
 	cursor = None
 	directory = None
 	file_download_timeout = 5#seconds 
@@ -83,6 +101,7 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 		#self.validate(full_df)#might not be needed here
 		
 		self._put_to_database(full_df, instrument)
+		errors = self._check_db_merge(instrument, errors) #remove rows that are ok in the database
 		
 		#cleanup as we now have in db 
 		#if not errors: 
@@ -119,9 +138,13 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 				date_from_str = date_from.strftime("%d.%m.%Y")
 				date_to_str = date_to.strftime("%d.%m.%Y")
 				print(f"Finding \"{instrument.replace('/','')}_*_{date_from_str}-{date_to_str}\"")
-				timed_files = [(fn,fp,ft) for (fn,fp,ft) in timed_files if date_from_str in fn and date_to_str in fn]
+				found_files = [(fn,fp,ft) for (fn,fp,ft) in timed_files if date_from_str in fn and date_to_str in fn]
+				if len(found_files ) < 2:
+					found_files = [(fn,fp,ft) for (fn,fp,ft) in timed_files if (date_from_str in fn or date_to_str in fn)] #retry with "or"
 			
-			latest_files = [(fn,fp,ft) for (fn,fp,ft) in timed_files if start_time < ft + self.file_age_limit]
+			these_files = found_files if len(found_files) >= 2 else timed_files
+				
+			latest_files = [(fn,fp,ft) for (fn,fp,ft) in these_files if start_time < ft + self.file_age_limit]
 			
 			latest_files.sort(key=lambda x: x[2],reverse=True)
 			
@@ -181,16 +204,16 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 			errors['ask'] = list(set(bid_df['the_date']) - set(full_df['the_date.Bid']))
 			
 		if len(ask_df) > len(full_df):
-			errors['bid'] = list(set(ask_df['the_date']) - set(full_df['the_date.Ask']))
+			errors['bid'] = [dt.to_pydatetime() for dt in list(set(ask_df['the_date']) - set(full_df['the_date.Ask']))]
 		
 		bid_volume_errors = bid_df[(bid_df['Volume'] <= self.lower_volume_limit) & (bid_df['the_date'] < this_date)]
 		ask_volume_errors = ask_df[(ask_df['Volume'] <= self.lower_volume_limit) & (ask_df['the_date'] < this_date)]
 		
-		#if len(bid_volume_errors):
-		#	errors['bid_volume'] = list(bid_volume_errors['the_date'])
-		#	
-		#if len(ask_volume_errors):
-		#	errors['ask_volume'] = list(ask_volume_errors['the_date'])
+		if len(bid_volume_errors):
+			errors['bid_volume'] = list(bid_volume_errors['the_date'])
+			
+		if len(ask_volume_errors):
+			errors['ask_volume'] = list(ask_volume_errors['the_date'])
 			
 		return full_df, errors
 	
@@ -212,6 +235,34 @@ WHERE the_date >= CURRENT_DATE::TIMESTAMP; --hacky! Could do with an additional 
 			if sql_rows:
 				self.cursor.execute(self.upsert_batch, {'allrows':Inject(','.join(sql_rows))})
 				self.cursor.con.commit()
+	
+	#for a bunch of errors, remove any that we actually have in the database that are okay
+	def _check_db_merge(self, instrument, errors):
+		param = {
+			'bid':[], #may need to add dummy date time
+			'ask':[],
+			'bid_volume':[],
+			'ask_volume':[],
+			'instrument':instrument,
+			'volume_threshold':0.01,
+			**errors #overwrites above?
+		}
+		
+		#with open('data/pickles/data_integrity_check.pkl','wb') as f:
+		#	pickle.dump(errors,f)
+		self.cursor.execute(self.data_integrity_check,param)
+		removes = self.cursor.fetchall()
+		
+		ok_slots = [dt for (dt,etype) in removes if etype == 'slot']
+		ok_volumes = [dt for (dt,etype) in removes if etype == 'volume']
+		
+		new_errors  = {}
+		new_errors['bid'] = [dt for dt in errors['bid'] if dt not in ok_slots]
+		new_errors['ask'] = [dt for dt in errors['ask'] if dt not in ok_slots]
+		new_errors['bid_volume'] = [dt for dt in errors['bid_volume'] if dt not in ok_volumes]
+		new_errors['ask_volume'] = [dt for dt in errors['ask_volume'] if dt not in ok_volumes]
+		
+		return new_errors
 	
 	def _errors_to_timeline(self,instrument,errors):
 		
@@ -298,6 +349,10 @@ class Dukascopy(Crawler): #change to Crawler?
 	
 	def set_gets(self,instruments,from_date,to_date,attempt):
 		self.instruments = instruments
+		if to_date > datetime.datetime.now():
+			to_date = datetime.now()
+		if from_date > to_date:
+			(from_date,to_date) = (to_date,from_date)
 		self.from_date = from_date
 		self.to_date = to_date
 		self.attempt = attempt
