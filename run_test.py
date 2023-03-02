@@ -81,9 +81,9 @@ LogSetup() #think of how to rmeove this line
 #from tests.save_articles_test import *
 
 
-#from tests.data_pull_tests import *
-#if __name__ == "__main__":	
-#	run_test()
+from tests.data_pull_tests import *
+if __name__ == "__main__":	
+	run_test()
 
 #import debugging.charts as dbc
 
@@ -101,17 +101,15 @@ LogSetup() #think of how to rmeove this line
 #from tests.article_convert_test import *
 
 #from tests.news_pull_test import *
-from tests.market_snapshot_test import *
-if __name__ == "__main__":	
-	run_test()
-	#run_one()
+#from tests.market_snapshot_test import *
+#if __name__ == "__main__":	
+#	run_test()
+#	run_one()
 	
 #from tests.strategy_test import *
 
 #AUD/CAD broke db query (no results?) - re-run this! - keep latest AUD/CAD files!
 #AUD/USD used wrong file so re-ran whole thing (check date in filename) 
-
-
 
 
 

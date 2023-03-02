@@ -60,6 +60,8 @@ LEFT JOIN %(table_name)s %(table_alias)s ON rfc.the_date = af.the_date
 LEFT JOIN specific_filters sf ON sf.the_date = rfc.the_date AND sf.instrument = rfc.full_name 
 WHERE af.the_date NOT IN (SELECT excempt FROM non_working_datetimes)
 AND sf IS NULL --filter specific stuff 
-AND (
+AND ((
 	%(column_null_checks)s
-);
+) OR (
+	%(check_volumes)s::BOOLEAN AND rfc.the_date < CURRENT_DATE AND (rfc.bid_volume < 0.01 OR rfc.ask_volume < 0.01)
+));

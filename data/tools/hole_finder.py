@@ -17,6 +17,7 @@ class HoleFinder:
 	query_file = "./queries/holefinder.sql" #find holes in raw_fx_candles_15m - config! 
 	table_name = "raw_fx_candles_15m" #exchange_value_tick, exchange_volume_tick 
 	table_alias = 'rfc'
+	
 	columns = [
 		'bid_open',
 		'bid_high',
@@ -30,6 +31,8 @@ class HoleFinder:
 		'ask_volume'		
 	] #['open_price','high_price','low_price','close_price'] or ['bid_volume','ask_volume']
 	
+	check_volumes = False
+	
 	bank_holidates = []
 	
 	
@@ -37,10 +40,11 @@ class HoleFinder:
 	end_date = datetime.datetime.now() 
 	instruments = fx_pairs
 	
-	def __init__(self,instruments=[],start_date=None,end_date=None):
+	def __init__(self,instruments=[],start_date=None,end_date=None,check_volumes=False):
 		self.start_date = start_date or self.start_date
 		self.end_date = end_date or self.end_date
 		self.instruments = instruments or self.instruments
+		self.check_volumes = check_volumes
 	
 	def find_holes(self):
 		result = []
@@ -64,7 +68,8 @@ class HoleFinder:
 					'instruments':self.instruments,
 					'start_date':start_date, 
 					'end_date':end_date,
-					'bank_holidays':bank_holidays#,
+					'bank_holidays':bank_holidays,
+					'check_volumes':self.check_volumes,
 					#'excemptions':Inject([])
 				}
 				#pdb.set_trace()
