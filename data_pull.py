@@ -21,7 +21,7 @@ import asyncio
 from web.crawler import SeleniumHandler, XPathNavigator 
 from web.scraper import Scraper
 
-from web.economic_calendar.tradingeconomics import pull_calendar
+from data.tools.tradingeconomics import pull_calendar
 
 # async this! 
 pull_calendar(2) 
