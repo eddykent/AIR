@@ -6,8 +6,8 @@ LogSetup()
 
 import pdb
 
-#from training.currency_strength import *
-from training.news_reader import *
+from training.currency_strength import *
+#from training.news_reader import *
 
 
 #from training.train import CobwebCache
