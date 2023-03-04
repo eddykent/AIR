@@ -5,11 +5,13 @@
 
 import numpy as np 
 
+from data.tools.cursor import Database
+
 from strategy.strategy_components import TriggerBlock, SetupBlock, MultiTriggerBlock
 from charting import candle_stick_functions as csf
 
-from setups.setup_tools import CandleDataTool, PipStop, ATRStop, DivTool, DelayTool, ValueLagTool
-from utils import ListFileReader, Database
+from setups.setup_tools import PipStop, ATRStop, DivTool, DelayTool, ValueLagTool
+from utils import ListFileReader
 
 from indicators.reversal import RSI, Stochastic, WilliamsPercentRange, MassIndex
 from indicators.trend import ADX, CCI, IchimokuCloud, ParabolicSAR, Aroon, SuperTrend
