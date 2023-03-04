@@ -3,12 +3,16 @@
 
 import datetime 
 
-from utils import Database, DataComposer, Configuration, ListFileReader
+from configuration import Configuration
+
+from data.base.candles import CandleDataTool
+from data.tools.cursor import Database, DataComposer
+
+from utils import ListFileReader
 from indicators.mathematic import *
 from indicators.volatility import ChoppinessIndex
 
 import charting.chart_viewer as chv
-from setups.setup_tools import CandleDataTool
 
 import debugging.functs as debug
 

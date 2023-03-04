@@ -1,7 +1,10 @@
 
 import datetime 
 
-from utils import Database, DataComposer, Configuration, ListFileReader
+from configuration import Configuration 
+from data.tools.cursor import Database, DataComposer
+
+from utils import  ListFileReader
 from indicators.volume import * 
 import charting.chart_viewer as chv
 

@@ -3,7 +3,7 @@
 import pdb
 
 #from data.tools.marketsnapshot import MarketSnapshot
-from data.tools.marketsnapshot import *
+from data.capture.snapshot import *
 
 from web.crawler import SeleniumHandler
 
@@ -20,11 +20,11 @@ def run_test():
 
 def run_one():
 	global snapshot
-	with SeleniumHandler(hidden=False) as sh:
-		snap = ForexFactory(selenium_handler=sh)
-		snapshot.update(snap.crawl())
+	#with SeleniumHandler(hidden=False) as sh:
+	#	snap = LiveForexSignals(selenium_handler=sh)
+	#	snapshot.update(snap.crawl())
 	
-	#snap = FXBlue()
+	#snap = FXLeaders()
 	#snapshot.update(snap.scrape())
 	
 	#pdb.set_trace()

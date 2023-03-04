@@ -5,11 +5,12 @@ from collections import Counter
 import numpy as np
 # test the setup object and also test its trade signals 
 
+from data.tools.cursor import Database, DataComposer
+
 from setups.setups1 import BB_KC_RSI, ADX_EMA_RSI, HA_VWAP_RSI_DIVERGENCE
 from setups.custom_setups import Harmony
 from setups.simple_setups import ForexSignalsAnchorBar, MeanReversionFFXS
-from setups.trade_setup import CandleDataTool
-from filters.trade_filter import PartialCandleDataTool
+from data.base.candles import CandleDataTool, PartialCandleDataTool
 
 from filters.simple_filters import ForexSignalsAnchorBarFilter
 from filters.time_based import EconomicCalendarFilter
@@ -18,7 +19,7 @@ from filters.meta_based import ClientSentimentFilter, FlatCorrelationFilter, Cur
 from indicators.moving_average import EMA 
 from indicators.reversal import RSI
 
-from utils import ListFileReader, Database, DataComposer
+from utils import ListFileReader
 from backtest import BackTesterDatabase
 
 lfr = ListFileReader()

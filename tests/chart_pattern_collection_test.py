@@ -9,7 +9,14 @@ import numpy as np
 
 import pdb
 
-from utils import Database, DataComposer, Configuration, ListFileReader
+
+from configuration import Configuration
+
+from data.tools.cursor import Database, DataComposer
+from data.base.candles import CandleDataTool
+
+
+from utils import ListFileReader
 from charting.chart_pattern import SupportAndResistance, PivotPoints, ChartPattern, XtremeWindowSettings
 from charting.match_pattern import MatchPatternInstance, MatchPattern
 from charting.trend_pattern import *
@@ -18,7 +25,7 @@ from charting.shape_pattern import HeadAndShoulders, DoubleExtreme
 import charting.chart_viewer as chv
 
 from setups.collected_setups import *
-from setups.setup_tools import CandleDataTool, PipStop
+from setups.setup_tools import PipStop
 
 import debugging.functs as debug
 

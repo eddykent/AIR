@@ -6,19 +6,21 @@ import numpy as np
 import time
 # test the setup object and also test its trade signals 
 
-from setups.trade_setup import CandleDataTool
+from data.tools.cursor import Database, DataComposer
+
+from data.base.candles import CandleDataTool, PartialCandleDataTool
+
 from setups.setups1 import BB_KC_RSI, ADX_EMA_RSI, HA_VWAP_RSI_DIVERGENCE
 from setups.custom_setups import Harmony
 from setups.simple_setups import ForexSignalsAnchorBar
 
 #from filters.simple_filters import ForexSignalsAnchorBarFilter, RSIFilter
 from filters.indicator_based import RSIFilterSlow, RSIFilter, ADXFilter
-from filters.trade_filter import PartialCandleDataTool
 from filters.time_based import EconomicCalendarFilter
 #from filters.meta_based import ClientSentimentFilter
 
 
-from utils import ListFileReader, Database, DataComposer
+from utils import ListFileReader
 from backtest import BackTesterDatabase
 
 lfr = ListFileReader()

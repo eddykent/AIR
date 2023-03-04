@@ -10,12 +10,16 @@ from tensorflow import keras
 
 import pickle
 
+
+from configuration import Configuration
+from data.tools.cursor import Database
+
 #hack to allow our test to import from parent directory
 from sys import path
 path.append('..')
 
 from trade_schedule import TradeSchedule
-from utils import ListFileReader, Configuration, Database
+from utils import ListFileReader
 
 
 lfr = ListFileReader()

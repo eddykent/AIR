@@ -11,7 +11,9 @@ import plotly.express as px
 
 import pdb
 
-from utils import Configuration, ListFileReader
+from configuration import Configuration
+
+from utils import ListFileReader
 
 config = Configuration()
 con = psycopg2.connect(config.database_connection_string())

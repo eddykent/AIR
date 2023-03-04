@@ -4,7 +4,9 @@ import time
 import datetime
 
 
-from utils import ListFileReader, Database
+from data.tools.cursor import Database
+
+from utils import ListFileReader
 
 #with SeleniumHandler() as sh:
 #sh = SeleniumHandler()  #will need to fix error with webdriver-manager to auto-detect chrome version somehow (report in install_instructions.md)

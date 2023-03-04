@@ -7,7 +7,9 @@ from plotly import graph_objects as chart
 
 import pdb
 
-from utils import ListFileReader, SplitAndPrepare, Configuration
+from configuration import Configuration
+
+from utils import ListFileReader, SplitAndPrepare
 
 config = Configuration()
 con = psycopg2.connect(config.database_connection_string())

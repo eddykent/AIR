@@ -5,7 +5,10 @@ from collections import Counter
 import pickle
 
 # test the setup object and also test its trade signals 
-from setups.setup_tools import CandleDataTool, PipStop, ATRStop
+from data.base.candles import CandleDataTool
+from data.tools.cursor import Database
+
+from setups.setup_tools import PipStop, ATRStop
 #from setups.setups1 import BB_KC_RSI, ADX_EMA_RSI, HA_VWAP_RSI_DIVERGENCE
 #from setups.custom_setups import Harmony
 #from setups.collected_setups import Harmony 
@@ -13,7 +16,7 @@ from setups.setup_tools import CandleDataTool, PipStop, ATRStop
 #from setups.trade_pro import *
 #from setups.trader_dna import *
 from setups.trading_rush import *
-from utils import ListFileReader, Database
+from utils import ListFileReader
 from backtest import BackTesterDatabase, BackTestStatistics, BackTesterCandles
 from filters.simple_filters import LambdaSelectFilter
 

@@ -3,13 +3,19 @@
 
 import datetime 
 
-from utils import Database, DataComposer, Configuration, ListFileReader
+
+from configuration import Configuration
+
+from data.tools.cursor import Database, DataComposer
+from data.base.candles import CandleDataTool
+
+from utils import ListFileReader
 from indicators.reversal import RSI, Stochastic 
 from indicators.indicator import Typical
 from indicators.mathematic import FourierGradient
 import charting.chart_viewer as chv
 
-from setups.setup_tools import DivTool, CandleDataTool
+from setups.setup_tools import DivTool
 
 import numpy as np
 import pdb

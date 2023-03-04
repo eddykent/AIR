@@ -6,13 +6,15 @@ import pickle
 import pdb
 import cProfile
 
+from data.tools.cursor import Database
 
+from data.base.candles import CandleDataTool
 
 # test the setup object and also test its trade signals 
-from setups.setup_tools import CandleDataTool, PipStop, ATRStop, RollingExtremeStop
+from setups.setup_tools import PipStop, ATRStop, RollingExtremeStop
 #from setups.custom_setups import Harmony
 from setups.trade_pro import *
-from utils import ListFileReader, Database
+from utils import ListFileReader
 from backtest import BackTesterDatabase, BackTesterCandles, BackTestStatistics
 from filters.simple_filters import LambdaSelectFilter
 

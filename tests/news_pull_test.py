@@ -5,13 +5,15 @@ from datetime import datetime
 
 import pdb
 
-from utils import ListFileReader, Database
+from data.tools.cursor import Database
+
+from utils import ListFileReader
 
 import random
 
 #from data.text import 
 from data.text import DirectKeywordInstrumentMap
-from data.tools.newnews import NewsHeadlines, DailyFXArchive, FXStreetSearch, RSSFeedParser, NewsItemProcessor
+from data.capture.newnews import *
 
 lfr = ListFileReader() 
 fx_pairs = lfr.read('fx_pairs/fx_mains.txt')

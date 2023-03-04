@@ -16,8 +16,10 @@ import time
 
 assert __name__ != "__main__", "You must run tests through the run_test.py hoister"
 
+from configuration import Configuration
+
 from charting import candle_stick_functions as csf
-from utils import Configuration, ListFileReader
+from utils import ListFileReader
 from charting.chart_pattern import * #grab all patterns 
 from charting.trending_pattern import * #grab all advanced patterns to
 from charting.candle_stick_pattern import *

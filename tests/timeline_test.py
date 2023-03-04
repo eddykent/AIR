@@ -3,7 +3,9 @@ assert __name__ != '__main__', 'use run_test.py'
 import datetime
 import pdb
 
-from utils import ListFileReader, Database
+from data.tools.cursor import Database
+
+from utils import ListFileReader
 from web.feed_collector import RSSCollect, ArticleCollector
 from fundamental import TextAnalysis, KeywordMapHelper, NewsIndicator
 

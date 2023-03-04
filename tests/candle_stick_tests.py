@@ -5,13 +5,18 @@ import datetime
 from plotly import graph_objects as chart
 import pdb
 
+
+from configuration import Configuration
+from data.tools.cursor import Database
+
 import charting.candle_stick_functions as csf
 from charting.candle_stick_pattern import * #grab all patterns 
 import charting.chart_viewer as chv
 
 
+
 from trade_schedule import TradeSchedule
-from utils import Configuration, ListFileReader, TimeZipper, Database
+from utils import ListFileReader, TimeZipper
 
 config = Configuration()
 

@@ -5,7 +5,10 @@
 
 import datetime 
 
-from utils import Database, DataComposer, Configuration, ListFileReader
+from configuration import Configuration 
+from data.tools.cursor import Database, DataComposer
+
+from utils import ListFileReader
 from charting.chart_pattern import SupportAndResistance, PivotPoints, ChartPattern
 from charting.match_pattern import MatchPatternInstance, MatchPattern
 from charting.trend_pattern import *

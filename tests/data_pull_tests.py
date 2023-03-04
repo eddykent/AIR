@@ -5,13 +5,16 @@ import pdb
 
 #rom web.proxy import ProxyList
 
-from utils import ListFileReader, Database
+from utils import ListFileReader
+
+from data.tools.cursor import Database 
 
 from web.crawler import SeleniumHandler
 
+--fixme
 from data.tools.candle_snatcher import CandleSnatcherDukascopy
 from data.tools.prep import TimelineMerge 
-from data.tools.hole_finder import HoleFinder
+from data.tools.holefinder import HoleFinder
 
 #pl = ProxyList() 
 #proxies = pl.get_proxies()

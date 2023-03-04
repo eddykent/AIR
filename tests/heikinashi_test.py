@@ -1,7 +1,14 @@
 
 import datetime 
 
-from utils import Database, DataComposer, Configuration, ListFileReader
+
+from configuration import Configuration 
+from data.tools.cursor import Database, DataComposer
+
+from utils import ListFileReader
+
+
+
 from indicators.indicator import HeikinAshi
 from charting.candle_stick_pattern import CandleStickPattern
 from charting.chart_viewer import PlotlyChartPainter, ChartView

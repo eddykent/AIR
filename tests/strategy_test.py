@@ -8,8 +8,11 @@ from datetime import datetime, timedelta
 
 import pickle
 
-from setups.setup_tools import CandleDataTool, PipStop, ATRStop, RollingExtremeStop
-from utils import ListFileReader, Database
+from data.base.candles import CandleDataTool
+from data.tools.cursor import Database
+
+from setups.setup_tools import PipStop, ATRStop, RollingExtremeStop
+from utils import ListFileReader
 
 from indicators.reversal import RSI 
 from indicators.moving_average import EMA
@@ -45,7 +48,7 @@ test_period_end = datetime(2022,11,26) + test_date_offset
 hole_end = datetime(2023,2,10)
 hole_start = datetime(2022,1,1)
 
-from data.tools.hole_finder import HoleFinder
+from data.tools.holefinder import HoleFinder
 
 #hf = HoleFinder(hole_start,hole_end,['EUR/USD','USD/JPY'])
 #holes = hf.find_holes()
