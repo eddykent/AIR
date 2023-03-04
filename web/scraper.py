@@ -27,8 +27,9 @@ class Scraper:
 	proxy = None 
 	session = None
 	response = None
+	headers = {} 
 		
-	def __init__(self,source=None,proxy=None):
+	def __init__(self,source=None,proxy=None,headers={}):
 		self.proxy = proxy
 		if source: #delay the scrape if we dont know yet and this tool is being used iteratively :) 
 			self.change_link(source)
@@ -46,12 +47,16 @@ class Scraper:
 			print(f"proxy = {self.proxy}")
 			session.proxies.update({'http':self.proxy})
 		log.debug(f"Performing get to {link}")
-		self.response = self.session.get(self.source)
+		if self.headers:
+			self.response = self.session.get(self.source,headers=self.headers)
+		else:
+			self.response = self.session.get(self.source)
 		self.html = self.response.html
 
 	def render(self,**kwargs):
 		self.response.html.render(**kwargs) #render the html from js first
 		self.html = self.response.html
+	
 	
 
 

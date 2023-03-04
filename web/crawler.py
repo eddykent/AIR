@@ -5,7 +5,7 @@ from selenium.webdriver import ChromeOptions
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
-from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException, ElementNotInteractableException
+from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException, ElementNotInteractableException, WebDriverException
 
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
@@ -35,6 +35,8 @@ class SeleniumHandler:
 	chrome_options = None
 	
 	config = None
+	hidden = False
+	
 	#WINDOW_SIZE = "1920,1080"
 	capabilities = None
 	
@@ -53,12 +55,15 @@ class SeleniumHandler:
 			"download.prompt_for_download":False,
 			"download.directory_upgrade":True,
 			"safebrowsing_for_trusted_sources_enabled": False,
-			"safebrowsing.enabled": False
+		#	"safebrowsing.enabled": False
 		}
 		chrome_options.add_experimental_option("prefs",prefs)
+		#chrome_options.add_argument("log-level=3")
+		self.hidden = hidden
 		if hidden:
 			chrome_options.add_argument('--headless')
 			chrome_options.add_argument('--window-size=1920,1080')
+			
 			chrome_options.add_argument("--disable-web-security") #be aware
 			chrome_options.add_argument("--disable-site-isolation-trials")
 			chrome_options.add_argument("--disable-extensions")
@@ -67,8 +72,10 @@ class SeleniumHandler:
 			chrome_options.add_argument("--no-sandbox")
 			chrome_options.add_argument("--ignore-certificate-errors")
 			chrome_options.add_argument("--allow-running-insecure-content")
-			chrome_options.add_argument('--disable-gpu')
 			chrome_options.add_argument('--disable-software-rasterizer')
+			chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+		
+		
 			#chrome_options.add_user_profile_preference("download.prompt_for_download", False)
 			
 			#chrome_options.add_argument('--no-sandbox')
@@ -100,7 +107,7 @@ class SeleniumHandler:
 	
 	def start(self):
 		self.browser = webdriver.Chrome(\
-			service=Service(ChromeDriverManager().install()),\
+			service=Service(ChromeDriverManager(log_level=0).install()),\
 			chrome_options=self.chrome_options,\
 			desired_capabilities=self.capabilities\
 		)
@@ -128,8 +135,11 @@ class Crawler:
 	source = ''
 	config = None
 	
+	selenium_handle = None
+	
 	def __init__(self,selenium_handle,source,config=None):
 		self.source = source
+		self.selenium_handler = selenium_handle
 		self.browser = selenium_handle.browser
 		#self.config = selenium_handle.config
 		if config is None:
@@ -389,7 +399,7 @@ class XPathNavigator(Crawler):
 	def click_on(self,element):
 		try:
 			element.click()
-		except ElementClickInterceptedException as ecie:
+		except Exception as ex:
 			self.browser.execute_script("arguments[0].click();", element) #js shouldn't raise 
 
 	def press_enter_on(self,element):
