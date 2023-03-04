@@ -12,7 +12,7 @@ import json
 
 import pdb
 
-from web.scraper import Article
+#from web.scraper import Article
 
 
 from utils import Database, Inject

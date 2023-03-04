@@ -317,6 +317,7 @@ class Dukascopy(ClientSentimentCrawler):
 			#if tt:
 			
 		info = [self._process_text(tt) for tt in pair_texts if tt] + [self._process_text(tt) for tt in currency_texts if tt]
+		
 		return [csi for csi in info if csi.instrument in self.instruments and not csi.error]
 		
 		
