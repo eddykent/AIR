@@ -7,7 +7,9 @@ import datetime
 from utils import overrides
 from filters.trade_filter import *
 
-from utils import Database, ListFileReader, Inject, PipHandler
+from data.tools.cursor import Database, Inject
+
+from utils import ListFileReader, PipHandler
 
 economic_calendar_sql = """
 SELECT 

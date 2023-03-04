@@ -8,13 +8,15 @@ import time
 
 import pdb
 
+from data.tools.cursor import Database, Inject
+
 from utils import overrides
 from filters.trade_filter import *
 from indicators.volume import ClientSentiment
 from indicators.reversal import RSI 
 from indicators.indicator import Change
 
-from utils import Database, ListFileReader, Inject
+from utils import ListFileReader
 
 #need to be refactored to call database per trade? 
 

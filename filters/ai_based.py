@@ -6,7 +6,9 @@ from tqdm import tqdm
 
 import pdb
 
-from utils import overrides, Database, Inject
+from data.tools.cursor import Database, Inject
+
+from utils import overrides
 from filters.trade_filter import *
 #from models.model_base import ModelLoader, ModelMaker 
 from web.scraper import Article
@@ -40,7 +42,7 @@ class NewsFilter(TimelineTradeFilter):
 			relevant = kwmh.relevant_keys(a.title + ' ' + a.summary)
 			article_rels[g] = [i for i in instruments if i in relevant]
 			
-			#pass #get relevance for each article (list of instruments) 
+		#pass #get relevance for each article (list of instruments) 
 		#rels = list(set([i for ii in article_rels.values() for i in ii]))
 		#pdb.set_trace() 
 		
@@ -119,10 +121,18 @@ class NewsFilter(TimelineTradeFilter):
 		return {g:b for (g,b) in zip(tguids,biases)} 
 			
 		
+class NextCurrencyStrengthFilter(TimelineTradeFilter):
+	currency_strength_model  = None 
+	
+	def __init__(self,currency_strength_model):
+		self.currency_strength_model = currency_strength_model  #should be a ModelLoader object
+	
+	@overrides(TimelineTradeFilter)
+	def filter(self,trades):
+		return trades
 
 
 
-#class NextCurrencyStrengthFilter(DataBasedFilter):
 
 
 #class LookAheadIndicatorFilter(IndicatorFilter): #idea

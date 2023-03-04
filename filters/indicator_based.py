@@ -7,7 +7,9 @@ import time
 
 ##indicator based filters - one result per trade (more accurate)
 
-from utils import overrides, Database
+from data.tools.cursor import Database
+
+from utils import overrides
 from filters.trade_filter import *
 from indicators.reversal import RSI 
 from indicators.trend import ADX

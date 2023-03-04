@@ -6,7 +6,9 @@ import numpy as np #for optimising later
 
 import pdb 
 
-from utils import CurrencyPair, ListFileReader, overrides, Database
+from data.tools.cursor import Database
+
+from utils import CurrencyPair, ListFileReader, overrides
 from setups.trade_setup import TradeSignal, TradeDirection
 from indicators.indicator import CandleSticks
 
@@ -284,101 +286,6 @@ class LambdaSelectFilter(TimelineTradeFilter):
 
 
 
-
-#use this to get a set of partial candles for use with indicator based 
-#move to somewhere else? 
-class PartialCandleDataTool:
-	
-	volumes = False 
-	instruments = [] 
-	chart_resolution = 15
-	candle_offset = 0 
-	
-	_candlesticks = None
-	_instruments = None
-	
-	
-	def read_data_from_currencies(self,currencies,trade_times):
-		with Database(cache=False,commit=False) as cursor:
-			return self.__call_db_read_data_from_currencies(currencies,trade_times,cursor) 
-	
-	def __call_db_read_data_from_currencies(self,currencies,trade_times,cursor):
-		params = {
-			'currencies':currencies,
-			'trade_times':trade_times,
-			'chart_resolution':self.chart_resolution,
-			'candle_offset':self.candle_offset
-		}
-		the_query = 'partial_candles_volumes' if self.volumes else 'partial_candles'
-		
-		keys = ['open_price','high_price','low_price','close_price']
-		keys += ['bid_volume','ask_volume'] if self.volumes else [] 
-		keys += ['the_date']
-				
-		cursor.execute(sql[the_query], params)
-		partial_candles = [self.__process_data_row(r[1],keys) for r in cursor.fetchall()]
-		return partial_candles
-	
-	def __process_data_row(self,row,keys):
-		if not row or row is None:
-			return None #allowed for candles that line up to  the actual time 
-		
-		return [[ row[inst][k] for k in keys ] for inst in self.instruments]
-		
-		
-		
-
-sql['partial_candles'] = """
-
-WITH partial_candles AS (
-	SELECT *
-	FROM trading.get_partial_candles_from_currencies(%(currencies)s,%(trade_times)s, %(chart_resolution)s,%(candle_offset)s)
-),
-result_candles AS (
-	SELECT row_index, full_name, to_json(pc) AS candle
-	FROM partial_candles pc
-),
-result_rows AS (
-	SELECT row_index, jsonb_object_agg(full_name, candle) AS the_result
-	FROM result_candles 
-	GROUP BY row_index
-),
-series AS (
-	SELECT generate_series(1,ARRAY_lENGTH(%(trade_times)s,1),1) AS row_index
-)
-SELECT s.row_index, 
-r.the_result 
-FROM series s 
-LEFT JOIN result_rows r ON s.row_index = r.row_index
-ORDER BY s.row_index
-
-"""
-
-sql['partial_candles_volumes'] = """
-
-WITH partial_candles AS (
-	SELECT *
-	FROM trading.get_partial_candles_volumes_from_currencies(%(currencies)s, %(trade_times)s, %(chart_resolution)s,%(candle_offset)s)
-),
-result_candles AS (
-	SELECT row_index, full_name, to_json(pc) AS candle
-	FROM partial_candles pc
-),
-result_rows AS (
-	SELECT row_index, jsonb_object_agg(full_name, candle) AS the_result
-	FROM result_candles  
-	GROUP BY row_index
-),
-series AS (
-	SELECT generate_series(1,ARRAY_lENGTH(%(trade_times)s,1),1) AS row_index
-)
-SELECT s.row_index, 
-r.the_result 
-FROM series s 
-LEFT JOIN result_rows r ON s.row_index = r.row_index
-ORDER BY s.row_index
-
-"""
 
 
 	
