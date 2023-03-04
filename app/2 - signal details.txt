@@ -3,5 +3,5 @@ signal origin (eg from combination, saved setup etc)
 technical analysis indicators
 passed filters
 chance of winning from historic data
-go button? 
+go button? (link to broker)
 result data (if signal is old)

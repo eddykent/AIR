@@ -6,15 +6,15 @@ refactor currency strength nn to be of the same form as DataProvider etc
 	- all data into signal basis
 
 refactor fundamental stuff 
-	- keywords/tags for every story in DB for easier lookup! (direct & indirect tags)
+	- keywords/tags for every story in DB for easier lookup! (direct & indirect tags) -done
 	- dont get blocked by news websites! (consider vpn or tor) 
 
 
 journaling  
 	- make trade_journal.py
 	- capture any website data in capture/snapshot/tracking from forex factory, forex client sentiment etc (json blobs)
-		- forex factory - people, trades, news
-		- forex client sentiment 
+		- forex factory - people, trades, news - done (but needs to run non-headless selenium :/ )
+		- forex client sentiment - done
 		- etoro - people, trades
 		- tradingview analyst & technical ratings
 		- koyfin - fundamental news etc 
@@ -42,18 +42,19 @@ drawing => add a chart pattern (eg support and resistance) to a setup and test i
 - backtesting 
 	- sortino raitio, profit factor, volatility
 	- fuzz - add 5% uniform error to all data for better backtesting using monte-carlo based 
-	- optimise trade tracks & backtest statistics percent tracks selectors using fancy indexing
+	- optimise trade tracks & backtest statistics percent tracks selectors using fancy indexing - done
 
 
-additional constraints for chart patterns & speed
+additional constraints for chart patterns & speed - AI & gui survey app?
 	- re-think support/resistance as gives bad results
 	- harmonics - eg why are there so few? fix the cache method in Harmony (custom_setups)
 	- trend pattern - what additional constraints can be added to get better results? 
 
 data_pull scripts for getting latest data? 
-	ASYNC all webcalls in the fundmental analysis! Async for AI too? -- probably pretty important for faster trade decisions :)
+	ASYNC all webcalls in the fundmental analysis! Async for AI too? -- probably pretty important for faster trade decisions :) - done
 	use proxies for scraping tasks to hide ip and not get blocked from anything else
 
+--all done! 
 Write testing framework (to run a bunch of tests sequentially) and store the results. Then leave it running to find best param settings 
 report % wins, streaks etc   --go for similar behaviour to ProQuant?
 strategy search - keep 3 lists of different indicators/setups and do some kinda iteration/search through them to find 
@@ -61,6 +62,7 @@ best combination.
  - strategy iterator for finding setups based on all the tools we have developed 
 	- use "collected" group_setups.py setups (eg haromny, shapes, ...) 
 	- compatability test (eg dont put an RSI with MACD or whatever)
+
 
 Partial RNN - use correlation matrix for grouping pairs together before running through an RNN
 
@@ -84,13 +86,13 @@ AI: news, currency-strength, client-sentiment & demand forecasting
 publish to AWS or similar
 	- dashboard app in android? - see trade central for idea of GUI
 
-data - hole finder
+data - hole finder - done
 data - broker tool for getting all instrument details 
 	broker tool for getting captial, open trades etc 
 data - ensure not to get blocked from news  (refactor news stuff to have instrument keys per story etc)
-data - validate all stuff from dukascopy before pushing to database & unlinking downloads
-	- expand to record errors and retry bits 
-	- restart if connection breaks/ page fails to load 
+data - validate all stuff from dukascopy before pushing to database & unlinking downloads - done
+	- expand to record errors and retry bits - done
+	- restart if connection breaks/ page fails to load - done
 
 
 
@@ -107,8 +109,9 @@ create a correlation tool for this & also lag correlations projection in sql fun
 Cross correlation matrix - get which pairs are high correlated to work 
 out which ones to train together with. 
 
+
 Fundamental analysis/signals - use RSS feeds and a feed reader to get 
-sentiment for currencies and for currency pairs  - Twitter and Reddit, https://www.fx.co/en
+sentiment for currencies and for currency pairs  - Twitter and Reddit, https://www.fx.co/en, telegram signals?
 
 AI to read news and learn trends - 60k news articles to learn from!  
 
