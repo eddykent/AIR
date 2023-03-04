@@ -6,7 +6,9 @@ import pandas as pd
 ##file for finding any missing data between two dates 
 import pdb
 
-from utils import ListFileReader, Inject, Database
+from data.tools.cursor import Inject, Database
+
+from utils import ListFileReader
 lfr = ListFileReader()
 fx_pairs = lfr.read("./fx_pairs/fx_mains.txt")
 
