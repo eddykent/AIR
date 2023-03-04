@@ -353,6 +353,8 @@ class ChartPainter:
 	activated = {} #all layers are activated by default. If deactivate(layer) is called then this dict should have a False in it for that layer as the key
 	config = {} #any configuration options stored in the class that are passed to fig
 	
+	title = None
+	
 	colour_palette = {
 		#for shapes, we might want to fill them with a nice colour!
 		'backgrounds':{
@@ -429,20 +431,21 @@ class ChartPainter:
 		#'sketch': #for anything not defined yet 
 	}
 	
-	def __init__(self): #override?
+	def __init__(self,title=None): #override?
 		self.fig = None
 		self.activated = {}
 		self.colour_palette = {} 
-		self.load_colours()
 		self.options = {}
+		self.title = title
+		self.load_colours()
 	
 	def load_colours(self,file_name="default"):
-		if file_name == 'default':
-			self.colour_palette = ChartPainter.colour_palette
-		lfr = ListFileReader()
-		json_str = lfr.read_full_text(file_name)
-		new_colours = json.loads(json_str) #for 
-		DictUpdater.update(self.colour_pallet,new_colours)
+		self.colour_palette = ChartPainter.colour_palette
+		if file_name != 'default':
+			lfr = ListFileReader()
+			json_str = lfr.read_full_text(file_name)
+			new_colours = json.loads(json_str) #for 
+			DictUpdater.update(self.colour_palette,new_colours)
 	
 	def activate(layer_name,yn=True):
 		self.activated[layer_name] = yn
@@ -485,10 +488,12 @@ class PlotlyChartPainter(ChartPainter):
 		'boxes':'none'
 	}
 	
-	def __init__(self):
-		super(ChartPainter,self).__init__()
+	def __init__(self,*args,**kwargs):
+		#pdb.set_trace()
+		super().__init__(*args,**kwargs)
 		self.fig_data = []
 		self.fig = chart.Figure(data=self.fig_data)
+		
 	
 	def __paint_plotly_points(self,chart_layer,layer_name,thickness=1):
 		styles = chart_layer.get_styles()
@@ -689,6 +694,8 @@ class PlotlyChartPainter(ChartPainter):
 	#override
 	def show(self):
 		self.fig.data = self.fig_data #force the data to be drawn in the right order - makes no difference... 
+		if self.title:
+			self.fig.update_layout(title_text=self.title)
 		self.fig.update_yaxes(fixedrange=False,autorange=True)
 		self.fig.show(config=self.__get_config())
 	
