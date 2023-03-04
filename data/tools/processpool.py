@@ -7,6 +7,10 @@ import pdb
 import logging 
 log = logging.getLogger(__name__)
 
+#possibly deprecate in future depending on if we need the extra functionality of ProcessPool or not 
+
+
+
 class ProcessWorker:
 	
 	task_queue = None 
@@ -107,7 +111,7 @@ class ProcessPool:
 		return results
 			
 	def tear_down(self):
-		log.debug('TEAR DOWN CALLED')
+		#log.debug('TEAR DOWN CALLED')
 		
 		for worker in self.pool_processes: 
 			self.task_queue.put(None) #flag a worker to finish

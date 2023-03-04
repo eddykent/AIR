@@ -39,6 +39,9 @@ NOW = datetime.datetime.now()
 sql = {}
 
 
+#fx.co technicals? 
+#list websites missing here 
+
 #REFACTOR = return a dict of whatever keys we could get (including full_text)
 class DailyFXNews(Scraper):
 	

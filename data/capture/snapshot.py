@@ -5,6 +5,7 @@ import re
 
 import json 
 import traceback
+import time
 
 import lxml
 from bs4 import BeautifulSoup
@@ -31,9 +32,12 @@ from web.scraper import Scraper
 from web.crawler import Crawler, By, SeleniumHandler
 from data.tools.processpool import ProcessPool, ProcessWorker
 
-from utils import overrides, Database
+from utils import overrides, Database, Configuration
 
-categories = ['client_sentiment','currency_strength','singals','levels'] #others?
+categories = ['client_sentiment','currency_strength','signals','forecasts'] #others?
+
+#tradingview
+#weather
 
 #add utility categories
 categories += ['NONE','ERROR']
@@ -403,7 +407,6 @@ class FXBlue(SnapshotCrawler):
 		result = self._result_base()
 		currency_strengths = {}
 		
-		pdb.set_trace()
 		soup = BeautifulSoup(self.browser.page_source,'html.parser')
 		
 		titles = soup.select("#HeadlineContainer .HeadlineBlockContainer .HeadlineTitle")
@@ -663,28 +666,259 @@ class ForexFactory(SnapshotCrawler):
 
 
 
-
 ###SIGNALS 
+class FXCO(SnapshotScraper):
+	
+	URL = 'https://www.fx.co/en/signals/'
+	category = 'signals'
 
-#SUPPORT RESISTANCE
+	def scrape(self):
+	
+		self.render()
+		result = self._result_base()
+		signals = []
+		signal_blocks = self.html.xpath("//div[@class='block-signals__item']")
+		for signal_block in signal_blocks:
+			
+			instrument = signal_block.xpath("//span[@class='block-signals__info_id']/text()")[0]
+			period = signal_block.xpath("//span[@class='block-signals__info_period']/text()")[0]
+			tpstr = signal_block.xpath("//span[@class='block-signals__info_tp']/text()")[0]
+			slstr = signal_block.xpath("//span[@class='block-signals__info_sl']/text()")[0]
+			prstr = signal_block.xpath("//span[@class='block-signals__info_price']/text()")[0] #entry?
+			
+			timestampstr = signal_block.xpath("//div[@class='block-signals__date']/span/@data-timestamp")[0] 
+			description = signal_block.xpath("//div[@class='block-signals__comment-link']/text()")[0].strip()
+			
+			the_date = datetime.datetime.utcfromtimestamp(safe_int(timestampstr))
+			#jsontimestamp = the_date.strftime("%Y-%m-%dT%H:%M:%S")
+			
+			tpval = safe_float(tpstr)
+			slval = safe_float(slstr)
+			direction = 'BUY' if tpval > slval else 'SELL' if tpval < slval else 'VOID'
+			
+			signal = {
+				'instrument':instrument,
+				'period':period,
+				'direction':direction,
+				'take_profit':tpval,
+				'stop_loss':slval,
+				'entry':safe_float(prstr),
+				'the_date':the_date, #handle in json library
+				'description':description
+			}
+			
+			signals.append(signal)
+		
+		result['data'] = signals
+		return result
+	
+class LiveForexSignals(SnapshotCrawler): 
+	
+	URL = 'https://live-forex-signals.com/en/'
+	category = 'signals'
+	
+	
+	def log_in(self, credentials = {}):
+		self.browser.get('https://live-forex-signals.com/en/login/')
+		
+		username_field = self.browser.find_element(By.XPATH,"//input[@name='user_name']")
+		password_field = self.browser.find_element(By.XPATH,"//input[@name='user_password']")
+		
+		if not credentials:
+			config = Configuration()
+			credentials = {
+				'username':config.get('liveforexsignals','username'),
+				'password':config.get('liveforexsignals','password')
+			}
+		
+		username_field.send_keys(credentials['username'])
+		password_field.send_keys(credentials['password'])
+		
+		login_btn = self.browser.find_element(By.XPATH,"//button[@type='submit']")
+		login_btn.click()
+		
+	
+	def crawl(self):
+		
+		
+		result = self._result_base()
+		signals = []
+		
+		self.log_in()
+		
+		
+		#pdb.set_trace() 
+		#signal_blocks = self.html.xpath("//div[contains(@class,'signal-card')]")
+		html = lxml.etree.HTML(self.browser.page_source)
+		signal_blocks = html.xpath("//div[contains(@class,'signal-card')]")
+		
+		#pdb.set_trace()
+		for signal_block_container in signal_blocks:
+			
+			signal_block_class = signal_block_container.attrib['class']
+			
+			if 'filled' in signal_block_class or 'delay' in signal_block_class:
+				continue 
+				
+			signal_block = signal_block_container.xpath(".//div[@class='card-body']")[0]
+			signal = {} 
+			
+			
+			signal['instrument'] = signal_block.xpath(".//div[@class='signal-title']/text()")[0].replace('signal','').strip()
+			signal['direction'] = 'BUY' if 'buy' in signal_block_class else 'SELL' if 'sell' in signal_block_class else 'VOID'
+			
+			
+			signal_rows = signal_block.xpath(".//div[contains(@class,'signal-row')]")
+			for signal_row in signal_rows:
+				title = signal_row.xpath(".//div[contains(@class,'signal-title')]/text()")
+				value = signal_row.xpath(".//div[contains(@class,'signal-value')]/text()[last()]")
+				
+				if not title or not value:
+					continue 
+					
+				title = title[0]
+				value = value[0]
+				
+				if 'buy at' in title.lower() or 'sell at' in title.lower():
+					signal['entry'] = safe_float(value) 
+				if 'take profit' in title.lower():
+					signal['take_profit'] = safe_float(value) 
+				if 'stop loss' in title.lower():
+					signal['stop_loss'] = safe_float(value) 
+				if 'from' in title.lower():
+					timestampscript = signal_row.xpath(".//div[contains(@class,'signal-value')]/script/text()")[0] #check
+					signal['the_date'] = datetime.datetime.utcfromtimestamp(safe_int(timestampscript))
+				
+			signals.append(signal)
+		
+		result['data'] = signals
+		return result
+		
+		
+class ForexSignals10Pips(SnapshotScraper):
+	
+	URL = 'https://www.forexsignals10pips.com/'
+	category = 'signals'
+
+	def scrape(self):
+		#pdb.set_trace()
+		result = self._result_base()
+		signals = []
+		links = self.html.xpath("//a[contains(@href,'signal') and not(contains(@href,'signals'))]/@href")
+		for link in links:
+			time.sleep(1.5) #don't spam them
+			self.change_link(self.URL + '/' + link)			
+			signal_rows = self.html.xpath("//div[contains(@class,'portfolio-item')]//tr")
+			signal = {} 
+			
+			
+			for signal_row in signal_rows:
+				
+				tds = signal_row.xpath(".//td")
+				(property, value) = (tds[0].text.lower().strip(), tds[1].text.strip()) if len(tds) > 1 else (None,None)
+				
+				if not property or not value:
+					continue 
+				
+				if property == 'pair':
+					signal['instrument'] = value
+				
+				if property == 'action':
+					signal['direction'] = value
+				
+				if property == 'price':
+					signal['entry'] = safe_float(value)
+				 
+				if 'stop loss' in property:
+					signal['stop_loss'] = safe_float(value.split('(')[0]) #don't get pips value
+
+				if 'take profit' in property:
+					signal['take_profit'] = safe_float(value.split('(')[0]) #don't get pips value
+					
+				if 'creation date' in property: 
+					signal['the_date'] = datetime.datetime.strptime(value, "%d-%m-%Y %H:%M:%S")
+				
+			signals.append(signal)
+		
+		result['data'] = signals
+		return result	
+	
+class FXLeaders(SnapshotScraper): 
+	
+	URL = 'https://www.fxleaders.com/forex-signals/'
+	category = 'signals'
+	
+	def scrape(self):
+		#pdb.set_trace()
+		self.render()
+		signal_containers = self.html.xpath(".//div[contains(@class,'fxml-sig-cntr')]")
+		
+		result = self._result_base()
+		signals = []
+		
+		for signal_container in signal_containers:
+			blocks = signal_container.xpath("./div/div") #get the next divs down 
+			if len(blocks) < 2:
+				continue
+			
+			#fiddly - might beak in future
+			title_div, details_div = blocks[:2]
+			instrument_str, direction_str = title_div.text.split('\n')[:2]
+			entrystr, slstr, tpstr = details_div.xpath("./div/div/div/div")[1].text.split('\n')[:3]
+			
+			#pdb.set_trace()
+			
+			if 'premium' in tpstr.lower() or 'premium' in slstr.lower():
+				continue
+			
+			signal = {
+				'instrument':instrument_str.split('(')[0].strip(),
+				'direction':direction_str.upper(),
+				'entry':None, #unknown
+				'take_profit':safe_float(tpstr),
+				'stop_loss':safe_float(slstr),
+				'the_date':None #unknown, so just use the snapshot time and ensure that it is new by checking other recent snapshots 
+			}
+			
+			
+			if 'premium' not in entrystr.lower():	
+				signal['entry'] = safe_float(entrystr)
+			
+			signals.append(signal)
+			
+		result['data'] = signals
+		return result	
 
 
+##SUPPORT RESISTANCE (dailyfx) --forecasts
 
+##TRADING VIEW --forecasts
 
+##WEATHER?
+
+##FEAR & GREED INDEX 
+
+##BROKER DETAILS? - perhaps not here.. 
+
+##ECONOMIC CALENDAR - long = save in table, short = snapshot
 
 
 
 #this bit is the cool bit - get all the data from multiple websites at the same time :) 
 
-snapshot_elements = { #
-	'forexclientsentiment.com':ForexClientSentiment,
-	'myfxbook.com':MyFXBook,
-	'dailyfx.com':DailyFX,
-	'dukascopy.com':Dukascopy,
-	'currencystrengthmeter.com':CurrencyStrengthMeter,
-	'livecharts.com':LiveCharts,
-	'fxblue.com':FXBlue,
-	#'forexfactorycopies':ForexFactory, ##really neeed this! :(
+snapshot_elements = { #keys are human readable (get merged by server later)
+	'client sentiment forexclientsentiment.com':ForexClientSentiment,
+	'client sentiment myfxbook.com':MyFXBook,
+	'client sentiment dailyfx.com':DailyFX,
+	'client sentiment dukascopy.com':Dukascopy,
+	'currency strength currencystrengthmeter.com':CurrencyStrengthMeter,
+	'currency strength livecharts.com':LiveCharts,
+	'currency strength fxblue.com':FXBlue,
+	#'copy trades forexfactorycopies':ForexFactory, ##really neeed this! :(
+	#'copy trades etoro':Etoro, #TODO
+	'signals fx.co':FXCO,
+	'signals live-forex-signals.com':LiveForexSignals,
+	'signals forexsignals10pips.com':ForexSignals10Pips,	
 	#any others?
 	
 }
