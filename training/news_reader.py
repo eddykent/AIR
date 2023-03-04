@@ -117,8 +117,6 @@ class NewsReaderData(DataProvider):
 
 	
 	
-
-
 def perform_training():
 	news_reader_model = NewsReaderModel(weights_label='main_set')
 	news_reader_model.create_model()
