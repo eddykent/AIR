@@ -23,3 +23,7 @@ screenshots=\your\download\dir\screenshots\ ;apologies for windows back slashes
 [dukascopy]
 username=some_email@nowhere.com
 password=password1234
+
+[liveforexsignals]
+username=some_email@nowhere.com
+password=password1234
