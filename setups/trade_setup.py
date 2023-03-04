@@ -12,7 +12,7 @@ import string
 import pdb
 
 
-from utils import ListFileReader, Database, DataComposer, PipHandler
+from utils import ListFileReader, PipHandler
 from utils import overrides, deprecated
 import charting.chart_viewer as chv 
 from charting import candle_stick_functions as csf
@@ -20,6 +20,8 @@ from charting import candle_stick_functions as csf
 
 from indicators.indicator import CandleSticks, CandleType
 from indicators.volatility import ATR
+
+from data.tools.cursor import Database, DataComposer
 
 from setups.signal import *
 
