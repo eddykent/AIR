@@ -21,11 +21,11 @@ class FourierGradient(Indicator):
 	
 	candle_sticks = False
 	
-	period = 200
+	period = 100
 	end_zeros = 50 #how many terms to chop off at the end 
-	std_multiplier = 2#how many std the freq needs to  be above the mean to remain part of the fft price
+	std_multiplier = 1.5#how many std the freq needs to  be above the mean to remain part of the fft price
 	
-	def __init__(self,period=200,zeros=50,std_multiplier=2,*args,**kwargs):
+	def __init__(self,period=100,zeros=50,std_multiplier=1.5,*args,**kwargs):
 		self.period = period 
 		self.end_zeros = zeros
 		self.std_multiplier = std_multiplier
@@ -68,17 +68,17 @@ class FourierGradient(Indicator):
 #nested correlation? eg how much stuff correlates at this point & what the correls say
 #class CorrelationAnalysis(Indicator):
 #	
-#	channel_keys = {'INFLUENCE':0, 'AVG_COR':1, 'N_HITS':2} #fft_price - price (bullish if positive)
+#	channel_keys = {'INFLUENCE':0, 'AVG_COR':1, 'N_HITS':2}
 #	channel_styles = {'INFLUENCE':'neutral', 'AVG_COR': 'neutral', 'N_HITS':'neutral'}
 #	
 #	candle_sticks = False
-#	
 #	period = 30
-#
 #	candle_channel = csf.close
 #
 #	@overrides(Indicator)
 #	def _perform(self,np_candles):
+#
+#
 
 
 
