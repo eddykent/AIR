@@ -2,7 +2,6 @@
 
 from configparser import ConfigParser
 
-
 #wrapper around SafeConfigParser to get any global config
 class Configuration: 
 
@@ -22,3 +21,7 @@ class Configuration:
 		connection_keys = ['host','user','password','dbname']
 		connection_details = {key:self.get('postgres',key) for key in connection_keys}
 		return ' '.join(["%(key)s='%%(%(key)s)s'" % {'key':key} for key in connection_details]) % connection_details
+
+	
+	
+	
