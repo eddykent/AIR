@@ -1,8 +1,6 @@
 
 
 from selenium import webdriver
-from selenium.webdriver import ChromeOptions
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
 from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException, ElementNotInteractableException, WebDriverException
@@ -12,8 +10,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.proxy import Proxy, ProxyType
 from selenium.webdriver.remote.webelement import WebElement
 
-from webdriver_manager.chrome import ChromeDriverManager
+#from selenium.webdriver import ChromeOptions
+#from selenium.webdriver.chrome.service import Service
+#from webdriver_manager.chrome import ChromeDriverManager
 #from webdriver_manager.utils import ChromeType
+
+
 
 import os 
 import re
@@ -21,8 +23,23 @@ import time
 
 import pdb
 
-from utils import Configuration
+import random
 
+import logging 
+log = logging.getLogger(__name__)
+
+from configuration import Configuration
+
+
+user_agent_list = [
+	'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36',
+	'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0',
+	'Mozilla/5.0 (Macintosh; Intel Mac OS X 11.5; rv:90.0) Gecko/20100101 Firefox/90.0',
+	'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36',
+	'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_5_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36',
+	'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0',
+	'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36'
+]
 
 #crawler is a special case of scraper that uses selenium to get information. This is required for some websites 
 #that we get news/info from since their front end has been obfuscated in some way. There's no escaping selenium ;)
@@ -32,70 +49,48 @@ class SeleniumHandler:
 	
 	browser = None #main selenium handle constructed in this class 
 	
-	chrome_options = None
+	browser_options = None
 	
 	config = None
 	hidden = False
 	
-	#WINDOW_SIZE = "1920,1080"
-	capabilities = None
+	engine = 'chrome'
 	
-	def __init__(self,hidden=False,chrome_options=None,proxy=None,config=None):
-		if config is None:
-			self.config = Configuration()
-		else:
-			self.config = config
-		
-		if not chrome_options:
-			chrome_options = ChromeOptions()
-		#location = config.get('chrome_driver','location') #handled with ChromeDriverManager
-		downloads_dir = self.config.get('selenium','downloads')
-		prefs = {
-			"download.default_directory":downloads_dir,
-			"download.prompt_for_download":False,
-			"download.directory_upgrade":True,
-			"safebrowsing_for_trusted_sources_enabled": False,
-		#	"safebrowsing.enabled": False
-		}
-		chrome_options.add_experimental_option("prefs",prefs)
-		#chrome_options.add_argument("log-level=3")
+	engines_available = ['chrome','firefox']
+	random_agent = False
+	
+	
+	proxy = None
+	
+	#WINDOW_SIZE = "1920,1080"
+	
+	def __init__(self,hidden=False,browser_options=None,proxy_addr=None,config=None,engine='chrome',random_agent=True):
+		self.random_agent = random_agent
+		self.config = config if config is not None else Configuration()	
+		self.browser_options = browser_options
 		self.hidden = hidden
-		if hidden:
-			chrome_options.add_argument('--headless')
-			chrome_options.add_argument('--window-size=1920,1080')
-			
-			chrome_options.add_argument("--disable-web-security") #be aware
-			chrome_options.add_argument("--disable-site-isolation-trials")
-			chrome_options.add_argument("--disable-extensions")
-			chrome_options.add_argument("--disable-gpu")
-			chrome_options.add_argument("--disable-dev-shm-usage")
-			chrome_options.add_argument("--no-sandbox")
-			chrome_options.add_argument("--ignore-certificate-errors")
-			chrome_options.add_argument("--allow-running-insecure-content")
-			chrome_options.add_argument('--disable-software-rasterizer')
-			chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+		self.engine = engine 
+		
+		if self.engine not in self.engines_available: 
+			log.error(f"Browser engine {self.engine} is not known.")
 		
 		
-			#chrome_options.add_user_profile_preference("download.prompt_for_download", False)
-			
-			#chrome_options.add_argument('--no-sandbox')
-		
-		
-		self.capabilities = webdriver.DesiredCapabilities.CHROME
-		if proxy:
+		if proxy_addr:
 			prox = Proxy()
 			prox.proxy_type = ProxyType.MANUAL
 			prox.http_proxy = proxy
 			prox.socks_proxy = proxy
 			prox.ssl_proxy = proxy
 			prox.socks_version = 5
-
-			prox.add_to_capabilities(self.capabilities)
-			
-			#chrome_options.add_argument('--proxy-server=%s' % proxy)
+			self.proxy = prox
 		
-		self.chrome_options = chrome_options
-				
+		
+		if engine == 'chrome':
+			self.init_chrome_options()
+		elif engine == 'firefox':
+			self.init_firefox_options()
+			
+		
 	
 	#allows for use with context managers 
 	def __enter__(self):
@@ -105,22 +100,127 @@ class SeleniumHandler:
 	def __exit__(self, exc_type, exc_val, exc_tb):
 		self.finish()
 	
+	def init_chrome_options(self):
+		
+		from selenium.webdriver import ChromeOptions
+		
+		if not isinstance(self.browser_options,ChromeOptions):
+			if self.browser_options is not None:
+				log.warning(f"Unknown ChromeOptions '{type(self.browser_options)}' - creating new options object.")
+			self.browser_options = ChromeOptions()
+			
+		prefs = {
+			"download.default_directory":self.config.get('selenium','downloads'),
+			"download.prompt_for_download":False,
+			"download.directory_upgrade":True,
+			"safebrowsing_for_trusted_sources_enabled": False,
+		#	"safebrowsing.enabled": False
+		}
+		self.browser_options.add_experimental_option("prefs",prefs)
+		#chrome_options.add_argument("log-level=3")
+		if self.hidden:
+			self.browser_options.add_argument('--headless')
+			self.browser_options.add_argument('--window-size=1920,1080')
+			
+			#need to do more investigating here of what is actually needed
+			self.browser_options.add_argument("--disable-web-security") #be aware
+			self.browser_options.add_argument("--disable-site-isolation-trials")
+			self.browser_options.add_argument("--disable-extensions")
+			self.browser_options.add_argument("--disable-gpu")
+			self.browser_options.add_argument("--disable-dev-shm-usage")
+			self.browser_options.add_argument("--no-sandbox")
+			self.browser_options.add_argument("--ignore-certificate-errors")
+			self.browser_options.add_argument("--allow-running-insecure-content")
+			self.browser_options.add_argument('--disable-software-rasterizer')
+			self.browser_options.add_argument('--disable-blink-features=AutomationControlled')
+			#self.browser_options.add_user_profile_preference("download.prompt_for_download", False)
+			#self.browser_options.add_argument('--no-sandbox')
+			
+		if self.random_agent:
+			user_agent = random.choice(user_agent_list)
+			self.browser_options.add_argument(f'user-agent={user_agent}')
+			
+			
+		if self.proxy:
+			self.proxy.add_to_capabilities(webdriver.DesiredCapabilities.CHROME)
+			#self.browser_options.add_argument('--proxy-server=%s' % proxy)
+	
+	def init_firefox_options(self):
+		from selenium.webdriver import FirefoxOptions
+		
+		if not isinstance(self.browser_options,FirefoxOptions):
+			if self.browser_options is not None:
+				log.warning(f"Unknown ChromeOptions '{type(self.browser_options)}' - creating new options object.")
+			self.browser_options = FirefoxOptions()
+		
+		#prefs = {
+		#	"download.default_directory":self.config.get('selenium','downloads'),
+		#	"download.prompt_for_download":False,
+		#	"download.directory_upgrade":True,
+		#	"safebrowsing_for_trusted_sources_enabled": False,
+		#	"safebrowsing.enabled": False
+		#}
+		#self.browser_options.add_experimental_option("prefs",prefs) #fails
+		
+		if self.hidden:
+			self.browser_options.add_argument('--headless')
+			self.browser_options.add_argument('--window-size=1920,1080')
+		
+			#need to do more investigating here of what is actually needed
+			#self.browser_options.add_argument("--disable-web-security") #be aware
+			#self.browser_options.add_argument("--disable-site-isolation-trials")
+			#self.browser_options.add_argument("--disable-extensions")
+			#self.browser_options.add_argument("--disable-gpu")
+			#self.browser_options.add_argument("--disable-dev-shm-usage")
+			#self.browser_options.add_argument("--no-sandbox")
+			#self.browser_options.add_argument("--ignore-certificate-errors")
+			#self.browser_options.add_argument("--allow-running-insecure-content")
+			#self.browser_options.add_argument('--disable-software-rasterizer')
+			#self.browser_options.add_argument('--disable-blink-features=AutomationControlled')
+		
+		if self.random_agent:
+			user_agent = random.choice(user_agent_list)
+			self.browser_options.add_argument(f'user-agent={user_agent}')
+		
+		if self.proxy:
+			self.proxy.add_to_capabilities(webdriver.DesiredCapabilities.FIREFOX)
+		
+	
 	def start(self):
+		if self.engine == 'chrome':
+			self.start_chrome()
+		if self.engine == 'firefox':
+			self.start_firefox()
+	
+	def start_chrome(self):
+		from selenium.webdriver.chrome.service import Service
+		from webdriver_manager.chrome import ChromeDriverManager
+		
 		self.browser = webdriver.Chrome(\
-			service=Service(ChromeDriverManager(log_level=0).install()),\
-			chrome_options=self.chrome_options,\
-			desired_capabilities=self.capabilities\
+			service=Service(ChromeDriverManager().install()),\
+			chrome_options=self.browser_options,\
+			desired_capabilities=webdriver.DesiredCapabilities.CHROME\
 		)
 		
-		#headless_settings = { "behavior", "allow" }
+		
 		downloads_dir = self.config.get('selenium','downloads')
-		#pdb.set_trace()
-		#downloads_dir = 'C:\\Users\\Ed\\Downloads'
 		params = {'cmd': 'Page.setDownloadBehavior', 'params': {'behavior': 'allow', 'downloadPath': downloads_dir}}
 		self.browser.command_executor._commands["send_command"] = ("POST", '/session/$sessionId/chromium/send_command')
 		command_result = self.browser.execute("send_command", params)
+		#headless_settings = { "behavior", "allow" }
 		#self.browser.execute_chrome_command("Page.setDownloadBehavior",headless_settings)
 		#self.browser.implicitly_wait(0.5) #surely nothing will load longer than 0.5 seconds or we will use a longer wait using perform_wait
+	
+	def start_firefox(self):
+		from selenium.webdriver.firefox.service import Service
+		from webdriver_manager.firefox import GeckoDriverManager
+		
+		self.browser = webdriver.Firefox(\
+			service=Service(GeckoDriverManager().install()),\
+			options=self.browser_options,\
+			desired_capabilities=webdriver.DesiredCapabilities.FIREFOX\
+		)
+		
 	
 	def finish(self):
 		self.browser.close() 
@@ -135,17 +235,18 @@ class Crawler:
 	source = ''
 	config = None
 	
-	selenium_handle = None
+	selenium_handler = None
 	
-	def __init__(self,selenium_handle,source,config=None):
+	def __init__(self,selenium_handler,source,config=None):
 		self.source = source
-		self.selenium_handler = selenium_handle
-		self.browser = selenium_handle.browser
-		#self.config = selenium_handle.config
+		self.selenium_handler = selenium_handler
+		self.browser = selenium_handler.browser
+		#self.config = selenium_handler.config
 		if config is None:
-			config = selenium_handle.config
+			config = selenium_handler.config
 		self.config = config
-		self.goto(self.source)
+		if self.source:
+			self.goto(self.source)
 
 	
 	def get(self,url):
@@ -281,7 +382,25 @@ class Crawler:
 				time.sleep(0.2) #keep trying every 5th of a second
 		raise ElementNotInteractableException(f"element not interactable, even after {time.time() - start} seconds.")
 			
-			
+	def scroll_lazy_load(self,steps=10,by=1.5):
+		for repeat in range(steps//2):
+			time.sleep(0.51)#simulate mousewheel?
+			self.browser.execute_script("window.scrollTo(0,document.body.scrollHeight / 1.6);")
+			time.sleep(0.11)
+			self.browser.execute_script("window.scrollTo(0,document.body.scrollHeight / 1.5);")
+			time.sleep(0.11)
+			self.browser.execute_script("window.scrollTo(0,document.body.scrollHeight / 1.4);")
+			time.sleep(0.11)
+			self.browser.execute_script("window.scrollTo(0,document.body.scrollHeight / 1.3);")
+			time.sleep(0.11)
+			self.browser.execute_script("window.scrollTo(0,document.body.scrollHeight / 1.2);")
+			time.sleep(0.11)
+			self.browser.execute_script("window.scrollTo(0,document.body.scrollHeight / 1.1);")
+			time.sleep(0.11)
+			self.browser.execute_script("window.scrollTo(0,document.body.scrollHeight);")
+		
+		self.browser.execute_script("window.scrollTo(0,document.body.scrollHeight);")
+		time.sleep(1) #hopefully everything is loaded
 
 #wrapper class for crawler that is powered by xpath to crawl a webpage and find elements. Always start from the root nod
 class XPathNavigator(Crawler):

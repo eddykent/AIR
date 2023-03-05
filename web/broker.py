@@ -10,9 +10,12 @@ import time
 import pdb
 
 
+from configuration import Configuration
+from data.tools.cursor import Database
+
 from setups.signal import TradeSignal, TradeDirection
 from web.crawler import Keys, By, SeleniumHandler, ElementClickInterceptedException, XPathNavigator
-from utils import overrides, Configuration, Database, TimeHandler
+from utils import overrides, TimeHandler
 
 
 class TradeResult(Enum):
