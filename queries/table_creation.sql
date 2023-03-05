@@ -84,16 +84,38 @@ EXECUTE PROCEDURE update_news_article_trf();
 
 --table for economic calendar information 
 CREATE TABLE economic_calendar (
-	guid TEXT DEFAULT uuid_generate_v4() PRIMARY KEY,
 	the_date TIMESTAMP NOT NULL, 
+	source_ref TEXT NOT NULL,
 	impact INT NOT NULL,
 	country TEXT NOT NULL,
-	description TEXT NOT NULL,
-	actual TEXT NOT NULL,  --these values must persist as text because they can have any unit or be blank! 
-	previous TEXT NOT NULL, 
-	consensus TEXT NOT NULL, 
-	forecast TEXT NOT NULL
+	currency TEXT NOT NULL,
+	description TEXT,
+	actual TEXT, 
+	previous TEXT, 
+	consensus TEXT, 
+	forecast TEXT,
+	captured_date TIMESTAMP NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+	guid TEXT NOT NULL DEFAULT uuid_generate_v4(),
+	last_update TIMESTAMP NULL DEFAULT (NOW() AT TIME ZONE 'utc'),
+	CONSTRAINT economic_calendar_pkey PRIMARY KEY (guid)
 );
+
+
+--trigger for updates
+CREATE  FUNCTION update_economic_calendar_trf()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.last_update = now();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_economic_calendar_tr
+	BEFORE UPDATE 
+	ON 
+		economic_calendar
+	FOR EACH ROW
+EXECUTE PROCEDURE update_economic_calendar_trf();
 
 --other sentiment tables? eg client_sentiment_info? 
 --CREATE TABLE exchange_volume_hourly (
