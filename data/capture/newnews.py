@@ -2,7 +2,7 @@
 from enum import Enum
 from collections import defaultdict
 import multiprocessing
-
+import lxml
 #from multiprocessing import Process, Queue
 from typing import List
 import datetime
@@ -26,21 +26,48 @@ import pandas as pd
 import pdb 
 
 from web.scraper import Scraper 
-from web.crawler import Crawler #for more complex news grabbing tasks
+from web.crawler import Crawler, SeleniumHandler #for more complex news grabbing tasks
 
+from data.tools.cursor import Inject
 
 from data.tools.processpool import ProcessPool, ProcessWorker
-from utils import TimeHandler, overrides, Inject
+from utils import TimeHandler, overrides
 
 from data.text import NewsArticle
+
+import logging 
+log = logging.getLogger(__name__)
 
 NOW = datetime.datetime.now()
 
 sql = {}
 
 
-#fx.co technicals? 
+
+def safe_float(string):
+	try:	
+		return float(re.sub('[^0-9.\-+]','',string))
+	except ValueError as ve:
+		pdb.set_trace()
+		log.warning(f"'{string}' was not able to be converted to float. Returning None")
+		#log.warning(''.join(traceback.format_tb(ve.__traceback__))) #cant get where it was called from :(
+		return None
+		
+		
+def safe_int(string):
+	try:	
+		return int(float(re.sub('[^0-9.\-+]','',string)))
+	except ValueError as ve:
+		pdb.set_trace()
+		log.warning(f"'{string}' was not able to be converted to int. Returning None")
+		#log.warning(''.join(traceback.format_tb(ve.__traceback__)))
+		return None
+
+
 #list websites missing here 
+
+#fx.co (technicals?)
+#fxempire
 
 #REFACTOR = return a dict of whatever keys we could get (including full_text)
 class DailyFXNews(Scraper):
@@ -133,7 +160,19 @@ class ForexCrunch(Scraper):
 		return {'full_text':full_text} 
 
 
+class FXCO(Scraper):	
+
+	def scrape(self):
+		
+		content = self.html.xpath("//div[contains(@class,'block-article__body')]/p/text()")
+		return {'full_text':'\n'.join(content)}
+		
+		
+
 #class BabyPips
+#class FXEmpire https://www.fxempire.com/
+#class LeapRate
+
 
 #scrapers to get all the headlines as news fetch tasks from a set of urls 
 class NewsFinder(Scraper):
@@ -186,9 +225,6 @@ class FXStreetSearch(NewsFinder):
 			
 		return article_data		
 			
-			
-	
-
 class DailyFXArchive(NewsFinder):
 
 	monthly_url_str = 'https://www.dailyfx.com/archive/{year:0>4}/{month:0>2}'
@@ -254,6 +290,166 @@ class DailyFXArchive(NewsFinder):
 		#pdb.set_trace()			
 		return article_data	
 
+class FXCOHeadlines(Crawler): #might be able to turn into scraper
+
+	url = 'https://www.fx.co/en/top-articles'
+	url_base = 'https://www.fx.co'
+	
+	
+	@staticmethod
+	def get_url(days_back=0):
+		offset_str = f"?offset={days_back}" if days_back else ""
+		return 'https://www.fx.co/en/top-articles' + offset_str 
+	
+	
+	@staticmethod
+	def get_text(elems):
+		return '\n'.join(''.join(e.itertext()) for e in elems)
+	
+	#def load_articles(self):
+	#	self.scroll_lazy_load(repeats=20,steps=30,wait=0.01) #repeats 30
+	
+	def crawl(self):
+		#self.load_articles()
+	
+		article_data = []		
+		
+		html = lxml.etree.HTML(self.browser.page_source)
+		article_banners = html.cssselect("a.block-article-feed__item")
+		for article_banner in article_banners:
+
+			try:
+				title_l = article_banner.xpath(".//h2[contains(@class,'block-article-feed__title')]") #get all text
+				author_l = article_banner.xpath(".//div[contains(@class,'block-article-feed__author')]/object/a")
+				summary_l = article_banner.xpath(".//div[contains(@class,'block-article-feed__description')]") #get all text
+				
+				timestamp_l = article_banner.xpath(".//div[contains(@class,'block-article-feed__date')]/span/@data-timestamp")
+				link_l = article_banner.xpath("@href")
+				
+				title = self.get_text(title_l)
+				author = self.get_text(author_l)
+				summary = self.get_text(summary_l)
+				link = self.url_base + link_l[0] if link_l[0] and not link_l[0].startswith('http') else link_l[0]
+				
+				the_date = datetime.datetime.utcfromtimestamp(safe_int(timestamp_l[0]))
+				
+				##sample 
+				article = {
+					'title':title,
+					'summary':summary,
+					'the_date':the_date,
+					'author':author,
+					'link':link,
+					'source_ref':'fx.co'
+				}
+				article_data.append(article)
+			except Exception as e:
+				log.warning(f"Failed to read an article banner - {str(e)}")
+		
+		return article_data
+		
+	
+class ForexLiveHeadlines(NewsFinder):
+	
+	URL = "https://www.forexlive.com"#page/{page}"
+	
+	@staticmethod
+	def get_url(page=0):
+		pagestr = '/'
+		if page > 0:
+			pagestr = f"/page/{page}"
+		return FXLiveHeadlines.URL + pagestr
+		
+	def scrape(self):
+		article_data = []		
+		
+		self.render()
+		
+		html = lxml.etree.HTML(self.html.html)
+		article_banners = html.cssselect("div.article-list__item-wrapper")
+		for article_banner in article_banners:
+			try:
+				#pdb.set_trace()
+				title_l = article_banner.xpath(".//h3[contains(@class,'article-slot__title')]/a/text()")
+				summary_l = article_banner.xpath("./div/@brief")
+				summary2_l = article_banner.xpath(".//ul[contains(@class,'article-slot__tldr')]/li/text()")
+				the_date_str_l = article_banner.xpath(".//div[contains(@class,'publisher-details__date')]/text()")
+				author_l = article_banner.xpath(".//a[contains(@class,'publisher-details__publisher-name')]/text()")
+				link_l = article_banner.xpath(".//h3[contains(@class,'article-slot__title')]/a/@href") #add base url!
+				
+				
+				
+				title = title_l[0].strip() if title_l else None
+				summary1 = summary_l[0].strip() if summary_l else ''
+				summary2 = '\n'.join(s2.strip() for s2 in summary2_l)
+				summary = '\n'.join([summary1,summary2])
+				
+				the_date_str = the_date_str_l[0].strip() if the_date_str_l else None 
+				the_date_str = ' '.join(the_date_str.split(' ')[:-1]) if the_date_str else None
+				the_date = datetime.datetime.strptime(the_date_str,"%A, %d/%m/%Y | %H:%M")
+				
+				author = author_l[0].strip() if author_l else None 
+				link_sub = link_l[0] if link_l else None 
+				link = self.URL + link_sub if link_sub else None 
+				
+				if not link: 
+					log.warning(f"Failed to read an article banner - link missing")
+					continue
+				if not title:
+					log.warning(f"Failed to read an article banner - title missing") 
+					continue
+				if not summary:
+					log.warning(f"Failed to read an article banner - summary missing") 
+					continue
+				if not the_date:
+					log.warning(f"Failed to read an article banner - date missing") 
+					continue
+				
+				article_head = {
+					'title':title,
+					'summary':summary,
+					'author':author,
+					'link':link,
+					'the_date':the_date,
+					'source_ref':'forexlive.com'
+				}
+				
+				article_data.append(article_head)
+				
+				
+				
+				
+			except Exception as e:
+				log.warning(f"Failed to read an article banner - {str(e)}")
+				
+		return article_data
+		
+
+#class LeapRateHeadlines(NewsFinder):
+#	
+#	URL = "https://www.leaprate.com/category/forex/" #page/{page}/"
+
+#class FXEmpireHeadlines(NewsFinder):
+#	url = 'https://www.fxempire.com/news" #?page=' 
+
+
+class ActionForexHeadlines(NewsFinder):
+	
+	URL = "https://www.actionforex.com/category/contributors/{analysis}-analysis/" #page/{}/"
+	
+	@staticmethod
+	def get_url(page,technical=False):
+		analysis = 'technical' if technical else 'fundamental'
+		pagestr = ''
+		if page > 0 :
+			pagestr = f"page/{page}/"
+		return ActionForexHeadlines.URL.format(analysis=analysis) + pagestr
+	
+	def scrape(self):
+		pass
+	
+	
+	
 #cheat class for getting articles from rss feeds - faster than what we had before! :) 
 class RSSFeedParser(NewsFinder):
 	
@@ -332,10 +528,16 @@ class NewsHeadlineWorker(ProcessWorker):
 			news_items += dailyfx.scrape() 
 			matched = True
 		
+		if archive_url.startswith("https://www.fx.co/"):
+			with SeleniumHandler(hidden=True) as sh:
+				fxcoheadlines = FXCOHeadlines(sh,archive_url)
+				news_items += fxcoheadlines.crawl()
+			matched = True
+		
 		if not matched:
 			log.warning(f"News archive URL {archive_url} did not match any of the archive classes")
 		
-		#print(news_items)
+		#print(news_items) 
 		return news_items
 	
 #from a set of news loaders, identify and get news items that can be passed to a news fetch worker 
@@ -414,7 +616,8 @@ class NewsItemWorker(ProcessWorker):
 		'dailyfx.com':DailyFXNews,
 		'fxstreet.com':FXStreet,
 		'forexlive.com':ForexLive,
-		'forexcrunch.com':ForexCrunch
+		'forexcrunch.com':ForexCrunch,
+		'fx.co':FXCO
 	}
 	
 	def perform_task(self, news_item):
@@ -478,8 +681,8 @@ class NewsItemProcessor:
 		new_links = [nl[0] for nl in self.cur.fetchall()]
 		return [ni for ni in news_items if ni['link'] in new_links]
 	
-	def prune_items(self,news_items):
-		subject_news_items = self.get_subject_items(news_items) #get only news items that have a subject (instrument)
+	def prune_items(self,news_items,return_all=False):
+		subject_news_items = self.get_subject_items(news_items,return_all) #get only news items that have a subject (instrument)
 		new_news_items = self.get_new_items(subject_news_items)
 		outdated_news_items = self.get_outdated_items(subject_news_items)
 		return new_news_items + outdated_news_items #should be unique but might wanna check? 
