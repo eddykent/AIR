@@ -17,7 +17,7 @@ from psycopg2.extras import Json
 from psycopg2.extensions import register_adapter
 
 
-register_adapter(dict, Json)
+register_adapter(dict, Json) #for dumping into the db 
 
 import logging 
 log = logging.getLogger(__name__)
@@ -28,13 +28,16 @@ log = logging.getLogger(__name__)
 #1) grab all useful data from websites (multi processing)
 #2) use for influencing trades if needed (use in snapshot filters) 
 #3) log to database for backtests later to gauge usefulness of the data in journal  
+from configuration import Configuration
+from data.tools.cursor import Database
+
 from web.scraper import Scraper
 from web.crawler import Crawler, By, SeleniumHandler
 from data.tools.processpool import ProcessPool, ProcessWorker
 
-from utils import overrides, Database, Configuration
+from utils import overrides
 
-categories = ['client_sentiment','currency_strength','signals','forecasts'] #others?
+categories = ['client_sentiment','currency_strength','signals','analysis','macroscopic'] #others?
 
 #tradingview
 #weather
@@ -44,6 +47,9 @@ categories += ['NONE','ERROR']
 
 #koyfin, weather, forexfactory, client_sentiment, currency_strength, 
 
+
+#def extract_text(elems):
+#	if 
 
 def safe_float(string):
 	try:	
@@ -119,7 +125,7 @@ class ForexClientSentiment(SnapshotScraper):
 		result = self._result_base()
 		
 		sentiment_boxes = self.html.xpath("//a[@class='sentiment']")
-		client_sentiments = {} 
+		client_sentiments = [] 
 		for sb in sentiment_boxes:
 			instrument_box = sb.xpath('//h3')
 			instrument = instrument_box[0].text if len(instrument_box) else None
@@ -147,7 +153,7 @@ class ForexClientSentiment(SnapshotScraper):
 					bias_magnitude = self._safe_int(this_class[-1:])
 					bias_level = bias_magnitude * bias_direction
 			
-			client_sentiments[instrument] = {'long':{'percentage':longf}, 'short':{'percentage':shortf}, 'bias':bias_level}
+			client_sentiments.append({'instrument':instrument,'sentiment':{'long':{'percentage':longf}, 'short':{'percentage':shortf}, 'bias':bias_level}})
 		
 		result['data'] = client_sentiments
 		return result
@@ -165,7 +171,7 @@ class MyFXBook(SnapshotScraper):
 	def from_outlook_symbol_rows(self): #remove? -keep for backup? 
 		
 		result = self._result_base()
-		client_sentiments = {}
+		client_sentiments = []
 		
 		outlook_symbol_rows =  self.html.xpath("//tr[@class='outlook-symbol-row']")
 		
@@ -186,14 +192,14 @@ class MyFXBook(SnapshotScraper):
 					result_row['long'] = {'percentage':percentage}
 				else:
 					result_row['popularity'] = percentage
-			client_sentiments[instrument] = result_row
+			client_sentiments.append({'instrument':instrument,'sentiment':result_row})
 		result['data'] = client_sentiments
 		return result
 	
 	def from_popovers(self):
 	
 		result = self._result_base()
-		client_sentiments = {}
+		client_sentiments = []
 		
 		outlook_symbol_rows =  self.html.xpath("//tr[@class='outlook-symbol-row']")
 		
@@ -226,7 +232,7 @@ class MyFXBook(SnapshotScraper):
 					rowvalkey = rowbits[0].strip().lower()
 					if rowvalkey in ['long','short']:
 						result_row[rowvalkey] = rowval
-			client_sentiments[instrument] = result_row
+			client_sentiments.append({'instrument':instrument,'sentiment':result_row})
 		result['data'] = client_sentiments
 		return result 
 
@@ -244,9 +250,8 @@ class DailyFX(SnapshotScraper):
 	
 	def scrape(self):
 		
-		result = self._result_base()
 		client_sentiments = {}
-		
+		result = self._result_base()
 		
 		table_rows =  self.html.xpath("//article/table/tbody/tr")
 		for tr in table_rows:
@@ -273,7 +278,7 @@ class DailyFX(SnapshotScraper):
 					'bias':self.biases.get(bias_str.strip().upper())
 				}
 				
-		result['data'] = client_sentiments
+		result['data'] = [{'instrument':instrument,'sentiment':sentiment} for (instrument,sentiment) in client_sentiments.items()]
 		return result				
 		
 class Dukascopy(SnapshotCrawler):
@@ -296,10 +301,12 @@ class Dukascopy(SnapshotCrawler):
 				longpc = safe_float(linebits[1])
 				shortpc = safe_float(linebits[-1])
 				sentiments[instrument] = {
-					'long':{'percentage':longpc},
-					'short':{'percentage':shortpc}
+					'sentiment':{
+						'long':{'percentage':longpc},
+						'short':{'percentage':shortpc}
+					}
 				}
-	
+		
 		return sentiments
 		
 		
@@ -323,8 +330,45 @@ class Dukascopy(SnapshotCrawler):
 		all_currencies_rows = self.browser.find_elements(By.XPATH,"//*[contains(@class,'"+self.row_identifier+"')]")
 		currencies = self.process_text_lines([cr.text for cr in all_currencies_rows])
 		
-		result['data'] = {**pairs,**currencies}
+		all_data = {**pairs,**currencies}
+		
+		result['data'] = [{'instrument':instrument, 'sentiment':sentiment} for (instrument, sentiment) in all_data.items()]
 		return result
+
+
+class FXCOSentiment(SnapshotCrawler):
+	
+	URL = 'https://www.fx.co/en'
+	category = 'currency_strength'
+	
+	def crawl(self):
+		
+		result = self._result_base()
+		currency_strengths = []
+		
+		
+		time.sleep(5)# wait for all widgets to load
+		#self.get_elemen()
+		
+		html = lxml.etree.HTML(self.browser.page_source)
+		
+		position_boxes = html.cssselect("a.widget-trader-position__cells")
+		for position_box in position_boxes:
+			instrument = position_box.cssselect("div.widget-trader-position__valute-name")[0].text.strip()
+			prog_green_str = position_box.cssselect("div.widget-trader-position__progressbar_green")[0].attrib.get('title')
+			prog_red_str = position_box.cssselect("div.widget-trader-position__progressbar_red")[0].attrib.get('title')
+			
+			currency_strengths.append({
+				'instrument':instrument,
+				'sentiment':{
+					'long':safe_float(prog_green_str),
+					'short':safe_float(prog_red_str)
+				}
+			})
+		
+		result['data'] = currency_strengths
+		return result
+		
 		
 
 
@@ -338,7 +382,7 @@ class CurrencyStrengthMeter(SnapshotScraper):
 	def scrape(self):
 		
 		result = self._result_base()
-		currency_strengths = {}
+		currency_strengths = []
 		
 		str_containers = self.html.xpath("//div[@class='str-container']")
 		for container in str_containers:
@@ -346,7 +390,7 @@ class CurrencyStrengthMeter(SnapshotScraper):
 			currency = currency[0].strip() if len(currency) else container.text().strip()
 			the_level = container.xpath(".//div[@class='bar-cont']/div[@class='level']")
 			strength = safe_float(the_level[0].attrs['style'])
-			currency_strengths[currency] = {'all':{'percentage':strength}}
+			currency_strengths.append({'currency':currency, 'strength': {'all':{'percentage':strength}}})
 			
 		result['data'] = currency_strengths
 		return result
@@ -360,7 +404,7 @@ class LiveCharts(SnapshotScraper):
 	def scrape(self):
 		
 		result = self._result_base()
-		currency_strengths = {}
+		currency_strengths = []
 
 		soup = BeautifulSoup(self.html.html, 'html.parser') #use beautiful soup for their bs duplicate id issues
 		#containers = self.html.xpath("//div[@id='rate-outercontainer']/")
@@ -370,7 +414,7 @@ class LiveCharts(SnapshotScraper):
 			weakness = len(container.find_all('div',style='background-image:none')) #get all non-displaying bars
 			strength = int(((6 - weakness) / 6.0) * 100 )
 			
-			currency_strengths[currency] = {'all': { 'percentage' :strength, 'stack':(6 - weakness)}}
+			currency_strengths.append({'currency':currency,'strength':{'all': { 'percentage' :strength, 'stack':(6 - weakness)}}})
 			
 		result['data'] = currency_strengths
 		return result
@@ -405,18 +449,21 @@ class FXBlue(SnapshotCrawler):
 	
 	def crawl(self):
 		result = self._result_base()
-		currency_strengths = {}
+		currency_strengths = []
 		
+		time.sleep(2)
 		soup = BeautifulSoup(self.browser.page_source,'html.parser')
 		
 		titles = soup.select("#HeadlineContainer .HeadlineBlockContainer .HeadlineTitle")
 		values = soup.select("#HeadlineContainer .HeadlineBlockContainer .HeadlineValue")
 		
 		for (currency,value) in zip([t.text for t in titles],[safe_float(v.text) for v in values]):
-			currency_strengths[currency] = {'all': {'value':value}}
+			currency_strengths.append({'currency': currency,'strength':{'all': {'value':value}}})
 		
 		result['data'] = currency_strengths
 		return result
+
+#https://www.actionforex.com/markets/currency-heat-map/
 
 
 ###COPY TRADING 
@@ -544,7 +591,6 @@ class ForexFactoryUsers(Crawler):	#class for getting the user data
 			account_details.append(account_detail)
 				
 			
-			
 		return {'accounts':account_details}
 		
 	
@@ -662,9 +708,20 @@ class ForexFactory(SnapshotCrawler):
 		return result
 	
 		
-#class EToro
-
-
+class EToro(SnapshotScraper):
+	
+	URL = 'https://www.etoro.com/discover/people/results?copyblock=false&period=LastTwoYears&hasavatar=true&verified=true&isfund=false&tradesmin=5&dailyddmin=-5&weeklyddmin=-15&profitablemonthspctmin=50&lastactivitymax=30&sort=-copiers&page=1&pagesize=20&instrumentid=-1&gainmin=10&gainmax=50'
+	category = 'copy_trading'
+	
+	def scrape(self):
+		
+		pdb.set_trace() 
+		
+		#get top 10 links 
+		
+		
+		
+		
 
 ###SIGNALS 
 class FXCO(SnapshotScraper):
@@ -890,17 +947,313 @@ class FXLeaders(SnapshotScraper):
 		return result	
 
 
-##SUPPORT RESISTANCE (dailyfx) --forecasts
+###ANALYSIS (with bias)
+class DailyFXSR(SnapshotScraper):
+	
+	URL = 'https://www.dailyfx.com/support-resistance'
+	category = 'analysis'
+	
+	@staticmethod
+	def extract_text(elems):
+		return '\n'.join(''.join(elem.itertext()) for elem in elems).strip()
+			
+	
+	def scrape(self):
+		sr_levels = [] 
+		
+		self.render()
+		result = self._result_base()
+		
+		html = lxml.etree.HTML(self.html.html)
+		sr_boxes = html.cssselect("div.dfx-supportResistanceBlock")
+		for sr_box in sr_boxes:
+			pair_box = sr_box.cssselect("a.dfx-supportResistanceBlock__pair")
+			trend_box = sr_box.cssselect("div.dfx-supportResistanceBlock__trend svg") #svg.dfx-signalIcon--up 
+			
+			levels = []
+			level_boxes = sr_box.cssselect("div.dfx-supportResistanceBlock__valueRow")
+			
+			pdb.set_trace()
+			
+			for level_box in level_boxes:
+				name_box = level_box.cssselect("span.dfx-supportResistanceBlock__valueName")
+				value_box = level_box.cssselect("span.dfx-supportResistanceBlock__valueLevel")
+				strength_box = level_box.cssselect("div.dfx-supportResistanceBlock__valueLevelStrength div")
+				
+				name = self.extract_text(name_box)
+				value_str = self.extract_text(value_box)
+				value = safe_float(value_str) if value_str else None
+				
+				strength = None				
+				class_string = strength_box[0].attrib.get('class')
+				if '--strong' in class_string:
+					strength = 3
+				if '--moderate' in class_string:
+					strength = 2
+				if '--weak' in class_string:
+					strength = 1
+					
+				level = {
+					'name':name,
+					'value':value,
+					'strength':strength
+				}
+				levels.append(level)
+			
+			bias = None
+			if trend_box:
+				class_string = trend_box[0].attrib.get('class')
+				if '--up' in class_string:
+					bias = 'bullish'
+				if '--down' in class_string:
+					bias = 'bearish'
+				
+			pair = self.extract_text(pair_box)
+			
+			
+			sr_level = {
+				#'timeframe':'unknown',
+				'instrument':pair,
+				'details':{
+					'bias':bias,
+					'levels':levels
+				}
+			}
+			sr_levels.append(sr_level)
+		
+		result['data'] = sr_levels
+		return result		
+			
 
+class FXStreetSR(SnapshotCrawler):
+	
+	URL = 'https://www.fxstreet.com/technical-analysis/support-resistance'
+	category = 'analysis'
+	
+	def crawl(self):
+		
+		#pdb.set_trace()
+		
+		time.sleep(5)# wait for page to load 
+		result = self._result_base()
+		pplevels = []
+		
+		
+		html = lxml.etree.HTML(self.browser.page_source)
+		level_elems = html.xpath(".//div[@fxs_name='pivotpoints']")
+		symbol_texts = html.xpath(".//div[@class='tt_symbolTitle' and not(@data-type='indicator')]//span[@class='tt_symbolText']/text()")
+		
+		
+		
+		for instrument, levels_elem in zip(symbol_texts, level_elems):
+			lis = [safe_float(t) for t in levels_elem.xpath(".//li[@class='fxs_pivotPoints_list_item']/span/text()") if t.strip()]
+			lins = levels_elem.xpath(".//li[@class='fxs_pivotPoints_list_item']//abbr/text()")
+			levels = {k:v for k,v in zip(lins,lis)}
+			pplevels.append({'instrument':instrument,'details':{'levels':levels}})
+		
+		result['data'] = pplevels
+		return result
+
+
+##NEED FIXING
+class ActionForexBias(SnapshotScraper):
+	
+	URL = "https://www.actionforex.com/markets/action-bias/"
+	category = 'analysis' #macroscopic?
+	
+	bias_map = {
+		'pos':'bullish',
+		'neu':'mixed',
+		'neg':'bearish'
+	}
+	
+	def scrape(self):
+		
+		bias_values = []
+		self.render()
+		
+		html = lxml.etree.HTML(self.html.html)
+		bias_rows = html.xpath(".//div[@class='bias-main']/div[@class='bias-row']")
+		
+		for bias_row in bias_rows:
+			pdb.set_trace()
+			instrument_l = bias_row.xpath("./div[@class='bias-pair-name']/a/@text()")
+			bias_strs = bias_row.xpath("./div[@class='bias-pair']/div/@class")
+			biases = [self.bias_map[b] for b in bias_strs]
+			if instrument_l and len(biases) >= 4:
+				bias_value = {
+					'instrument':instrument_l[0],
+					'hour':biases[0],
+					'6hour':biases[1],
+					'day':biases[2],
+					'week':biases[3]
+				}
+				bias_values.append(bias_value)
+			
+		result['data'] = bias_values
+		return result
+		
+		
+
+
+#MACROSCOPIC (things like interest rates and fear and greed index)
+class FXStreetPolls(SnapshotCrawler):
+	
+	URL = 'https://www.fxstreet.com/rates-charts/forecast'
+	category = 'macroscopic' #despite it called forecast, this is a poll and over high time frame, so it is macro
+	
+	def crawl(self):
+		sr_levels = [] 
+		
+		result = self._result_base()
+		
+		time.sleep(3) #wait until finished loading
+		
+		html = lxml.etree.HTML(self.browser.page_source)
+		table_rows = html.xpath("//section//table/tbody/tr")
+		
+		biases = []
+		
+		for table_row in table_rows:
+			instrument_l = table_row.xpath("./td/abbr/@title")
+			instrument = instrument_l[0].strip() if instrument_l else None
+			
+			if not instrument:
+				continue
+			
+			forecast_timeframes = table_row.xpath("./td/div[contains(@class,'forecast_timeframe')]")
+			for forecast_timeframe in forecast_timeframes:
+				timeframe = 'unknown'
+				class_str = forecast_timeframe.attrib.get('class','')
+				if 'avg_1w' in class_str:
+					timeframe = 'week'
+				if 'avg_1m' in class_str:
+					timeframe = 'month'
+				if 'avg_1q' in class_str:
+					timeframe = 'quater'
+				
+				bias_elems = forecast_timeframe.cssselect("div.forecast_avg_result") 
+				bias = 'mixed'
+				if bias_elems:
+					if 'result_bullish' in bias_elems[0].attrib.get('class'):
+						bias = 'bullish'
+					if 'result_bearish' in bias_elems[0].attrib.get('class'):
+						bias = 'bearish'
+				
+				tooltip_elems = forecast_timeframe.cssselect("table.c3-tooltip tr td.value")
+				#pdb.set_trace()
+				#[bullish,bearish,mixed] = [safe_float(t.text) for t in tooltip_elems[:3]] #tooltip doesnt exist for all elems - only active
+				
+				bias_info = {
+					'timeframe':timeframe,
+					'instrument':instrument,
+					'details':{
+						'bias':bias,
+						#'bullish':bullish,
+						#'bearish':bearish,
+						#'mixed':mixed
+					}
+				}
+				biases.append(bias_info)
+		
+		result['data'] = biases
+		return result
+		
+class ForexFactoryCBR(SnapshotCrawler):
+	
+	URL = 'https://www.forexfactory.com/news'
+	category = 'macroscopic'
+	
+	def crawl(self):
+		result = self._result_base()
+		
+		time.sleep(5) #wait until finished loading
+		
+		html = lxml.etree.HTML(self.browser.page_source)
+		rates = []
+		interest_rate_rows = html.xpath("//ul[@class='rate_details bankrates__rates']/li[@class='bankrate__rate']")
+		
+		for interest_rate_row in interest_rate_rows:
+			currency_l = interest_rate_row.xpath(".//span[@class='internal']/text()")
+			rate_l = interest_rate_row.xpath(".//span[@class='rate']/text()")
+			if currency_l and rate_l:
+				currency = currency_l[0]
+				rate = safe_float(rate_l[0])
+				rates.append({'currency':currency,'central_bank_rate':rate})
+			
+		result['data'] = rates
+		return result
+
+
+
+class ActionForexCBR(SnapshotScraper):
+	
+	URL = 'https://www.actionforex.com/central-banks/'
+	category = 'macroscopic'
+	
+	bank_currency_map = { 
+		'boe':'GBP',
+		'fed':'USD',
+		'ecb':'EUR',
+		'boj':'JPY',
+		'snb':'CHF',
+		'boc':'CAD',
+		'rba':'AUD',
+		'rbnz':'NZD'
+	}
+	
+	def scrape(self):	
+		
+		cbrates = []
+		
+		self.render() #render page first
+		result = self._result_base()
+		
+		html = lxml.etree.HTML(self.html.html)
+		table_rows = html.xpath(".//table[@class='cb-sum']/tbody/tr")
+		
+		for table_row in table_rows:
+			tds = table_row.xpath("./td/text()")
+			if len(tds) > 2:
+				bank = tds[0].strip().lower()
+				perc = safe_float(tds[1].strip())
+				currency = self.bank_currency_map.get(bank)
+				if currency:
+					cbrates.append({'currency':currency, 'central_bank_rate':perc})
+		
+		result['data'] = cbrates
+		return result
+		
+
+
+#FEAR & GREED INDEX 
+class CNNFearAndGreed(SnapshotCrawler):
+	
+	URL = 'https://edition.cnn.com/markets/fear-and-greed'
+	category = 'macroscopic'
+	
+	def crawl(self):
+		
+		result = self._result_base()
+		
+		time.sleep(5)
+		html = lxml.etree.HTML(self.browser.page_source)
+
+		fgi = html.xpath("//span[@class='market-fng-gauge__dial-number-value']/text()")
+		#pdb.set_trace()
+		if fgi:
+			result['data'] = {'fear_and_greed_index':safe_float(fgi[0])}
+		
+		return result
+
+#weather? 
+	
 ##TRADING VIEW --forecasts
+##fx.co - forecasts (patterns ?)
 
-##WEATHER?
 
-##FEAR & GREED INDEX 
 
 ##BROKER DETAILS? - perhaps not here.. 
-
-##ECONOMIC CALENDAR - long = save in table, short = snapshot
 
 
 
@@ -914,11 +1267,18 @@ snapshot_elements = { #keys are human readable (get merged by server later)
 	'currency strength currencystrengthmeter.com':CurrencyStrengthMeter,
 	'currency strength livecharts.com':LiveCharts,
 	'currency strength fxblue.com':FXBlue,
-	#'copy trades forexfactorycopies':ForexFactory, ##really neeed this! :(
+	'copy trades forexfactory.com':ForexFactory,
 	#'copy trades etoro':Etoro, #TODO
 	'signals fx.co':FXCO,
 	'signals live-forex-signals.com':LiveForexSignals,
 	'signals forexsignals10pips.com':ForexSignals10Pips,	
+	'signals fxleaders.com':FXLeaders,
+	'analysis dailyfx.com':DailyFXSR,
+	'analysis fxstreet.com':FXStreetSR,
+	#'forecasts tradingview.com':TradingView #TODO if needed
+	'macroscopic fxstreet.com':FXStreetPolls,
+	'macroscopic forexfactory.com':ForexFactoryCBR,
+	'macroscopic fear and greed':CNNFearAndGreed
 	#any others?
 	
 }
@@ -928,11 +1288,13 @@ class MarketSnapshotWorker(ProcessWorker):
 	def perform_task(self, snapshot_key):
 		
 		result = {'category':'NONE'} 
+		result['key'] = snapshot_key
 		
 		try:
 			snapshotter = snapshot_elements.get(snapshot_key)
 			if snapshotter:
-			
+				result['url'] = snapshotter.URL
+				
 				if issubclass(snapshotter,SnapshotScraper):
 					snapshotobj = snapshotter()
 					result = snapshotobj.scrape() 
@@ -941,10 +1303,12 @@ class MarketSnapshotWorker(ProcessWorker):
 					with SeleniumHandler(hidden=True) as sh:
 						snapshotobj = snapshotter(selenium_handler=sh)
 						result = snapshotobj.crawl() 
-					
+			else:
+				result['url'] = 'N/A'
+				
 		except Exception as e:
 			log.warning(f"Task {snapshot_key} failed with {e}")
-			result = {'category':'ERROR'}
+			result['category'] = 'ERROR'
 			result['data'] = str(e) #perhaps get stack trace instead?
 		
 		return (snapshot_key, result)
@@ -969,16 +1333,21 @@ class MarketSnapshot:
 		#now group all together (avoiding any dict that has an 'error' value) 
 		##snapshot = { ssk:ssv for (ssk,ssv) in snapshot_results if ssv['category'] != 'ERROR'}
 		snapshot = {}
-		for (_, snapshot_result) in snapshot_results: #remove element key
-			snapshot_ref = self._snapshot_ref(snapshot_result['url'])
-			if snapshot_ref not in snapshot:
-				snapshot[snapshot_ref] = {} 
-			snapshot[snapshot_ref][snapshot_result['category']] = snapshot_result
+		pdb.set_trace()
+		for (k, snapshot_result) in snapshot_results: #remove element key
+			try:
+				snapshot_ref = self._snapshot_ref(snapshot_result['url'])
+				if snapshot_ref not in snapshot:
+					snapshot[snapshot_ref] = {} 
+				snapshot[snapshot_ref][snapshot_result['category']] = snapshot_result
+			except Exception as e:
+				pdb.set_trace()
+				print('error!')
 		return snapshot
 	
 	def put_to_database(self,snapshot):
 		with Database(cache=False) as cur:
-			cur.execute("INSERT INTO market_snapshot_dump(snapshot) VALUES (%(snapshot)s);",{'snapshot':json.dumps(snapshot)})
+			cur.execute("INSERT INTO market_snapshot_dump(snapshot) VALUES (%(snapshot)s);",{'snapshot':json.dumps(snapshot,default=str)})
 			cur.con.commit() 
 
 
