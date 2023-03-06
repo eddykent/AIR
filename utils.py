@@ -540,7 +540,10 @@ class PipHandler:
 
 
 #use this class for accessing instrument details such as leverage, base currency, exchange, interest etc 
-#see if there is a way to automatically make instrument_details.csv from the broker
+#see if there is a way to automatically make instrument_details.csv from a broker
+
+
+
 class InstrumentDetails:
 	
 	instrument_map = {} 
@@ -550,6 +553,19 @@ class InstrumentDetails:
 		instrument_details = lfr.read_csv(instrument_file)
 		self.instrument_map = {idetail['instrument']:idetail for idetail in instrument_details} 
 	
+
+#perhaps export this class elsewhere? 
+class CountryCurrencyMap:
+	
+	currency_country_map = {} 
+	country_currency_map = {}
+	
+	def __init__(self,ccm_file="config/currency_country_map.json"):
+		lfr = ListFileReader()
+		the_map = lfr.read_json(ccm_file)
+		self.currency_country_map = {k:[v.lower() for v in vs] for (k,vs) in the_map.items()}
+		self.country_currency_map = {v.lower():k for (k,vs) in the_map.items() for v in vs }
+		
 
 #class to handle splitting our data up into training and testing sets
 #also select the actual data we want to use in the neural net (instruments and keys)
