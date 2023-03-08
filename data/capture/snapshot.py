@@ -702,22 +702,62 @@ class ForexFactory(SnapshotCrawler):
 		ctd['positions'] = self.process_positions([e.text for e in positions_rows])
 		
 		top_performer_rows = self.browser.find_elements(By.XPATH,"//tr[contains(@class,'trades_leaderboard__row')]")
-		ctd['top_performers'] = self.process_users_trades(top_performer_rows)
+		ctd['traders'] = self.process_users_trades(top_performer_rows)
 		
 		result['data'] = ctd
 		return result
 	
-		
-class EToro(SnapshotScraper):
+
+#class EToroUserStats(SnapshotCrawler):
+#class EToroUserPortfolio(SnapshotCrawler):
+
+
+class EToro(SnapshotCrawler):
 	
 	URL = 'https://www.etoro.com/discover/people/results?copyblock=false&period=LastTwoYears&hasavatar=true&verified=true&isfund=false&tradesmin=5&dailyddmin=-5&weeklyddmin=-15&profitablemonthspctmin=50&lastactivitymax=30&sort=-copiers&page=1&pagesize=20&instrumentid=-1&gainmin=10&gainmax=50'
 	category = 'copy_trading'
 	
-	def scrape(self):
+	def crawl(self):
 		
+		time.sleep(10)
+		html = lxml.etree.HTML(self.browser.page_source)
+	
+		result = self._result_base()
+		table_rows = html.xpath(".//div[contains(@class,'et-table-body') and @automation-id='table-list']/div[contains(@class,'et-table-row')]")
+		
+		traders = [] 
 		pdb.set_trace() 
-		
+		for table_row in table_rows:
+			pdb.set_trace() 
+			username_l = table_row.xpath(".//div[@class='user-nickname']/text()")
+			link_l = table_row.xpath(".//a[contains(@class,'et-table-user-info')]/@href")
+			country_l = table_row.xpath(".//span[@automation-id='discover-people-results-list-item-country']/text()")
+			body_items = table_row.xpath(".//div[@class='et-table-body-slot']/div[contains(@class,'et-table-cell')]//span/text()")
+			risk_score_l = table_row.xpath(".//div[@class='et-table-body-slot']/div[contains(@class,'et-table-cell')]//span[@automation-id='discover-people-results-list-item-risk-score']/@class")
+			
+			trader_details = {}
+			if link_l:
+				stats_link = "https://www.etoro.com" + link_l[0]
+				portfolio_link = '/'.join(stats_link.split('/')[:-1]) + '/portfolio'
+				trader_details['stats_link'] = stats_link
+				trader_details['portfolio_link'] = portfolio_link
+			trader_details['username'] = username_l[0].strip() if username_l else None
+			trader_details['country'] = country_l[0].strip() if country_l else None 
+			ret,copiers,wdd = (None,None,None)
+			if len(body_items) >= 4:
+				ret, copiers, _, wdd = body_items[:4]
+				trader_details['return'] = safe_float(ret)
+				trader_details['copiers'] = safe_int(copiers)
+				trader_details['weekly_drawdown'] = safe_float(wdd)
+			trader_details['risk_score'] = safe_int(re.sub('[^0-9]','',risk_score_l[0]))
+			
+			#open the links and get the info
+			
+			traders.append(trader_details)
+			
 		#get top 10 links 
+		result['data'] = {'traders':traders}
+		
 		
 		
 		
@@ -1054,8 +1094,6 @@ class FXStreetSR(SnapshotCrawler):
 		result['data'] = pplevels
 		return result
 
-
-##NEED FIXING
 class ActionForexBias(SnapshotScraper):
 	
 	URL = "https://www.actionforex.com/markets/action-bias/"
@@ -1071,13 +1109,12 @@ class ActionForexBias(SnapshotScraper):
 		
 		bias_values = []
 		self.render()
-		
+		result = self._result_base()
 		html = lxml.etree.HTML(self.html.html)
 		bias_rows = html.xpath(".//div[@class='bias-main']/div[@class='bias-row']")
 		
 		for bias_row in bias_rows:
-			pdb.set_trace()
-			instrument_l = bias_row.xpath("./div[@class='bias-pair-name']/a/@text()")
+			instrument_l = bias_row.xpath("./div[@class='bias-pair-name']/a/text()")
 			bias_strs = bias_row.xpath("./div[@class='bias-pair']/div/@class")
 			biases = [self.bias_map[b] for b in bias_strs]
 			if instrument_l and len(biases) >= 4:
@@ -1264,6 +1301,8 @@ snapshot_elements = { #keys are human readable (get merged by server later)
 	'client sentiment myfxbook.com':MyFXBook,
 	'client sentiment dailyfx.com':DailyFX,
 	'client sentiment dukascopy.com':Dukascopy,
+	'client sentiment fx.co':FXCOSentiment,
+	#'client sentiment actionforex.com':
 	'currency strength currencystrengthmeter.com':CurrencyStrengthMeter,
 	'currency strength livecharts.com':LiveCharts,
 	'currency strength fxblue.com':FXBlue,
@@ -1275,9 +1314,11 @@ snapshot_elements = { #keys are human readable (get merged by server later)
 	'signals fxleaders.com':FXLeaders,
 	'analysis dailyfx.com':DailyFXSR,
 	'analysis fxstreet.com':FXStreetSR,
+	'analysis actionforex.com':ActionForexBias,
 	#'forecasts tradingview.com':TradingView #TODO if needed
 	'macroscopic fxstreet.com':FXStreetPolls,
 	'macroscopic forexfactory.com':ForexFactoryCBR,
+	'macroscopic actionforex.com':ActionForexCBR,
 	'macroscopic fear and greed':CNNFearAndGreed
 	#any others?
 	

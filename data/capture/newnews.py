@@ -64,12 +64,7 @@ def safe_int(string):
 		return None
 
 
-#list websites missing here 
 
-#fx.co (technicals?)
-#fxempire
-
-#REFACTOR = return a dict of whatever keys we could get (including full_text)
 class DailyFXNews(Scraper):
 	
 	def scrape(self):
@@ -167,7 +162,15 @@ class FXCO(Scraper):
 		content = self.html.xpath("//div[contains(@class,'block-article__body')]/p/text()")
 		return {'full_text':'\n'.join(content)}
 		
+
+class ActionForex(Scraper):
+	
+	def scrape(self):
 		
+		html = lxml.etree.HTML(self.html.html)
+		
+		content = html.xpath(".//div[contains(@class,'td-post-content')]//p/text()")
+		return {'full_text':'\n'.join(content)}
 
 #class BabyPips
 #class FXEmpire https://www.fxempire.com/
@@ -435,20 +438,57 @@ class ForexLiveHeadlines(NewsFinder):
 
 class ActionForexHeadlines(NewsFinder):
 	
-	URL = "https://www.actionforex.com/category/contributors/{analysis}-analysis/" #page/{}/"
+	URL = "https://www.actionforex.com/category/contributors/" #page/{}/"
 	
 	@staticmethod
-	def get_url(page,technical=False):
-		analysis = 'technical' if technical else 'fundamental'
+	def get_url(page=0):
 		pagestr = ''
 		if page > 0 :
 			pagestr = f"page/{page}/"
-		return ActionForexHeadlines.URL.format(analysis=analysis) + pagestr
+		return ActionForexHeadlines.URL + pagestr
 	
 	def scrape(self):
-		pass
-	
-	
+		
+		article_data = []		
+		
+		self.render()
+		
+		html = lxml.etree.HTML(self.html.html)
+		article_banners = html.cssselect("div.td-module-container")
+		for article_banner in article_banners:
+			title_l = article_banner.xpath(".//h3[contains(@class,'td-module-title')]/a/text()")
+			link_l = article_banner.xpath(".//h3[contains(@class,'td-module-title')]/a/@href")
+			author_l = article_banner.xpath(".//span[@class='td-post-author-name']/a/text()")
+			the_date_str_l = article_banner.xpath(".//span[@class='td-post-date']/time/@datetime")
+			
+			title = title_l[0] if title_l else None 
+			link = link_l[0] if link_l else None
+			author = author_l[0] if author_l else None
+			the_date_str = the_date_str_l[0] if the_date_str_l else None
+			the_date = datetime.datetime.strptime(the_date_str[:-6],"%Y-%m-%dT%H:%M:%S") if the_date_str else None #remove timezone!
+			
+			if not link: 
+				log.warning(f"Failed to read an article banner - link missing")
+				continue
+			if not title:
+				log.warning(f"Failed to read an article banner - title missing")
+				continue
+			if not the_date:
+				log.warning(f"Failed to read an article banner - date missing") 
+				continue
+			
+			article_head = {
+				'title':title,
+				'summary':None,
+				'author':author,
+				'link':link,
+				'the_date':the_date,
+				'source_ref':'actionforex.com'
+			}
+			article_data.append(article_head)		
+		
+		return article_data
+
 	
 #cheat class for getting articles from rss feeds - faster than what we had before! :) 
 class RSSFeedParser(NewsFinder):
@@ -534,6 +574,11 @@ class NewsHeadlineWorker(ProcessWorker):
 				news_items += fxcoheadlines.crawl()
 			matched = True
 		
+		if archive_url.startswith("https://www.actionforex.com/"):
+			actionforexheadlines = ActionForexHeadlines(archive_ur)
+			news_item += actionforexheadlines.scrape()
+			match = True
+		
 		if not matched:
 			log.warning(f"News archive URL {archive_url} did not match any of the archive classes")
 		
@@ -617,7 +662,8 @@ class NewsItemWorker(ProcessWorker):
 		'fxstreet.com':FXStreet,
 		'forexlive.com':ForexLive,
 		'forexcrunch.com':ForexCrunch,
-		'fx.co':FXCO
+		'fx.co':FXCO,
+		'actionforex.com':ActionForex
 	}
 	
 	def perform_task(self, news_item):

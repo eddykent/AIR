@@ -12,9 +12,11 @@ import pickle
 import logging 
 log = logging.getLogger(__name__)
 
+from configuration import Configuration
+from data.tools.cursor import Database, Inject 
 
 from web.crawler import SeleniumHandler, Crawler, XPathNavigator, By, TimeoutException #perhaps just crawler for specialist stuff?
-from utils import Database, Inject, Configuration, ListFileReader, TimeHandler
+from utils import ListFileReader, TimeHandler
 
 from data.tools.prep import TimelineMerge
 
