@@ -220,7 +220,7 @@ class TradeSignallingData:  #need to force this to break if attemping to set som
 		raise ValueError('Unable to find closest time index')
 		return None #not found 
 	
-	def timeline_indexs(self,the_dates,ensure_later=False): #TODO
+	def timeline_indexs(self,the_dates,ensure_later=False): 
 		pdt = pd.Series(self.timeline)
 		pdt.index = pdt
 		timeline_indexs = pdt.index.get_indexer(the_dates,method='nearest')
@@ -229,6 +229,9 @@ class TradeSignallingData:  #need to force this to break if attemping to set som
 		return timeline_indexs
 	
 	def instrument_indexs(self,instruments):
+		if not self._instrument_map:
+			self.set_instruments(self.instruments) 
+			
 		pdi = pd.Series(self.instruments)
 		pdi.index = pdi 
 		return pdi.index.get_indexer(instruments)
