@@ -4,6 +4,8 @@ import datetime
 from typing import Optional, List 
 import numpy as np #for optimising later 
 
+import sklearn.metrics
+
 import pdb 
 
 from data.tools.cursor import Database
@@ -14,9 +16,24 @@ from indicators.indicator import CandleSticks
 
 sql = {}
 
+#use for figuring out if a filter works 
+class FilterConfusionMatrix:
+	
+	signals = []
+	pass_guids = [] 
+	win_guids = []
+	
+	def __init__(self, signals):
+		self.signals = signals 
+	
+	def create_confusion_matrix(self,won_signal_ids, passed_signal_ids):	
+		y_pred = self.signals['signal_id'].isin(passed_signal_ids).astype(int)
+		y_true = self.signals['signal_id'].isin(won_signal_ids).astype(int)
+		return sklearn.metrics.confusion_matrix(y_true,y_pred)
+
+
 class TradeFilter:
 	pass #unsure what to put here. 
-
 
  #abstract class for laying out a trade filter - attempt to stop "stupid" trades! Works with a single instance in time 
 class InstanceTradeFilter:
@@ -114,6 +131,7 @@ class FlatIndicatorFilter(TimelineTradeFilter):  ##base this on an indicator so 
 	def _instrument_index(self,instrument):
 		return self._instrument_map.get(instrument)
 
+		
 
 #powerful tool for getting the "here and now" filter data results for any indicator
 #uses partial candles that can be gathered for every signal from the database
@@ -179,7 +197,7 @@ class PartialIndicatorFilter:
 	def _get_candle_streams(self,trade_signals):
 		np_candle_data = [] 
 		
-		for (i,ts) in enumerate(trade_signals):
+		for (i,ts) in enumerate(trade_signals.itertuples(name='TradeSignal')):
 			np_candle_data.append(self._get_candles_for_signal(i,ts))
 		
 		np_candles = np.stack(np_candle_data) #check 

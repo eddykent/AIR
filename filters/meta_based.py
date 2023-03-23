@@ -111,10 +111,9 @@ class FlatCurrencyStrengthFilter(DataBasedFilter):
 	
 class ClientSentimentFilter(PartialIndicatorFilter):
 	
-	threshold = 0.3 
+	threshold = 0.3
 	
 	def filter(self,trade_signals):
-		
 		client_sentiment_op = ClientSentiment()
 		
 		filtered_signals = []
@@ -125,7 +124,7 @@ class ClientSentimentFilter(PartialIndicatorFilter):
 		#pdb.set_trace()
 		pclen = 15 #lowest candle length 
 		#get the multiplier needed (eg if candle is half finished then mult by 2) 
-		npcs = np.array([self._get_n_candles_in_partial(trade_signal,pclen) for trade_signal in trade_signals])
+		npcs = np.array([self._get_n_candles_in_partial(trade_signal,pclen) for trade_signal in trade_signals.itertuples(name='TradeSignal')])
 		tnpcs = self.signalling_data.chart_resolution / pclen
 		npcs[npcs == 0] = tnpcs
 		npc_mult = (tnpcs / npcs)[:,np.newaxis]
@@ -133,25 +132,15 @@ class ClientSentimentFilter(PartialIndicatorFilter):
 		np_candles[:,4] *= npc_mult
 		np_candles[:,5] *= npc_mult
 		
+		
 		client_sentiment_results = client_sentiment_op._perform(np_candles)
 		end_results = client_sentiment_results[:,-1,0] #gets LONG
 		
+		buy_okay = (trade_signals['direction'] == TradeDirection.BUY) & (end_results < (1.0 - self.threshold))
+		sell_okay = (trade_signals['direction'] == TradeDirection.SELL) & (end_results > self.threshold)
 		
-		
-		for ts,cs in zip(trade_signals, end_results):
-			
-			#pdb.set_trace()#check cs
-			
-			if ts.direction == TradeDirection.BUY and cs < (1.0 - self.threshold):
-				#most people are selling -so lets buy!
-				filtered_signals.append(ts)
-			
-			if ts.direction == TradeDirection.SELL and cs > self.threshold:
-				#most people are buying! lets allow the sell
-				filtered_signals.append(ts)
-		
-		
-		return filtered_signals
+				
+		return trade_signals[buy_okay | sell_okay]
 
 #lateral operators 
 class CurrencyStrengthOperator: #any other lateral operations? 
@@ -237,12 +226,12 @@ class CurrencyStrengthFilter(PartialIndicatorFilter):
 		
 	
 	def filter(self,trade_signals):
-		
+		#trade_signals = trade_signals.copy()
 		np_candle_blocks = self._get_candle_streams(trade_signals) #blocks stacked together 
 		filtered_signals = []
 		np_candles = np.concatenate(np_candle_blocks,axis=0)
 		osc_result = self.oscillator._perform(np_candles)[:,:,0] #get just the RSI result
-		osc_columns = np.array(np.split(osc_result,len(trade_signals)))
+		osc_columns = np.array(np.split(osc_result,len(trade_signals.index)))
 		
 		currency_strength_blocks = self.currency_strength.get_strengths(osc_columns)
 		
@@ -256,20 +245,24 @@ class CurrencyStrengthFilter(PartialIndicatorFilter):
 		rankings = np.argsort(last_currency_strengths,axis=1)
 		
 		currencies = self.currency_strength.currencies
+		currency_map = {c:i for i,c in enumerate(currencies)}
 		
-		for ts, ranks in zip(trade_signals, rankings):
-			buy,sell = ts.instrument.split('/')[:2]
-			buy_rank = ranks[currencies.index(buy)]
-			sell_rank = ranks[currencies.index(sell)]
-			
-			#buy rank must be larger than sell rank if we are buying, and smaller if we are selling 
-			if ts.direction == TradeDirection.BUY and buy_rank > sell_rank - self.rank_diff:
-				filtered_signals.append(ts)
-			
-			if ts.direction == TradeDirection.SELL and sell_rank > buy_rank - self.rank_diff:
-				filtered_signals.append(ts)
 		
-		return filtered_signals
+		instrument_currencies = trade_signals['instrument'].str.split('/')
+		buy_currencies = instrument_currencies.map(lambda x : x[0])
+		sell_currencies = instrument_currencies.map(lambda x : x[1])
+		buy_rank_indexs = buy_currencies.map(currency_map)
+		sell_rank_indexs = sell_currencies.map(currency_map)
+		
+		trade_signal_indexs = np.arange(len(buy_rank_indexs))
+		
+		buy_rank = rankings[trade_signal_indexs, buy_rank_indexs]
+		sell_rank = rankings[trade_signal_indexs, sell_rank_indexs]
+		
+		buy_okay = (trade_signals['direction'] == TradeDirection.BUY) & (buy_rank > sell_rank - self.rank_diff)
+		sell_okay = (trade_signals['direction'] == TradeDirection.SELL) & (sell_rank > buy_rank - self.rank_diff)
+				
+		return trade_signals[buy_okay | sell_okay]
 		
 
 class CorrelationFilter(PartialIndicatorFilter):
@@ -345,12 +338,12 @@ class CorrelationFilter(PartialIndicatorFilter):
 		N = satisfactory[0].shape[0]
 		
 		prediction = 0
-		std = 0 #not in use?
+		standard_dev = 0 #not in use?
 		
 		if N > 0:
 			prediction = np.dot(slopes[satisfactory],movements[satisfactory]) / N 
 		
-		return N, prediction, std
+		return N, prediction, standard_dev
 		
 		
 	
@@ -367,22 +360,34 @@ class CorrelationFilter(PartialIndicatorFilter):
 		all_changes = chng._perform(np_candles) 
 		np_change_blocks = np.array(np.split(all_changes,len(trade_signals)))
 		
+		#pdb.set_trace()
+		
 		filtered_signals = []
 		
-		t1 = time.time()
-		for ts, changes in zip(trade_signals,np_change_blocks):
-			N, prediction, _  = self._get_correlation_result_for_signal(ts,changes)
-			if N > self.number_threshold and abs(prediction) > self.change_threshold:
-				if ts.direction == TradeDirection.SELL and prediction > 0:
-					continue #skip 
-				if ts.direction == TradeDirection.BUY and prediction < 0:
-					continue
-			
-			filtered_signals.append(ts) 
-			
-		print('time took '+str(time.time() - t1)+' seconds')
 		
-		return filtered_signals
+		N_list = []
+		prediction_list = []
+		for ts, changes in zip(trade_signals.itertuples(name='TradeSignal'),np_change_blocks):
+			N, prediction, standard_dev  = self._get_correlation_result_for_signal(ts,changes)
+			N_list.append(N)
+			prediction_list.append(prediction)
+		
+		Ns = np.array(N_list)
+		predictions = np.array(prediction_list)
+			
+		ok_prediction = (Ns > self.number_threshold) & (np.abs(predictions) > self.change_threshold)
+		
+		#sanity check 
+		#if N > self.number_threshold and abs(prediction) > self.change_threshold:
+		#	if ts.direction == TradeDirection.SELL and prediction > 0:
+		#		continue #skip 
+		#	if ts.direction == TradeDirection.BUY and prediction < 0:
+		#		continue
+		
+		buy_okay = ~ok_prediction | ((trade_signals['direction'] == TradeDirection.BUY) & (predictions > 0))
+		sell_okay = ~ok_prediction | ((trade_signals['direction'] == TradeDirection.SELL) & (predictions < 0))
+		
+		return trade_signals[buy_okay | sell_okay]
 	
 
 #class ForexClientStentimentWebFilter(InstanceTradeFilter):	 #web based 
