@@ -64,6 +64,7 @@ LogSetup() #think of how to rmeove this line
 
 #from tests.filter_tests import * 1
 #from tests.ai_filter_tests import *
+from tests.ai_train_test import *
 #from tests.advanced_filter_tests import *w
 #from tests.pandas_tests import *
  
@@ -107,8 +108,14 @@ LogSetup() #think of how to rmeove this line
 #if __name__ == "__main__":	
 #	run_test()
 #	run_one()
-	
-from tests.strategy_test import *
+
+
+
+#from tests.strategy_test import *
+#from tests.strategy_inference_test import *
+#from tests.strategy_inference_filters_test import *
+
+
 
 #AUD/CAD broke db query (no results?) - re-run this! - keep latest AUD/CAD files!
 #AUD/USD used wrong file so re-ran whole thing (check date in filename) 

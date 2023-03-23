@@ -11,8 +11,8 @@ from data.tools.cursor import Database
 
 from web.crawler import SeleniumHandler
 
---fixme
-from data.tools.candle_snatcher import CandleSnatcherDukascopy
+#--fixme
+from data.capture.candles import CandleSnatcherDukascopy
 from data.tools.prep import TimelineMerge 
 from data.tools.holefinder import HoleFinder
 
@@ -76,7 +76,7 @@ def run_test():
 	fx_pairs = lfr.read('fx_pairs/fx_mains.txt')
 	
 	#before_trades
-	date_start = datetime.now() - timedelta(days=1)
+	date_start = datetime.now() - timedelta(days=15)
 	date_end = datetime.now()
 	today_data_tasks = [{'instrument':fxp, 'date_from':date_start , 'date_to':date_end} for fxp in fx_pairs]
 	
@@ -105,7 +105,7 @@ def run_test():
 			
 		
 	#pdb.set_trace()
-	csd = CandleSnatcherDukascopy(4) 
+	csd = CandleSnatcherDukascopy(1) 
 	csd.perform(today_data_tasks)
 
 

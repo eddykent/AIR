@@ -20,12 +20,13 @@ def run_test():
 
 def run_one():
 	global snapshot
-	#with SeleniumHandler(hidden=False) as sh:
-	#	snap = LiveForexSignals(selenium_handler=sh)
-	#	snapshot.update(snap.crawl())
+	with SeleniumHandler(hidden=False) as sh:
+		snap = EToro(selenium_handler=sh)
+		snapshot.update(snap.crawl())
 	
-	#snap = FXLeaders()
+	#snap = DailyFXSR()  #ActionForexBias
 	#snapshot.update(snap.scrape())
 	
 	#pdb.set_trace()
+	
 	

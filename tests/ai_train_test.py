@@ -1,0 +1,142 @@
+
+##test for getting best inference values 
+import pickle
+import datetime
+
+from data.base.candles import CandleDataTool, PartialCandleDataTool
+from data.tools.cursor import Database
+
+from setups.setup_tools import PipStop
+
+from backtest import BackTesterCandles, BackTestStatistics, win_statuses
+
+from utils import ListFileReader
+
+from strategy.setup_search import ExhaustiveSearch, TriggerBlock, SetupBlock, SetupSearch, CombinationChoice, SignalShield
+import strategy.trigger_block_lists as tbl
+
+from filters.time_based import EconomicCalendarTool, EconomicCalendarFilter, PipSpreadFilter, TimeOfDayFilter
+
+from filters.trade_filter import FilterConfusionMatrix
+from filters.simple_filters import ForexSignalsAnchorBarFilter
+from filters.time_based import EconomicCalendarFilter
+from filters.meta_based import ClientSentimentFilter, FlatCorrelationFilter, CurrencyStrengthFilter, CurrencyStrengthOperator, CorrelationFilter
+
+from indicators.moving_average import EMA 
+from indicators.reversal import RSI
+
+import debugging.functs as dbf
+
+import pdb
+
+directory = './data/pickles/strats/'
+
+filenames = [
+	'backtest-35pip25-full_set(5)-20221003-20221105.pkl',
+	'backtest-35pip25-full_set(5)-20221010-20221112.pkl', #small loss
+	'backtest-35pip25-full_set(5)-20221017-20221119.pkl',#loss
+	'backtest-35pip25-full_set(5)-20221024-20221126.pkl', # win
+	'backtest-35pip25-full_set(5)-20221031-20221203.pkl', #loss
+	'backtest-35pip25-full_set(5)-20221230-20230127.pkl', #massive loss
+	'backtest-35pip25-full_set(5)-20230106-20230203.pkl', #win but some large neg numbers
+	'backtest-35pip25-full_set(5)-20230113-20230210.pkl', #loss
+	'backtest-35pip25-full_set(5)-20230120-20230217.pkl', #win
+	'backtest-35pip25-full_set(5)-20230127-20230224.pkl', #loss
+	'backtest-35pip25-full_set(5)-20221116-20230224.pkl', #longer
+	'backtest-35pip25-full_set(5)-20221019-20230127.pkl',
+	
+]
+filename = filenames[-1]   #3,5,6,7 is bad 
+
+
+filename_end_str = filename[-12:-4]
+test_period_before_start = datetime.datetime(int(filename_end_str[:4]),int(filename_end_str[4:6]),int(filename_end_str[6:]))
+train_period_end = test_period_before_start
+train_period_start = train_period_end - datetime.timedelta(days=7)
+#test_period_start = test_period_before_start + datetime.timedelta(days=2)
+#test_period_end = test_period_before_start + datetime.timedelta(days=7)
+
+
+trigger_block_func = tbl.full_set
+
+stop_tool = PipStop(take_profit_pips=35,stop_loss_pips=25)
+
+resolution = 15 #required for BT, not for strategy
+combination = 5  #3
+grace_period = 75 #enough?
+
+lfr = ListFileReader()
+currencies = lfr.read('fx_pairs/currencies.txt')
+fx_pairs = lfr.read('fx_pairs/fx_mains.txt')
+instruments = fx_pairs
+
+
+datatool = CandleDataTool() 
+datatool.start_date = train_period_start
+datatool.end_date = train_period_end
+#datatool.start_date = datetime(2022,12,16)
+#datatool.end_date = datetime(2022,12,23)
+datatool.instruments = instruments
+datatool.volumes = True
+datatool.grace_period = grace_period
+#datatool.ask_candles = True
+datatool.chart_resolution = resolution
+#datatool.candle_offset = 15
+
+
+dbf.stopwatch('fetch test candles')
+datatool.read_data_from_currencies(currencies)
+later_trade_signalling_data = datatool.get_trade_signalling_data()
+
+dbf.stopwatch('fetch test candles')
+
+datatool.backtesting = True 
+dbf.stopwatch('fetch bt test candles')
+datatool.read_data_from_currencies(currencies)
+later_backtesting_data = datatool.get_trade_signalling_data()
+
+dbf.stopwatch('fetch bt test candles')
+
+
+
+ect2 = EconomicCalendarTool(train_period_start,test_period_end)
+ecf2 = EconomicCalendarFilter(ect2.get_df())
+psf2 = PipSpreadFilter(later_backtesting_data) 
+tdf2 = TimeOfDayFilter()
+
+testing_filters = [ecf2, psf2, tdf2]
+
+btc = BackTesterCandles(later_backtesting_data)
+
+its2 = ExhaustiveSearch(combination)
+its2.trigger_blocks = trigger_block_func(later_trade_signalling_data)
+
+its2.stop_tool = stop_tool
+its2.filters = testing_filters
+
+
+backtest_result = None
+
+with open(directory+filename,'rb') as f:
+	backtest_result = pickle.load(f)
+	
+backtest_result_sub = backtest_result
+backtest_result_sub = backtest_result_sub[backtest_result_sub['N'] > 50]
+backtest_result_sub = backtest_result_sub[(backtest_result_sub['ratio'] >= 0.48) & (backtest_result_sub['ratio'] >= 0.51)]
+
+
+these_signals = its2.infer(later_trade_signalling_data,backtest_result_sub)
+
+sshield = SignalShield(later_trade_signalling_data)
+training_signals = sshield.get_signals(these_signals)
+
+btc = BackTesterCandles(later_backtesting_data)
+training_results = btc.perform(training_signals)
+
+
+
+
+
+
+
+

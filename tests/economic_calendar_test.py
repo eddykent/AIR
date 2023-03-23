@@ -1,22 +1,51 @@
 
-from data.capture.calendar import *
+import datetime
+import pickle
+import pdb
+
+from data.capture.calendars import *
+
 from web.crawler import SeleniumHandler
 
 
-##test monthly calendar updaters
 
-
-def run_one()
-	te = TradingEconomics()
-	
+events = []
 
 def run_test():
-	pass
+	cc = CalendarCollector()
+	date_from = datetime.datetime.now()
+	date_to = datetime.datetime.now()
+	events = cc.get_events(date_from, date_to)
+	
+	with open('data/pickles/eventslist.pkl','wb') as f:
+		pickle.dump(events,f)
+	#events = []
+	#with open('data/pickles/eventslist.pkl','rb') as f:
+	#	events = pickle.load(f)
+	#pdb.set_trace()
+	cc.put_to_database(events) 
+	
+
+def run_one():
 
 
+	month = datetime.datetime(2023,3,4)
 
-
-
-
-
-
+	events = []
+	with SeleniumHandler(hidden=False) as sh:
+		calendar = FXCO(selenium_handler=sh)
+		events = calendar.get_events(month)
+		
+	#calendar = FXCO()
+	#events = calendar.get_events(month)
+	
+	pdb.set_trace()
+	print('database?')
+	
+	cc = CalendarCollector()
+	cc.put_to_database(events) 
+	#calendar = TradingEconomics()
+	#events.extend(calendar.get_events(month))
+	
+	#pdb.set_trace()
+	

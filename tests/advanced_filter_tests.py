@@ -74,7 +74,7 @@ csf = CurrencyStrengthFilter(rsi,cso,ema,filter_data, partial_candles)
 crsf = CorrelationFilter(None,filter_data,partial_candles)
 clsf = ClientSentimentFilter(filter_data, partial_candles)
 
-filtered_signals  = csf.filter(signals)
+filtered_signals = csf.filter(signals)
 filtered_signals = clsf.filter(filtered_signals)
 filtered_signals = crsf.filter(filtered_signals)
 print(str(len(signals)) + ' -> ' + str(len(filtered_signals)))

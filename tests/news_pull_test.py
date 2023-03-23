@@ -7,6 +7,8 @@ import pdb
 
 from data.tools.cursor import Database
 
+from web.crawler import SeleniumHandler 
+
 from utils import ListFileReader
 
 import random
@@ -39,6 +41,9 @@ RSSFeedParser("https://www.forexcrunch.com/feed/"),
 RSSFeedParser("https://www.forexlive.com/feed/")
 ]
 
+fxcourls = [FXCOHeadlines.get_url(i) for i in range(5)] 
+actionfxurls = [ActionForexHeadlines.get_url(i) for i in range(5)]
+
 archive_urls = [
 dailyfxurl1,
 #dailyfxurl2,
@@ -47,7 +52,7 @@ dailyfxurl1,
 #fxstreeturl2,
 #fxstreeturl3,
 #fxstreeturl4
-] + fxstreeturls
+] + fxstreeturls + fxcourls + actionfxurls
 
 new_news_items = None
 
@@ -59,7 +64,7 @@ def run_test():
 	dkim = DirectKeywordInstrumentMap(fx_pairs=fx_pairs)
 	
 	news_item_processor = NewsItemProcessor(cur,dkim)
-	news_items = news_item_processor.prune_items(news_items)
+	news_items = news_item_processor.prune_items(news_items,return_all=True)
 	
 	#sample_items = random.sample([ni for ni in news_items if 'hotforex' not in ni['source_ref']],10) #remove hotforex news
 	
@@ -70,11 +75,26 @@ def run_test():
 	
 	
 def run_one():
-	from data.tools.newnews import FXStreet, DailyFXNews, ForexCrunch, ForexLive
-	fxstreet = FXStreet('https://www.fxstreet.com/news/gold-price-forecast-xau-usd-advances-on-its-path-toward-1830-on-soft-us-dollar-202302281709')
-	result = fxstreet.scrape()
+	#fxstreet = FXStreet('https://www.fxstreet.com/news/gold-price-forecast-xau-usd-advances-on-its-path-toward-1830-on-soft-us-dollar-202302281709')
+	#result = fxstreet.scrape()
+	#pdb.set_trace()
+	#print('check result')
+	#https://www.fx.co/en/analysis/314894
+	##data = None
+	#with SeleniumHandler(hidden=False) as sh:
+	#	fxco = FXCOHeadlines(sh,FXCOHeadlines.url)
+	#	data = fxco.crawl()
+	
+	#fxco = FXCO('https://www.fx.co/en/analysis/314894')
+	#actionforexheadlines = ActionForexHeadlines('https://www.actionforex.com/category/contributors/page/2')
+	actionforex = ActionForex('https://www.actionforex.com/contributors/fundamental-analysis/489210-usd-jpy-dips-as-tokyo-core-cpi-slows/')
+	result = actionforex.scrape()
+	
+	
 	pdb.set_trace()
-	print('check result')
+	print('check data')
+	
+	
 	
 
 #pdb.set_trace()
