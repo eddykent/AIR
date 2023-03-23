@@ -36,34 +36,34 @@ class CandleDataTool:
 		#period doesn't matter here 
 		self._dbcursor = cursor 
 	
-	def __get_days_back(self, grace_period): #n candlesticks to be useful and have RSI setup or whatever 
+	def __get_days_back(self): #n candlesticks to be useful and have RSI setup or whatever 
 		mins_in_day = 1440 
-		mins_before_start = self.chart_resolution * grace_period 
+		mins_before_start = self.chart_resolution * self.grace_period 
 		delta = self.end_date - self.start_date
 		days_back = delta.days + 1
 		days_back += int(mins_before_start / mins_in_day) + 1
-		days_back += int(delta.days/7) * 2   #buffer period 
-		days_back += 2
+		days_back += int(delta.days/7 * 5.2)  #buffer period account for weekends and bank hols
+		days_back += 5
 		return days_back
 	
-	def read_data_from_currencies(self,currencies,grace_period = 50):  #add soon for from instruments 
+	def read_data_from_currencies(self,currencies):  #add soon for from instruments 
 		
 		if self._dbcursor is not None:  #check is open?
-			self.__call_db_read_data_from_currencies(currencies,grace_period,self._dbcursor)
+			self.__call_db_read_data_from_currencies(currencies,self._dbcursor)
 		else:
 			with Database(cache=False,commit=False) as cursor:
-				self.__call_db_read_data_from_currencies(currencies,grace_period,cursor)
+				self.__call_db_read_data_from_currencies(currencies,cursor)
 	
-	def read_data_from_instruments(self,instruments,grace_period = 50):
+	def read_data_from_instruments(self,instruments):
 	
 		if self._dbcursor is not None:  #check is open?
-			self.__call_db_read_data_from_instruments(instruments,grace_period,self._dbcursor)
+			self.__call_db_read_data_from_instruments(instruments,self._dbcursor)
 		else:
 			with Database(cache=False,commit=False) as cursor:
-				self.__call_db_read_data_from_instruments(instruments,grace_period,cursor)
+				self.__call_db_read_data_from_instruments(instruments,cursor)
 	
-	def __call_db_read_data_from_currencies(self,currencies,grace_period,cursor):
-		days_back = self.__get_days_back(grace_period)
+	def __call_db_read_data_from_currencies(self,currencies,cursor):
+		days_back = self.__get_days_back()
 		composer = DataComposer(cursor,True) #.candles(params).call()...
 		if not self.backtesting:
 			composer.call('get_candles'+('_volumes_' if self.volumes else '_') + 'from_currencies',{
@@ -104,8 +104,8 @@ class CandleDataTool:
 			self._np_candles = np.stack([bidcandles,askcandles],axis=2)
 			self._timeline = candlesticks_pre.timeline[:,0] #this is a 2d array make it 1d
 	
-	def __call_db_read_data_from_instruments(self,instruments,grace_period,cursor):
-		days_back = self.__get_days_back(grace_period)
+	def __call_db_read_data_from_instruments(self,instruments,cursor):
+		days_back = self.__get_days_back()
 		composer = DataComposer(cursor,True) #.candles(params).call()...
 		if self.backtesting:
 			composer.call('get_candles'+('_volumes_' if self.volumes else '_') + 'from_instruments',{
