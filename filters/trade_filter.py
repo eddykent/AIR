@@ -33,7 +33,25 @@ class FilterConfusionMatrix:
 
 
 class TradeFilter:
-	pass #unsure what to put here. 
+	
+	
+	@staticmethod
+	def filter_any(filters, signals): #all?
+		signal_ids = signals['signal_id']
+		filters_results = [f.filter(signals) for f in filters]
+		isins = [signal_ids.isin(r['signal_id']) for r in filters_results]
+		passed = np.any(isins,axis=0)
+		return signals[passed]
+		
+	@staticmethod
+	def filter_all(filters, signals): #all?
+		signal_ids = signals['signal_id']
+		filters_results = [f.filter(signals) for f in filters]
+		isins = [signal_ids.isin(r['signal_id']) for r in filters_results]
+		passed = np.all(isins,axis=0)
+		return signals[passed]
+		
+	
 
  #abstract class for laying out a trade filter - attempt to stop "stupid" trades! Works with a single instance in time 
 class InstanceTradeFilter:
