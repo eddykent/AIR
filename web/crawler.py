@@ -382,22 +382,13 @@ class Crawler:
 				time.sleep(0.2) #keep trying every 5th of a second
 		raise ElementNotInteractableException(f"element not interactable, even after {time.time() - start} seconds.")
 			
-	def scroll_lazy_load(self,steps=10,by=1.5):
-		for repeat in range(steps//2):
-			time.sleep(0.51)#simulate mousewheel?
-			self.browser.execute_script("window.scrollTo(0,document.body.scrollHeight / 1.6);")
-			time.sleep(0.11)
-			self.browser.execute_script("window.scrollTo(0,document.body.scrollHeight / 1.5);")
-			time.sleep(0.11)
-			self.browser.execute_script("window.scrollTo(0,document.body.scrollHeight / 1.4);")
-			time.sleep(0.11)
-			self.browser.execute_script("window.scrollTo(0,document.body.scrollHeight / 1.3);")
-			time.sleep(0.11)
-			self.browser.execute_script("window.scrollTo(0,document.body.scrollHeight / 1.2);")
-			time.sleep(0.11)
-			self.browser.execute_script("window.scrollTo(0,document.body.scrollHeight / 1.1);")
-			time.sleep(0.11)
-			self.browser.execute_script("window.scrollTo(0,document.body.scrollHeight);")
+	def scroll_lazy_load(self,repeats=5,steps=10,wait=0.05):
+		for repeat in range(repeats):
+			time.sleep(0.1)#simulate mousewheel?
+			step = 1/steps 
+			for si in range(steps):
+				self.browser.execute_script(f"window.scrollTo(0,document.body.scrollHeight * {si*step});")
+				time.sleep(0.05)
 		
 		self.browser.execute_script("window.scrollTo(0,document.body.scrollHeight);")
 		time.sleep(1) #hopefully everything is loaded
