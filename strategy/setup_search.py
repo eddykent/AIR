@@ -4,9 +4,11 @@
 
 import itertools #going to want all combinations of iterators
 from collections import defaultdict
+from enum import Enum
 import numpy as np 
 import pandas as pd
 from tqdm import tqdm
+import uuid
 
 import pdb
 
@@ -14,7 +16,7 @@ import pdb
 from backtest import BackTesterCandles, BackTesterCache, BackTestStatistics
 from charting import candle_stick_functions as csf
 
-from setups.trade_setup import blank_result, TradeSetup
+from setups.trade_setup import blank_result, TradeSetup, TradeDirection
 from setups.setup_tools import Zero2OneTool
 from setups.collected_setups import Harmony, Trends, Shapes
 
@@ -24,7 +26,192 @@ from strategy.trigger_block_lists import moving_averages, chart_patterns, trends
 from utils import overrides 
 
 import debugging.functs as dbf
+
+
+def _len_func_try(x):
+	try:
+		return len(x)
+	except (ValueError,TypeError) as e:
+		return 1 #correct? 
+
+
+def is_pareto_efficient(costs, return_mask = True):
+	"""
+	Find the pareto-efficient points
+	:param costs: An (n_points, n_costs) array
+	:param return_mask: True to return a mask
+	:return: An array of indices of pareto-efficient points.
+		If return_mask is True, this will be an (n_points, ) boolean array
+		Otherwise it will be a (n_efficient_points, ) integer array of indices.
+	"""
+	is_efficient = np.arange(costs.shape[0])
+	n_points = costs.shape[0]
+	next_point_index = 0  # Next index in the is_efficient array to search for
+	while next_point_index<len(costs):
+		nondominated_point_mask = np.any(costs<costs[next_point_index], axis=1)
+		nondominated_point_mask[next_point_index] = True
+		is_efficient = is_efficient[nondominated_point_mask]  # Remove dominated points
+		costs = costs[nondominated_point_mask]
+		next_point_index = np.sum(nondominated_point_mask[:next_point_index])+1
+	if return_mask:
+		is_efficient_mask = np.zeros(n_points, dtype = bool)
+		is_efficient_mask[is_efficient] = True
+		return is_efficient_mask
+	else:
+		return is_efficient
+
+
+class SignalShieldMethod(Enum):
+	XOR_COLLECT = 1 # standard way - use mainly with same TP and SL as will use first values
+	DEMOCRATIC = 2 # combination way of thinking - (average?) TP and SL and go with more methods for BUY or SELL 
+	HIGH_SWAYED = 3 # democratic but diff is larger than 2 - use MAX TP and SL vals and only buy or sell for overwhelming majority 1.367
 	
+	
+#for removing duplicate signals and signals that conflict with eachother (eg signals that have the same instrument & entry times)
+class SignalShield:
+	
+	trade_signalling_data = None
+	method = SignalShieldMethod.XOR_COLLECT
+	
+	def __init__(self,trade_signalling_data):
+		self.trade_signalling_data = trade_signalling_data 
+		#if 
+	
+	def _build_shield(self,signals_df):	
+		signals_df = signals_df.copy()  #lose changes 
+		
+		#get the instrument indexs 
+		signals_df['instrument_index'] = self.trade_signalling_data.instrument_indexs(signals_df['instrument'])
+		
+		#get the timeline indexes
+		signals_df['timeline_index'] = self.trade_signalling_data.timeline_indexs(signals_df['the_date'])
+		
+		buys_df = signals_df[signals_df['direction'] == TradeDirection.BUY]
+		sells_df = signals_df[signals_df['direction'] == TradeDirection.SELL]
+		
+		buy_strategies_df = buys_df.groupby(['instrument','the_date'],as_index=False).agg(list)
+		sell_strategies_df = sells_df.groupby(['instrument','the_date'],as_index=False).agg(list)
+		
+		collected_df = pd.merge(buy_strategies_df,sell_strategies_df,on=['instrument','the_date'],how='outer',suffixes=['_buy','_sell'])
+		
+		return collected_df			
+		
+	
+	def xor_collect(self,collected_df):
+		return_df = pd.DataFrame([]) #build this 
+		
+		first_func = lambda x : x[0] if x else None
+		len_func = _len_func_try
+		catter = lambda xs : '\n'.join(xs)
+		new_guid = lambda x : str(uuid.uuid4())
+		
+		winnng_df = pd.DataFrame([])
+		winning_df_buys = collected_df[pd.isna(collected_df['strategy_ref_sell'])]#xor bit
+		winning_df_sells = collected_df[pd.isna(collected_df['strategy_ref_buy'])]
+		
+		winning_buys = pd.DataFrame([])
+		winning_sells = pd.DataFrame([])
+		
+		winning_buys['instrument'] = winning_df_buys['instrument']
+		winning_buys['the_date'] = winning_df_buys['the_date']
+		winning_buys['strategy_ref'] = winning_df_buys['strategy_ref_buy'].apply(catter) ##collect all the strategy refs 
+		winning_buys['direction'] = TradeDirection.BUY
+		winning_buys['entry'] = winning_df_buys['entry_buy'].apply(first_func)
+		winning_buys['entry_cut'] = winning_df_buys['entry_cut_buy'].apply(first_func)
+		winning_buys['entry_expire'] = winning_df_buys['entry_expire_buy'].apply(first_func)
+		winning_buys['take_profit_distance'] = winning_df_buys['take_profit_distance_buy'].apply(first_func)
+		winning_buys['stop_loss_distance'] = winning_df_buys['stop_loss_distance_buy'].apply(first_func)
+		winning_buys['length'] = winning_df_buys['length_buy'].apply(first_func)
+		winning_buys['signal_id'] = winning_df_buys['signal_id_buy'].apply(new_guid)
+		
+		winning_sells['instrument'] = winning_df_sells['instrument']
+		winning_sells['the_date'] = winning_df_sells['the_date']
+		winning_sells['strategy_ref'] = winning_df_sells['strategy_ref_sell'].apply(catter) ##collect all the strategy refs 
+		winning_sells['direction'] = TradeDirection.BUY
+		winning_sells['entry'] = winning_df_sells['entry_sell'].apply(first_func)
+		winning_sells['entry_cut'] = winning_df_sells['entry_cut_sell'].apply(first_func)
+		winning_sells['entry_expire'] = winning_df_sells['entry_expire_sell'].apply(first_func)
+		winning_sells['take_profit_distance'] = winning_df_sells['take_profit_distance_sell'].apply(first_func)
+		winning_sells['stop_loss_distance'] = winning_df_sells['stop_loss_distance_sell'].apply(first_func)
+		winning_sells['length'] = winning_df_sells['length_sell'].apply(first_func)
+		winning_sells['signal_id'] = winning_df_sells['signal_id_sell'].apply(new_guid)
+		
+		#pdb.set_trace()
+		return_df = return_df.append(winning_buys)
+		return_df = return_df.append(winning_sells)
+		
+		return return_df
+	
+	def democratic(self,collected_df):
+		
+		return_df = pd.DataFrame([]) #build this 
+		
+		first_func = lambda x : x[0] if x else None
+		len_func = _len_func_try
+		catter = lambda xs : '\n'.join(xs)
+		new_guid = lambda x : str(uuid.uuid4())
+		
+		winnng_df = pd.DataFrame([])
+		collected_df['n_buys'] = collected_df['strategy_ref_buy'].str.len().fillna(0)
+		collected_df['n_sells'] = collected_df['strategy_ref_sell'].str.len().fillna(0)
+		
+		winning_df_buys = collected_df[collected_df['n_buys'] > collected_df['n_sells']]
+		winning_df_sells = collected_df[collected_df['n_sells'] > collected_df['n_buys']]
+		
+		winning_buys = pd.DataFrame([])
+		winning_sells = pd.DataFrame([])
+		
+		winning_buys['instrument'] = winning_df_buys['instrument']
+		winning_buys['the_date'] = winning_df_buys['the_date']
+		winning_buys['strategy_ref'] = winning_df_buys['strategy_ref_buy'].apply(catter) ##collect all the strategy refs 
+		winning_buys['direction'] = TradeDirection.BUY
+		winning_buys['entry'] = winning_df_buys['entry_buy'].apply(first_func)
+		winning_buys['entry_cut'] = winning_df_buys['entry_cut_buy'].apply(first_func)
+		winning_buys['entry_expire'] = winning_df_buys['entry_expire_buy'].apply(first_func)
+		winning_buys['take_profit_distance'] = winning_df_buys['take_profit_distance_buy'].apply(first_func)
+		winning_buys['stop_loss_distance'] = winning_df_buys['stop_loss_distance_buy'].apply(first_func)
+		winning_buys['length'] = winning_df_buys['length_buy'].apply(first_func)
+		winning_buys['signal_id'] = winning_df_buys['signal_id_buy'].apply(new_guid)
+		
+		winning_sells['instrument'] = winning_df_sells['instrument']
+		winning_sells['the_date'] = winning_df_sells['the_date']
+		winning_sells['strategy_ref'] = winning_df_sells['strategy_ref_sell'].apply(catter) ##collect all the strategy refs 
+		winning_sells['direction'] = TradeDirection.BUY
+		winning_sells['entry'] = winning_df_sells['entry_sell'].apply(first_func)
+		winning_sells['entry_cut'] = winning_df_sells['entry_cut_sell'].apply(first_func)
+		winning_sells['entry_expire'] = winning_df_sells['entry_expire_sell'].apply(first_func)
+		winning_sells['take_profit_distance'] = winning_df_sells['take_profit_distance_sell'].apply(first_func)
+		winning_sells['stop_loss_distance'] = winning_df_sells['stop_loss_distance_sell'].apply(first_func)
+		winning_sells['length'] = winning_df_sells['length_sell'].apply(first_func)
+		winning_sells['signal_id'] = winning_df_sells['signal_id_sell'].apply(new_guid)
+		
+		#pdb.set_trace()
+		return_df = return_df.append(winning_buys)
+		return_df = return_df.append(winning_sells)
+		return return_df
+	
+	def high_sway(self,collected_df):
+		collected_df
+		
+	def get_signals(self,signals_df):
+		shield = self._build_shield(signals_df)
+		
+		collected_signals_df = pd.DataFrame([])
+		
+		if self.method == SignalShieldMethod.XOR_COLLECT:
+			collected_signals_df = self.xor_collect(shield)
+			
+		elif self.method == SignalShieldMethod.DEMOCRATIC: #take average stops and go with higher votes for buy/sell
+			collected_signals_df = self.democratic(shield)
+		
+		elif self.method == SignalShieldMethod.HIGH_SWAYED: #take max stops and go with overly favoured buy/sell (eg 3 apart)
+			collected_signals_df = self.high_sway(shield)
+		
+		else:
+			raise NotImplementedError(f"Unknown method {self.method}.")
+		
+		return collected_signals_df
+
 class SignalGenerator:
 	
 	#from an infer_bubble (a hint from previous training) create signals from trade_signalling_data
@@ -58,7 +245,6 @@ class SignalGenerator:
 		trade_signalling_data.bearish.stop_loss_distances = bearish_sl
 		
 		return TradeSetup.make_trade_signals(trade_signalling_data)
-
 
 
 
@@ -136,23 +322,75 @@ class SetupSearch(SignalGenerator):
 	
 
 		
-#class CombinationCutter #consider for handling the pruning of combinations 
+#class CombinationCutter #consider separate class for handling the pruning of combinations 
+class CombinationChoice: #class for chosing best combinations from backtest results 
+	
+	
+	#def __init__(self):
+	#	#self.backtest_results_df = backtest_results_df
+	
+	def get_choice(self, backtest_results_df):
+		suggestions = self.backtest_results_df[backtest_results_df['objective_value'] > 0]
+		suggestions.sort_values('objective_value',ascending=False)
+		return suggestions.head(250)
+	
+	def apply_bounds(self, backtest_results_df, ratio=0.5, nlb=10, nhb=0, streak_diff=5):
+		good_ratio = backtest_results_df['ratio'] >= ratio
+		good_n = backtest_results_df['N'] >= nlb
+		good_n = good_n & (backtest_results_df['N'] <= nhb) if nhb > 0 else good_n
+		streak_control = True
+		if type(streak_diff) == int: 
+			streak_control = backtest_results_df['win_streak'] > backtest_results_df['lose_streak'] + streak_diff
+		return backtest_results_df[good_ratio & good_n & streak_control]
+		
+	
+	def get_pareto_optimals(self,backtest_results_df): #use passed param instead?
+		#set up costs here 
+		#pdb.set_trace()
+		#ratio, lose streak, n trades, trade duration, output balance, 
+		
+		costs = np.zeros((len(backtest_results_df),5))
+		costs[:,0] = -backtest_results_df['ratio'].to_numpy()
+		costs[:,1] = -backtest_results_df['N']
+		costs[:,2] = backtest_results_df['lose_streak']
+		costs[:,3] = -backtest_results_df['output_balance']
+		costs[:,4] = backtest_results_df['average_duration']
+		
+		mask = is_pareto_efficient(costs)
+		return backtest_results_df[mask]
+	
+	def get_top_each(self, backtest_results_df, top=10):
+		#pdb.set_trace()
+		instruments = backtest_results_df['instrument'].unique()
+		result_dfs = []
+		#backtest_sorted_df = backtest_results_df.sort_values(by=['output_balance'],ascending=False)
+		
+		for instrument in instruments:
+			backtest_instrument_df = backtest_results_df[backtest_results_df['instrument'] == instrument]
+			result_dfs.append(backtest_instrument_df.sort_values(by=['output_balance'],ascending=False).head(top))
+	
+		result_df = pd.concat(result_dfs)
+		return result_df	
+			
 
 #used to iterate and find best settings/indicators to use for a signal provider. train and test modes 
 #have an aggregate mode - get only the top winners then collect signals together by instrument & time 
 class ExhaustiveSearch(SignalGenerator):  
 	
 	trigger_blocks = [] 
-	stop_tool = []
+	stop_tool = None
 	N = 3 #number of indicators to combine
 	likeness = 1.0 #try 0.99   (any value > 1 means don't prune. 1.0 means exact matches only 
 	cache_backtests = False # seems caching is slower
+	
+	max_trades_per_day = 5 #use for upper bound on backtesting signals 
 	
 	filters = []
 	
 	#calculated values (for pruning the search)
 	_ignored_triggers = [] 
 	_invalid_trigger_pairs = []
+	
 	
 	
 	def __init__(self, N = 3):
@@ -168,6 +406,7 @@ class ExhaustiveSearch(SignalGenerator):
 		
 		full_results = self.try_all_combinations(all_trigger_results,trade_signalling_data, backtesting_data)
 		return self.set_objective_value(full_results) #pass an objective function if there is one 
+
 	
 	#return signals!
 	@overrides(SignalGenerator)
@@ -197,23 +436,20 @@ class ExhaustiveSearch(SignalGenerator):
 		keep_combinations = infer_df[['combination','instrument']].copy()
 		keep_combinations['key'] = keep_combinations['combination'].astype(str)
 		trigger_results = self.run_triggers(trade_signalling_data,np.where(used_indicators)[0])
-		
-		stop_op = self.stop_operators[0]#work out how to do this with multiple stop tools 
-		stop_data = stop_op.get_stops(trade_signalling_data)
-		
+				
 		#pdb.set_trace()
 		#pdb.set_trace()
 		run_combs = np.unique(combs,axis=0)
-		all_signals = self.get_signals(trigger_results, trade_signalling_data, stop_data,run_combs)
+		#pdb.set_trace()
+		all_signals = self.get_signals(trigger_results, trade_signalling_data, run_combs)
 	
-		print('fix this to use with dataframes')
 		return_signals = pd.DataFrame([])
 		
 		keys = [str(list(comb)) for comb in run_combs] #match up with astype(str) from DF above 
 		for this_key, signals in zip(keys,all_signals):
 			keep_instruments = keep_combinations[keep_combinations['key'] == this_key]['instrument']
 			return_signals = return_signals.append(signals[signals['instrument'].isin(keep_instruments)])
-			
+		
 		return return_signals
 			
 	
@@ -387,14 +623,18 @@ class ExhaustiveSearch(SignalGenerator):
 		
 		#pdb.set_trace() 
 		#signals_ns = [len(signals) for signals in all_signals]
+		n_days = abs((trade_signalling_data.timeline[-1] - trade_signalling_data.timeline[0]).days)
+		n_trading_days = n_days * (5/7)
+		n_instruments = len(trade_signalling_data.instruments)
 		
+		n_signals_ub = max(n_trading_days,1) * n_instruments * self.max_trades_per_day
 		
 		dbf.stopwatch('backtest all signals')
 		for comb,signals in tqdm(list(zip(pruned_comb,all_signals))):
 			
 			n_signals = len(signals.index)
 			
-			if 0 < n_signals < 1500: ##TODO calc for: ~1000 / month?
+			if 0 < n_signals < n_signals_ub:
 				results = backtester_cache.perform(signals)
 				statstool = BackTestStatistics(backtesting_data,signals,results)
 				result_df = statstool.calculate()  #add to pile for sorting 
