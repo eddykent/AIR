@@ -575,9 +575,9 @@ class NewsHeadlineWorker(ProcessWorker):
 			matched = True
 		
 		if archive_url.startswith("https://www.actionforex.com/"):
-			actionforexheadlines = ActionForexHeadlines(archive_ur)
-			news_item += actionforexheadlines.scrape()
-			match = True
+			actionforexheadlines = ActionForexHeadlines(archive_url)
+			news_items += actionforexheadlines.scrape()
+			matched = True
 		
 		if not matched:
 			log.warning(f"News archive URL {archive_url} did not match any of the archive classes")

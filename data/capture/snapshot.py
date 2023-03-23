@@ -629,7 +629,7 @@ class ForexFactory(SnapshotCrawler):
 					}
 					return_data.append(recent_trade)
 				except Exception as e:
-					pdb.set_trace()
+					#pdb.set_trace()
 					print('err occ')
 		return return_data
 			
@@ -681,8 +681,7 @@ class ForexFactory(SnapshotCrawler):
 		for trader_info in return_list:
 			link = trader_info['link'] 
 			
-			#NEED TO WORK OUT HOW TO GET HIDDEN MODE WORKING 
-			hidden = self.selenium_handler.hidden
+			hidden = self.selenium_handler.hiddenn  #why not use same selenium_handler?
 			with SeleniumHandler(hidden=hidden) as sh:  
 				ffum = ForexFactoryUsers(sh,link)
 				trader_info['details'] = ffum.crawl()	
@@ -708,7 +707,109 @@ class ForexFactory(SnapshotCrawler):
 		return result
 	
 
-#class EToroUserStats(SnapshotCrawler):
+
+
+
+##etoro copy trading facilities
+class EToroUserStats(Crawler):
+	
+	def get_performance_monthly(self,html):
+		performancebits = html.cssselect("div.performance-chart-info")
+		performance_monthly = [] 
+		for pbr in performance_bits[:2]:
+			month_values = list(mvs.strip() for mvs in pbr.itertext())
+			month_values.reverse()
+			year = int(month_values[0])
+			months = list(range(1,13))
+			for m,mv in zip(month_values[1:-1], months):
+				if not mv:
+					continue
+				the_date = datetime.datetime(year,m,1)
+				value = safe_float(mv)
+				performance_monthly.append({'month':the_date,'return':value})
+		return performance_monthly
+			
+	
+	def get_trade_stats(self,html):
+		trading_summary = html.cssselect("div.performance-trads-details-list")
+		n_trades = html.cssselect("div.performance-num")
+		avg_profit = html.xpath("//span[@automation-id='cd-user-stats-performance-trading-average-profit']")
+		avg_loss = html.xpath("//span[@automation-id='cd-user-stats-performance-trading-average-loss']")
+		
+		stats = {} 
+		if n_trades:
+			stats['n_trades'] = safe_int(n_trades[0].text)
+		if avg_profit:
+			stats['average_profit'] = safe_float(''.join(avg_profit[0].itertext()))
+		if avg_loss:
+			stats['average_loss'] = safe_float(''.join(avg_loss[0].itertext()))
+		
+		if trading_summary:
+			summaries = []
+			markets = trading_summary[0].cssselect('div.details')
+			for market in markets:
+				[name, valstr] = list(market.itertext())[:2]
+				summaries.append({'name':name.lower(),'percent': safe_float(valstr)})
+			stats['markets'] = summaries
+		return stats
+				
+	def get_frequent_traded(self,html):
+		frequently_traded = [] 
+		trade_rows = html.cssselect(".performance-trads-frequently .top-trade-row")
+		for trade_row in trade_rows:
+			instrument = trade_row.xpath(".//span[@class='user-nickname']/text()")
+			instrument = instrument[0] if instrument else None
+			
+			if not instrument:
+				continue
+			
+			trade_stat = {'instrument':instrument} 
+			percent_traded = trade_row.xpath(".//div[@class='top-trade-topic']/text()")
+			trade_stat['percent_traded'] = safe_float(percent_traded[0]) if percent_traded else None
+			
+			avg_profit = trade_row.xpath(".//span[@class='positive']/text()")
+			trade_stat['average_profit'] = safe_float(avg_profit[0]) if avg_profit else None
+			
+			avg_loss = trade_row.xpath(".//span[@class='negative']/text()")
+			trade_stat['average_loss'] = safe_float(avg_loss[0]) if avg_loss else None
+			
+			profitable = trade_row.xpath(".//span[@class='top-trade-profit-procent']/text()")
+			trade_stat['profitable'] = safe_float(profitable[0]) if profitable else None
+			
+			frequently_traded.append(trade_stat)
+		
+		return frequent_traded
+
+	
+	def get_additional_stats(self,html):
+		
+		additionals = html.xpath("//*[@class='stats-user-additiona-wrapp']//div[@class='top-trade-colum']//span[@class='top-trade-profit-procent']/text()")
+		additional = {}
+		if len(additionals) >= 4:
+			tpw,hts,ass,pws = additionals[:4]
+			additional['trades_per_week'] = safe_float(tpw)
+			additional['profitable_weeks'] = safe_float(pws)
+			additional['average_holding_time'] = hts.lower() #consider parsing
+			additional['trading_since'] = datetime.datetime.strptime(ass,"%m/%d/%y")
+			
+		return additional
+		
+	
+	def crawl(self):	
+		time.sleep(5)
+		html = lxml.etree.HTML(self.browser.page_source)	
+		pdb.set_trace()
+		stats = {}
+		print('get user details')
+		
+		stats['performance_monthly'] = self.get_performance_monthly(html)
+		stats['trading_profile'] = self.get_trade_stats(html)
+		stats['frequent_traded'] = self.get_frequent_traded(html)
+		stats['averages'] = self.get_additional_stats(html)
+		return stats
+		
+		
+#grab trades 
 #class EToroUserPortfolio(SnapshotCrawler):
 
 
@@ -726,9 +827,8 @@ class EToro(SnapshotCrawler):
 		table_rows = html.xpath(".//div[contains(@class,'et-table-body') and @automation-id='table-list']/div[contains(@class,'et-table-row')]")
 		
 		traders = [] 
-		pdb.set_trace() 
 		for table_row in table_rows:
-			pdb.set_trace() 
+			#pdb.set_trace() 
 			username_l = table_row.xpath(".//div[@class='user-nickname']/text()")
 			link_l = table_row.xpath(".//a[contains(@class,'et-table-user-info')]/@href")
 			country_l = table_row.xpath(".//span[@automation-id='discover-people-results-list-item-country']/text()")
@@ -751,8 +851,17 @@ class EToro(SnapshotCrawler):
 				trader_details['weekly_drawdown'] = safe_float(wdd)
 			trader_details['risk_score'] = safe_int(re.sub('[^0-9]','',risk_score_l[0]))
 			
-			#open the links and get the info
+			hidden = self.selenium_handler.hidden
+			if 'stats_link' in trader_details:
+				with SeleniumHandler(hidden=hidden) as sh:  #why not use same selenium_handler after all traders grabbed?
+					etus = EToroUserStats(sh,trader_details['stats_link'])
+					trader_details['statistics'] = etus.crawl()	
 			
+			if 'portfolio_link' in trader_details:
+				with SeleniumHandler(hidden=hidden) as sh:  
+					etup = EToroUserPortfolio(sh,trader_details['portfolio_link'])
+					trader_details['portfolio'] = etup.crawl()	
+						
 			traders.append(trader_details)
 			
 		#get top 10 links 
@@ -1012,8 +1121,6 @@ class DailyFXSR(SnapshotScraper):
 			
 			levels = []
 			level_boxes = sr_box.cssselect("div.dfx-supportResistanceBlock__valueRow")
-			
-			pdb.set_trace()
 			
 			for level_box in level_boxes:
 				name_box = level_box.cssselect("span.dfx-supportResistanceBlock__valueName")
@@ -1374,7 +1481,6 @@ class MarketSnapshot:
 		#now group all together (avoiding any dict that has an 'error' value) 
 		##snapshot = { ssk:ssv for (ssk,ssv) in snapshot_results if ssv['category'] != 'ERROR'}
 		snapshot = {}
-		pdb.set_trace()
 		for (k, snapshot_result) in snapshot_results: #remove element key
 			try:
 				snapshot_ref = self._snapshot_ref(snapshot_result['url'])

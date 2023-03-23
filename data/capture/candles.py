@@ -56,7 +56,8 @@ class DataWorker():
 	
 	credentials = None
 	dukascopy = None
-	selenium_handle = None
+	hidden = True
+	selenium_handler = None
 	max_attempts = 5
 	#browser_threads = None
 	
@@ -71,12 +72,12 @@ class DataWorker():
 		self.task_queue = task_queue
 	
 	def reset_browser(self,cursor):
-		self.selenium_handle.finish()
+		self.selenium_handler.finish()
 					
-		self.selenium_handle = SeleniumHandler(hidden=hidden) #hidden=True?, proxy=? 45.79.110.81
-		self.selenium_handle.start() 	
+		self.selenium_handler = SeleniumHandler(hidden=self.hidden) #hidden=True?, proxy=? 45.79.110.81
+		self.selenium_handler.start() 	
 		
-		self.dukascopy = Dukascopy(selenium_handle,
+		self.dukascopy = Dukascopy(self.selenium_handler,
 			credentials=self.credentials,
 			cursor=cursor)
 		self.dukascopy.begin()
@@ -85,14 +86,14 @@ class DataWorker():
 		
 		#need proxy! 
 		#need to be headless! (caused file system issues)
-		hidden = True
+		#hidden = True
 		cursor = Database(commit=True, cache=False)
-		self.selenium_handle = SeleniumHandler(hidden=hidden) #hidden=True?, proxy=? 45.79.110.81
-		self.selenium_handle.start() 	
+		self.selenium_handler = SeleniumHandler(hidden=self.hidden) #hidden=True?, proxy=? 45.79.110.81
+		self.selenium_handler.start() 	
 		
 		task_counter = 0
 		
-		self.dukascopy = Dukascopy(selenium_handle,
+		self.dukascopy = Dukascopy(self.selenium_handler,
 			credentials=self.credentials,
 			cursor=cursor)
 		self.dukascopy.begin()
@@ -142,7 +143,7 @@ class DataWorker():
 				task_counter = 0
 		
 		cursor.close()
-		self.selenium_handle.finish()
+		self.selenium_handler.finish()
 	
 	#get the instrument and dates from task. Run web crawler and get data
 	#if there are rectify tasks to fix errors and we have only attempted a few times, 
