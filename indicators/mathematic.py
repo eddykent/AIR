@@ -79,7 +79,13 @@ class FourierGradient(Indicator):
 #	def _perform(self,np_candles):
 #
 #
-
+#
+#class MarkovRegimes 
+#	eg:	statsmodels.api.tsa.MarkovRegression(endog=prices_percent_change,k_regimes=2,trend='c',switching_variance=True)
+#
+#
+#class StatsTest?
+#
 
 
 
