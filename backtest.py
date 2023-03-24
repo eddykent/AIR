@@ -62,6 +62,9 @@ class PercentPathType(Enum):
 	TYPICAL = 0
 	OPTIMISTIC = 1
 
+
+
+
 #tool for finding conversion rates between currencies for when trading anything on eg the US the stock market, or for trading forex 
 class ExchangeRateTool:
 	
