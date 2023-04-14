@@ -21,6 +21,13 @@ Currency Strength apply new RNN in PRD to create trading filters
 
 choppy index
 
+finish refactor - done
+economin calendars - tradingeconomics (use API & add currency), dailyfx - done
+misc - dailyfx support&resistance - done
+misc - forexfactory interest rates
+
+
+
 RSS Reader - create filter based on recent news feeds about any pairs or currencies. This incorps fundamentals to decisions 
 
 Added offset value to database queries for 4h and for intra-hour trades if we ever want to run the algorithm at any time 
@@ -224,6 +231,52 @@ TURN is_tutorial INTO A RATE BASED, NOT COUNT BASED THING?-- might not be that i
 
 (FIXED) currency_strength_diff_auto_regression_rsi.sql is not producing enough rows to run in database_tests.py
 	--this didnt work well anyway!
+
+
+finish signal generator - done
+	- divergence and other stuff in the trigger block lists - done
+	- "fast" signal filters eg economic calendar stuff (cache events first) - done
+	- caching economic calendar filter & time filter etc  to np/pd for better speed (pre-filter masking) - done
+	- multi-week tests (how to avoid overfitting?) - run once backtest opt done and data clean done (can still code it ready) - done
+
+backtest optimistation - done
+	- change backtester (and sql), trade_setup & stats tools to use dataframes not list(namedtuple) - done
+	- use timeline.get_indexer from pandas for faster backtesting - done
+	- check entry and exit times & values again to make sure correct - done (saw on chart too!)
+	- infer bugs (not using df properly, using lists) - done 
+	- caching bt results in setup_search training for potential speed increase - done (was slower!) 
+	- vectorize the combs pruning process in setup_search - abandoned (not a bottleneck) 
+	- max of 3 in islands for more pruning - done
+
+
+dukascopy 
+	improvements:
+		- dont click tomorrows date (causes stack overflow!) - done
+		- reset every few tasks (0 = dont reset) - done
+		- merge data with database (check errors against table and remove anything that exists) - done
+	bugs: 
+		sql error "Open,High,Low..." etc (possible dataframe header issue) - ? find and fix 
+
+
+data grabbing, fixing and cleaning
+	- hole finder tool, monthly - done 
+	- merge timelines tool - done
+	- dukascopy better file selecting & gui date precision - done (run again later to find problems)
+	- news stories label with their relevant tickers & full url as id - redo into new table without annoying compression! - done
+	- clean up news grabbing tools to get only new news (make them add url id & relevant keys)  - done
+	- refactor news grabbing things and put in data folder - done
+	- put candle tools & misc in data folder - move CandleDataTool and PartialCandleDataTools? - done
+	- economic calendar(s)! refactor tradingeconomics to use soup for speed then put into a worker for multi-grab tool  -done
+	- make final data_pull script for multi-grab - multi process of all the data capture tools 
+
+
+
+
+
+
+
+
+
 
 dukascopy web scraper hangs on some stuff when inputting instrument
 
