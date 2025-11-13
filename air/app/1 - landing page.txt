@@ -1,0 +1,7 @@
+latest signals 
+latest news stories
+running generators & filters
+historic signals timeline viewer
+anomalies in any indicators? 
+anything else?  
+broker balance & running signals

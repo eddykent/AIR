@@ -1,0 +1,2 @@
+These are small python snippets that are not related to the project yet they help get the more recent data from online sources
+The database needs to be set up for these to work, but the project does not have to run. 

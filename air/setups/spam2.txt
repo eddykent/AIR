@@ -1,0 +1,82 @@
+./backtest.py:17:from setups.signal import TradeDirection, TradeSignal, TradeExitSignal, TradeSignallingData
+./backtest.py:30:       #CUT = -5 #the signal is cut if there was an expire_cut price that was hit before the entry price.
+./backtest.py:607:      exit_per_entry = False # if true, every entry signal also has an exit signal (speeds up the backtest)
+./backtest.py:630:                      The list of results (one per trade signal) of what happened with that trade
+./backtest.py:930:              #find the earliest exit signal date for non-nan rows
+./backtest.py:950:              ##finally, use the earliest exit signal datetimes to get the timeline indexs
+./filters/meta_based.py:46:#need to figure a way to improve this using partial candles & scipy.signal.correlate
+./filters/meta_based.py:328:            this_change_string = changes[ii,-self.correlation_length:,0] #the changes specificly for this signal
+./filters/simple_filters.py:15:#for use with the crappy forex signal strat
+./filters/time_based.py:111:##filter that stops any trade signal that has a particular time of day (eg 10pm to 10:30pm where the spreads are fucking wild) to stop trades
+./filters/trade_filter.py:117:#uses partial candles that can be gathered for every signal from the database
+./filters/trade_filter.py:277:          assert callable(lambda_function) , 'LambdaSelectFilter requires a function that maps a trade signal to bool'
+./fundamental.py:276:#their text is then passed into this tool for further clarification. Is the story actually a buy/sell signal? Is it relevant?
+./fundamental.py:331:   #determine if a passage of text is actually a trading signal
+./fundamental.py:333:           #add to these as we discover more indicators that the text might be a signal
+./setups/setup_tools.py:17:import scipy.signal
+./setups/setup_tools.py:19:from setups.signal import * #anyting signal data related
+./setups/setup_tools.py:106:#class ExpireTool #if an underlying signal (one used within a trigger) has been showing too long, expire after x candles
+./setups/setup_tools.py:125:            'max':scipy.signal.argrelmax,
+./setups/setup_tools.py:126:            'min':scipy.signal.argrelmin
+./setups/setup_tools.py:220:            price_peaks = self.get_extremes(price_action_windows,self.order,scipy.signal.argrelmax)
+./setups/setup_tools.py:221:            momentum_peaks = self.get_extremes(momentum_windows,self.order,scipy.signal.argrelmax)
+./setups/setup_tools.py:223:            price_pits = self.get_extremes(price_action_windows,self.order,scipy.signal.argrelmin)
+./setups/setup_tools.py:224:            momentum_pits = self.get_extremes(momentum_windows,self.order,scipy.signal.argrelmin)
+./setups/setup_tools.py:277:#eg get macd and signal line, get their diff (macd - signal) then this.markup(diff) gives bullish and bearish crossovers
+./setups/signal.py:45:  signal_id = None #signal id to refer specifically to this signal
+./setups/signal.py:46:  the_date = None   #datetime - the time the signal was created
+./setups/signal.py:52:  entry_cut = None #cut the signal if the price goes in opposite direction and hits this value
+./setups/signal.py:53:  entry_expire = 120 # expire the signal if entry price is not hit  (default 2 hours)
+./setups/signal.py:143: this exit signal strategy_ref, instrument and direction should be closed
+./setups/signal.py:147: exit_signal_id  = None #a unique id for referring to this specific exit signal
+./setups/signal.py:188:         exit_signal.signal_notes = 'fake exit signal to get the backtester query to work'
+./setups/trader_dna.py:152:     #macd crosses up above signal then
+./setups/trader_dna.py:177:             macd_bullish = macd_result[:,:,0] > macd_result[:,:,1] #macd line > signal line
+./setups/trader_dna.py:182:             #triger2 - macd crosses signal
+./setups/trader_dna.py:211:     #macd > signal line & both macd and signal going upwards
+./setups/trade_pro.py:54:               #macd & signal > 0 for bearish (<0 for bullish)
+./setups/trade_pro.py:232:              #macd #macd cross signal/macd & need to be > 0 for long & < 0 for short
+./setups/trade_setup.py:8:import scipy.signal
+./setups/trade_setup.py:24:from setups.signal import *
+./setups/trade_setup.py:87:             for signal in signals:
+./setups/trade_setup.py:88:                     if signal.instrument == self.instrument:
+./setups/trade_setup.py:90:                             ii = tsd.instrument_index(signal.instrument)
+./setups/trade_setup.py:91:                             ti = tsd.closest_time_index(signal.the_date)
+./setups/trade_setup.py:93:                             entry_line = signal.entry if signal.entry else np_candles[ii,ti,csf.open]
+./setups/trade_setup.py:97:                             if signal.direction == TradeDirection.BUY:
+./setups/trade_setup.py:98:                                     tp_line += signal.take_profit_distance
+./setups/trade_setup.py:99:                                     sl_line -= signal.stop_loss_distance
+./setups/trade_setup.py:101:                            if signal.direction == TradeDirection.SELL:
+./setups/trade_setup.py:102:                                    tp_line -= signal.take_profit_distance
+./setups/trade_setup.py:103:                                    sl_line += signal.stop_loss_distance
+./setups/trade_setup.py:139:                    signal = signal_dict.get(br.signal_id)
+./setups/trade_setup.py:141:                    if signal is None:
+./setups/trade_setup.py:144:                    if signal.instrument != self.instrument:
+./setups/trade_setup.py:155:                    if signal.direction == TradeDirection.BUY:
+./setups/trade_setup.py:156:                            tp_line += signal.take_profit_distance
+./setups/trade_setup.py:157:                            sl_line -= signal.stop_loss_distance
+./setups/trade_setup.py:164:                    if signal.direction == TradeDirection.SELL:
+./setups/trade_setup.py:165:                            tp_line -= signal.take_profit_distance
+./setups/trade_setup.py:166:                            sl_line += signal.stop_loss_distance
+./setups/trade_setup.py:218:    def annotations(self,trade_setup): #only need to draw per signal
+./tests/backtest_np_test.py:12:from setups.signal import TradeExitSignal
+./tests/broker_test.py:24:signal = TradeSignal()
+./tests/broker_test.py:25:signal.the_date = datetime.datetime.now()
+./tests/broker_test.py:26:signal.strategy = 'testing bot'
+./tests/broker_test.py:27:signal.instrument = 'GBP/USD'
+./tests/broker_test.py:28:signal.direction = TradeDirection.BUY
+./tests/broker_test.py:29:signal.entry = None #the entry price to start
+./tests/broker_test.py:30:signal.take_profit_distance = 0.003
+./tests/broker_test.py:31:signal.stop_loss_distance = 0.002
+./tests/broker_test.py:32:signal.length = 1440 #1440 minutes in 24 hours
+./tests/broker_test.py:53:      succ, trade_position_id = t212.place_trade(signal,1000)
+./tests/chart_test.py:70:macd_signal_trace = chart.Scatter(y=macd_signal,mode='lines',name='signal')
+./tests/pandas_tests.py:7:from setups.signal import TradeSignal
+./tests/text_analysis_test.py:83:       #add to these as we discover more indicators that the text might be a signal
+./TODO.txt:6:   - all data into signal basis
+./todo_this_week_1302203.txt:1:finish signal generator
+./todo_this_week_1302203.txt:3: - "fast" signal filters eg economic calendar stuff (cache events first) - done
+./web/broker.py:13:from setups.signal import TradeSignal, TradeDirection
+./web/broker.py:147:                    The trade that we want to place, in the form of a trade signal
+./web/broker.py:190:            Has a new signal been created? If so and the stops are different, they can be updated using
+./web/broker.py:1196:                   return False, 'the trade signal was void'

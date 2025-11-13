@@ -1,0 +1,3 @@
+current running setups and applied filters 
+custom filter rules 
+backtest results of previous signals from above 

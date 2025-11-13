@@ -1,0 +1,477 @@
+#client sentiment - get from indicator that uses volume
+#currency strength - could be useful for the 4h timescale etc 
+
+import numpy as np 
+from tqdm import tqdm 
+import scipy
+import time
+
+import pdb
+
+from data.tools.cursor import Database, Inject
+
+from utils import overrides
+from filters.trade_filter import *
+from indicators.volume import ClientSentiment
+from indicators.reversal import RSI 
+from indicators.indicator import Change
+
+from utils import ListFileReader
+
+#need to be refactored to call database per trade? 
+
+#client sentiment can be used as an indicator - use lateral indicator filter for this 
+class FlatClientSentimentFilter(FlatIndicatorFilter):
+	
+	client_sentiment = ClientSentiment()
+	sentiment_results = None
+	
+	threshold = 0.3 
+	
+	@overrides(FlatIndicatorFilter)
+	def setup_indicator_results(self):
+		self.sentiment_results = self.client_sentiment.calculate_multiple(self.candle_streams)[:,:,0] #0 = long, 1 = short
+	
+	@overrides(FlatIndicatorFilter)
+	def check_instrument(self, instrument, direction, the_time):
+		
+		ti = self._closest_time_index(the_time)
+		ii = self._instrument_index(instrument) 
+		
+		if ti is not None and ii is not None: 
+			if (self.sentiment_results[ii,ti] < (self.threshold)) and direction == TradeDirection.SELL: #if most people are selling too 
+				return False #selling when we should be buying 
+			if (self.sentiment_results[ii,ti] > (1.0 - self.threshold)) and direction == TradeDirection.BUY: #if most people are buying too 
+				return False 
+		return True 
+	
+#need to figure a way to improve this using partial candles & scipy.signal.correlate
+class FlatCorrelationFilter(DataBasedFilter):	
+	
+	n_param = 25   #requires tuning? approx n currency pairs 
+	sd_param = 0.05
+	p_param = 0.1
+	
+	_correlation_reports = []
+	
+	def process_data_piece(self,data_piece):
+		
+		return [data_piece['predicted_result'],data_piece['result_variance'],data_piece['n_result']]
+	
+	def check_instrument(self,instrument,direction,the_time):
+		
+		ti = self._closest_time_index(the_time)
+		ii = self._instrument_index(instrument)
+		
+		correlation_report = self.data_block[ii,ti]
+		
+		#pdb.set_trace()
+		self._correlation_reports.append(correlation_report)
+		
+		passable = correlation_report[2] > self.n_param#' and correlation_report[1] < self.sd_param 
+		
+		if passable:	
+			if correlation_report[0] >= self.p_param and direction == TradeDirection.SELL:
+				return False
+			if correlation_report[0] <= -self.p_param and direction == TradeDirection.BUY:
+				return False
+		return True
+	
+
+class FlatCurrencyStrengthFilter(DataBasedFilter):
+	
+	rank_gap = 0
+	
+	def process_data_piece(self,data_piece):
+		#pdb.set_trace() ##return the strengthco
+		#print('check data piece')
+		return [data_piece['ranking']]
+		
+	def check_instrument(self,instrument,direction,the_time):
+		
+		ti = self._closest_time_index(the_time)
+		[fc,tc] = instrument.split('/')
+		
+		fci = self._instrument_index(fc)
+		tci = self._instrument_index(tc)
+		
+		from_rank = self.data_block[fci,ti,0]
+		to_rank = self.data_block[tci,ti,0]
+		
+		#pdb.set_trace() #bug here somewhere
+		
+		if from_rank < to_rank + self.rank_gap and direction == TradeDirection.SELL:  
+			#to currency is worse than from currency - so we are buying a better and selling a worse (but we are selling so it is reversed) 
+			return False
+		if to_rank < from_rank + self.rank_gap and direction == TradeDirection.BUY:
+			return False 
+		
+		return True
+	
+	
+class ClientSentimentFilter(PartialIndicatorFilter):
+	
+	threshold = 0.3
+	
+	def filter(self,trade_signals):
+		client_sentiment_op = ClientSentiment()
+		
+		filtered_signals = []
+		
+		np_candles = self._get_candle_streams(trade_signals)
+		
+		#edit np_candle volumes so they scale "as if" the candle has finished. 
+		#pdb.set_trace()
+		pclen = 15 #lowest candle length 
+		#get the multiplier needed (eg if candle is half finished then mult by 2) 
+		npcs = np.array([self._get_n_candles_in_partial(trade_signal,pclen) for trade_signal in trade_signals.itertuples(name='TradeSignal')])
+		tnpcs = self.signalling_data.chart_resolution / pclen
+		npcs[npcs == 0] = tnpcs
+		npc_mult = (tnpcs / npcs)[:,np.newaxis]
+		
+		np_candles[:,4] *= npc_mult
+		np_candles[:,5] *= npc_mult
+		
+		
+		client_sentiment_results = client_sentiment_op._perform(np_candles)
+		end_results = client_sentiment_results[:,-1,0] #gets LONG
+		
+		buy_okay = (trade_signals['direction'] == TradeDirection.BUY) & (end_results < (1.0 - self.threshold))
+		sell_okay = (trade_signals['direction'] == TradeDirection.SELL) & (end_results > self.threshold)
+		
+				
+		return trade_signals[buy_okay | sell_okay]
+
+#lateral operators 
+class CurrencyStrengthOperator: #any other lateral operations? 
+	##currency strength functions - consider moving into own tool 
+	#for every curency, get whether to add or take the rsi value  
+	currencies = []
+	instruments = [] 
+	
+	def __init__(self,instruments, currencies):
+		self.currencies = currencies
+		self.instruments = instruments
+	
+	def get_masks(self): 
+		currency_pairs = np.array([inst.split('/') for inst in self.instruments])
+		result = np.zeros((len(self.currencies),len(self.instruments)))
+		for i,currency in enumerate(self.currencies):
+			result[i] += (currency_pairs[:,0] == currency).astype(np.int)
+			result[i] -= (currency_pairs[:,1] == currency).astype(np.int)
+		return result
+	
+	def get_strengths(self,columns):
+		colstrengths = [] 
+		masks = self.get_masks()
+		for column in columns:  # this is fast enough, but gotta be a better way! 
+			strengths = [] 
+			for mask in masks: 
+				mask = mask[:,np.newaxis]
+				rsis = column * mask 
+				rsis[rsis < 0] += 1.0
+				this_strength= np.sum(rsis,axis=0) 
+				strengths.append(this_strength)
+			strengths = np.stack(strengths) 
+			colstrengths.append(strengths)
+		return np.stack(colstrengths)
+				
+				
+
+class CurrencyStrengthFilter(PartialIndicatorFilter):
+	
+	rank_diff = 1
+	oscillator = None
+	smoothing = None
+	currency_strength = None
+	
+	
+	def __init__(self,oscillator,currency_strength_operator,smoothing,signalling_data,partial_candles):
+		super().__init__(signalling_data,partial_candles)
+		
+		self.oscillator = oscillator
+		self.currency_strength = currency_strength_operator
+		self.smoothing = smoothing
+		if self.smoothing:
+			self.smoothing.instruments = self.currency_strength.currencies
+			self.smoothing.candle_channel = 0 
+
+	
+	#we want to get the ENTIRE set of candles for every instrument, not just the single lines 
+	@overrides(PartialIndicatorFilter)  
+	def _get_candles_for_signal(self, signal_index, trade_signal):
+		
+		
+		#use self.signalling_data.np_candles and self.timeline 
+		ti = self._closest_time_index(
+			trade_signal.the_date,
+			self.signalling_data.timeline,
+			self.signalling_data.chart_resolution
+		)
+		#ii = self._instrument_index(trade_signal.instrument) 
+		pc = None 
+		if self.partial_candles:
+			pc = self.partial_candles[signal_index]
+		candles_back = self.signalling_data.grace_period
+		if (ti - candles_back - 1) <= 0:
+			pdb.set_trace()
+		assert (ti - candles_back - 1) > 0, "indexing problem - caused from missing data"
+		these_candles = self.signalling_data.np_candles[:,ti-candles_back-1:ti-1,:]
+		#pdb.set_trace()n
+		if pc is not None:
+			end_candles = np.array(pc)
+			end_candle = end_candles[:,np.newaxis,:-1].astype(np.float) #chop date off 
+			these_candles = np.concatenate([these_candles[:,1:,:],end_candle],axis=1)
+		return these_candles
+		
+	
+	def filter(self,trade_signals):
+		#trade_signals = trade_signals.copy()
+		np_candle_blocks = self._get_candle_streams(trade_signals) #blocks stacked together 
+		filtered_signals = []
+		np_candles = np.concatenate(np_candle_blocks,axis=0)
+		osc_result = self.oscillator._perform(np_candles)[:,:,0] #get just the RSI result
+		osc_columns = np.array(np.split(osc_result,len(trade_signals.index)))
+		
+		currency_strength_blocks = self.currency_strength.get_strengths(osc_columns)
+		
+		#pdb.set_trace()
+		if self.smoothing:
+			currency_strengths = np.concatenate(currency_strength_blocks,axis=0)
+			smoothing_results = self.smoothing._perform(currency_strengths[:,:,np.newaxis])[:,:,0]
+			currency_strength_blocks = np.array(np.split(smoothing_results,len(trade_signals)))
+		
+		last_currency_strengths = currency_strength_blocks[:,:,-1]
+		rankings = np.argsort(last_currency_strengths,axis=1)
+		
+		currencies = self.currency_strength.currencies
+		currency_map = {c:i for i,c in enumerate(currencies)}
+		
+		
+		instrument_currencies = trade_signals['instrument'].str.split('/')
+		buy_currencies = instrument_currencies.map(lambda x : x[0])
+		sell_currencies = instrument_currencies.map(lambda x : x[1])
+		buy_rank_indexs = buy_currencies.map(currency_map)
+		sell_rank_indexs = sell_currencies.map(currency_map)
+		
+		trade_signal_indexs = np.arange(len(buy_rank_indexs))
+		
+		buy_rank = rankings[trade_signal_indexs, buy_rank_indexs]
+		sell_rank = rankings[trade_signal_indexs, sell_rank_indexs]
+		
+		buy_okay = (trade_signals['direction'] == TradeDirection.BUY) & (buy_rank > sell_rank - self.rank_diff)
+		sell_okay = (trade_signals['direction'] == TradeDirection.SELL) & (sell_rank > buy_rank - self.rank_diff)
+				
+		return trade_signals[buy_okay | sell_okay]
+		
+
+class CorrelationFilter(PartialIndicatorFilter):
+	
+	lags = [2,3,4,5,6,7,8,9,10,11,12] #lag must be at least 2 since partial candle is not a good predictor
+	correlation_length = 25  
+	oscillator = None
+	correlation_threshold = 0.25 #0.3? 
+	change_threshold = 0.001 #amount prediction has to be for change (0.1%) 
+	number_threshold = 10 #number of prediction results needed 
+	
+	def __init__(self,oscillator,signalling_data,partial_candles):
+		super().__init__(signalling_data,partial_candles)
+		self.oscillator = oscillator
+
+	def get_correlations(self,x,ys):	
+		#pdb.set_trace()
+		
+		N = x.shape[0] #length of x vector (not number of samples) 
+		Exys = np.dot(x,ys.T)
+		
+		x_mean = np.sum(x) / N
+		y_means = np.sum(ys,axis=1) / N
+		
+		x2 = x*x 
+		y2s = ys*ys
+		
+		Ex2 = np.sum(x2)
+		Ey2s = np.sum(y2s,axis=1)
+		
+		tops = Exys - (N * x_mean * y_means)
+		bottoms = np.sqrt(Ex2 - N*(x_mean*x_mean)) * np.sqrt(Ey2s - N*(y_means*y_means))
+		
+		return tops / bottoms 
+	
+	def get_slopes(self,x,ys,rs):
+		N = x.shape[0]
+		x_mean = np.sum(x) / N
+		y_means = np.sum(ys,axis=1) / N
+		
+		y_minus_means = ys - y_means[:,np.newaxis]
+		x_minus_means = x - x_mean
+		
+		tops = np.sum(np.square(y_minus_means),axis=1) 
+		bottom = np.sum(np.square(x_minus_means)) 
+		
+		return rs * np.sqrt(tops / bottom)
+		
+	#we want to get the ENTIRE set of candles for every instrument, not just the single lines 
+	#use same method as CurrencyStrengthFilter
+	@overrides(PartialIndicatorFilter)  
+	def _get_candles_for_signal(self, signal_index, trade_signal):
+		#use self.signalling_data.np_candles and self.timeline 
+		return CurrencyStrengthFilter._get_candles_for_signal(self, signal_index, trade_signal)
+	
+	def _get_correlation_result_for_signal(self,trade_signal, changes):
+		ii = self._instrument_index(trade_signal.instrument)
+		this_change_string = changes[ii,-self.correlation_length:,0] #the changes specificly for this signal
+		
+		other_change_strings_pre = [] 
+		for lag in self.lags:	
+			other_change_strings_pre.append(changes[:,-(self.correlation_length+lag): -lag + 1, 0]) #add 1 on the end to get the last result for prediction
+		
+		other_change_strings = np.concatenate(other_change_strings_pre,axis=0)
+		this_change_strings = np.array([this_change_string]*other_change_strings.shape[0])
+		
+		correls = self.get_correlations(this_change_string,other_change_strings[:,:-1])
+		slopes = self.get_slopes(this_change_string,other_change_strings[:,:-1],correls)
+		#intercepts = 
+				
+		movements = other_change_strings[:,-1]
+		satisfactory = np.where(np.abs(correls) > self.correlation_threshold)
+		N = satisfactory[0].shape[0]
+		
+		prediction = 0
+		standard_dev = 0 #not in use?
+		
+		if N > 0:
+			prediction = np.dot(slopes[satisfactory],movements[satisfactory]) / N 
+		
+		return N, prediction, standard_dev
+		
+		
+	
+	def filter(self,trade_signals):
+		np_candle_blocks = self._get_candle_streams(trade_signals) #blocks stacked together 
+		if self.oscillator:
+			np_candles = np.concatenate(np_candle_blocks,axis=0)
+			osc_result = self.oscillator._perform(np_candles) 
+			np_candle_blocks = np.array(np.split(osc_result,len(trade_signals)))
+		
+		#calculate the change for each price since we want to correlate on differences 
+		np_candles = np.concatenate(np_candle_blocks,axis=0)
+		chng = Change() 
+		all_changes = chng._perform(np_candles) 
+		np_change_blocks = np.array(np.split(all_changes,len(trade_signals)))
+		
+		#pdb.set_trace()
+		
+		filtered_signals = []
+		
+		
+		N_list = []
+		prediction_list = []
+		for ts, changes in zip(trade_signals.itertuples(name='TradeSignal'),np_change_blocks):
+			N, prediction, standard_dev  = self._get_correlation_result_for_signal(ts,changes)
+			N_list.append(N)
+			prediction_list.append(prediction)
+		
+		Ns = np.array(N_list)
+		predictions = np.array(prediction_list)
+			
+		ok_prediction = (Ns > self.number_threshold) & (np.abs(predictions) > self.change_threshold)
+		
+		#sanity check 
+		#if N > self.number_threshold and abs(prediction) > self.change_threshold:
+		#	if ts.direction == TradeDirection.SELL and prediction > 0:
+		#		continue #skip 
+		#	if ts.direction == TradeDirection.BUY and prediction < 0:
+		#		continue
+		
+		buy_okay = ~ok_prediction | ((trade_signals['direction'] == TradeDirection.BUY) & (predictions > 0))
+		sell_okay = ~ok_prediction | ((trade_signals['direction'] == TradeDirection.SELL) & (predictions < 0))
+		
+		return trade_signals[buy_okay | sell_okay]
+	
+
+#class ForexClientStentimentWebFilter(InstanceTradeFilter):	 #web based 
+#	pass #this could be a filter that just looks up forex client sentiment website for current client sentiment & overrides the above
+
+
+#correlations?
+
+
+##needed for correlations 
+#class RSIFilter(LateralIndicatorFilter):
+#	
+#	_days_back_buffer = 7 #the larger the slower but the more accurate
+#	_bounds = 0.2
+#
+#	
+#	#this is painfully slow 
+#	def get_candles_for_signal(self,index, trade_signal): 
+#	#use this func to get partial candle & rest of candle from initial data read
+#		self.candle_data_tool._dbcursor.con.rollback()
+#		self.candle_data_tool.end_date = trade_signal.the_date 
+#		self.candle_data_tool.start_date = trade_signal.the_date - datetime.timedelta(days=self._days_back_buffer)
+#		self.candle_data_tool.read_data_from_instruments([trade_signal.instrument],3)
+#		tsd = self.candle_data_tool.get_trade_signalling_data()		
+#		return tsd.np_candles
+#		
+#	@overrides(LateralIndicatorFilter)
+#	def filter(self, trade_signals):
+#		
+#		cursor = Database(cache=False,commit=False)		
+#		self.candle_data_tool._dbcursor = cursor #prevent opening/closing connections everytime
+#		
+#		#load partial candles 
+#		
+#		rsi_op = RSI()
+#		#period?
+#		
+#		filtered_signals = [] 
+#		dbtime = 0
+#		intime = 0 
+#		
+#		partial_candle_end_times  = [the_date for ts in enumerate(trade_signals)]
+#		chart_resolution = candle_data_tool
+#		
+#		
+#		for i,ts in tqdm(list(enumerate(trade_signals))):
+#			
+#			ttt = time.time() 
+#			np_candles = self.get_candles_for_signal(i,ts)
+#			dbtime += (time.time() - ttt)
+#			
+#			ttt = time.time()
+#			rsi_result = rsi_op._perform(np_candles)[0,-1,0]
+#			intime += (time.time() - ttt)
+#			
+#			if ts.direction == TradeDirection.BUY and rsi_result < (1 - self._bounds):
+#				filtered_signals.append(ts)
+#			
+#			if ts.direction == TradeDirection.SELL and rsi_result > self._bounds:
+#				filtered_signals.append(ts)
+#		
+#		cursor.close() 
+#		
+#		print('database time: '+str(dbtime))
+#		print('indicator time: '+str(intime))
+#		
+#		return filtered_signals
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

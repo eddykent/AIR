@@ -1,0 +1,101 @@
+
+##need a better way to organise these setup objects 
+
+
+#https://medium.com/codex/trading-stocks-using-bollinger-bands-keltner-channel-and-rsi-in-python-980e87e8109d
+class BB_KC_RSI(TradeSetup):
+	
+	bollinger_bands = None
+	keltner_channels =  None 
+	relative_strength_index = None
+	
+	def __init__(self,**kwargs):
+		super().__init__.(self,**kwargs)
+	
+	@overrides(TradeSetup)
+	def get_setups(self,start_date,end_date):
+		pass
+
+
+class SimpleHarmonicSetup(TradeSetup):
+	#iterate through the harmonic patterns and report any that are bullish/bearish
+	pass
+
+
+
+##https://www.youtube.com/watch?v=4dVB_g5YeSE  
+##keep it simple - all chart pattern objects should only look at one timeframe. A setup looks at many.
+#find trendline/support&resistance from higher timeframe and divergence from this and lower timeframe, and breakout from lower timeframe
+class RSIDivergence(TradeSetup):
+	   
+	def __init__(self):
+		pass
+	
+	#override
+	@staticmethod
+	def to_candles(sequence,instrument):
+		return sorted([
+			[
+				snapshot[2][instrument]['open_price'],
+				snapshot[2][instrument]['high_price'],	
+				snapshot[2][instrument]['low_price'],
+				snapshot[2][instrument]['close_price'],
+				snapshot[2][instrument]['relative_strength_index'],   ##will be needed to detect divergence
+				snapshot[0] #datetime for debugging if needed...
+			]
+		for snapshot in sequence],key=lambda c:c[4]) #sort into chronological order 
+
+
+
+
+
+
+
+#we know his strategy & we can improve it with some extra timeframes!
+class ForexSignalsEngulferPinbar(TradeSetup):
+	pass
+	
+
+#stochastic one using stochastic crossovers and trend following
+#https://www.youtube.com/watch?v=4wtsm7QYHgQ
+
+
+#EMA, ADX and RSI 
+#https://www.youtube.com/watch?v=vBM0imYSzxI
+
+#Heiken Ashi & VWAP & possible RSI divergence
+#https://www.youtube.com/watch?v=4xIAZ7vSsRY
+
+#macd (right side of 0 line) + 200ema + support/resistance line
+#https://www.youtube.com/watch?v=rf_EQvubKlk
+
+#macd crossover + 200ema - try with htf filters of the 200ema too 
+
+
+#https://www.youtube.com/watch?v=oc866aQoYcM - ema 50 100, volume higher than last 3 bars, pinbar within 50 and 100 ema 
+
+
+
+
+#from youtube: 
+#HIGHEST PROFITING Trading Strategy On YouTube PROVEN 100 Trades - MTF Indicator + MACD
+#Highly Profitable Trading Strategy Proven 100 Trades - RSI + Stochastic + 200 EMA
+#Extremely Profitable 1 Minute Chart Trading Strategy Proven 100 Trades - EMA + RSI + Stochastic
+##Highly Profitable Indicator Absolute Strength Histogram Proven 100 Trades
+#Chaikin Money Flow + MACD + ATR Best Simple Forex Trading Strategy Tested 100 Times
+#HIGH PROFIT 1 Minute Chart Scalping Stratgey Proven 100 Trades - RSI+200 EMA+ Engulfing
+#Simple Money Flow Index MF! DayTrading Strategy Tested 100 Times (5 minute chart) - Full Results
+
+
+
+
+#use match & momenutum divergence & more to make pullback ensemble 
+
+
+
+
+
+
+
+
+
