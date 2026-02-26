@@ -1,15 +1,16 @@
 
---sample query that will grab candles AND condense them into actual candles of the correct size (quarts,halfs,hours,quads)
+--sample query that will grab candles to condense them into actual candles of the correct size (quarts,halfs,hours,quads)
 --quarts are 15m, halfs are 30m and quads are 4h candles 
 DROP TABLE IF EXISTS tmp_currencies;
 DROP TABLE IF EXISTS tmp_candles;
 
+--make tmp table of the 8 main currencies
 WITH ccs AS (
 	SELECT UNNEST(ARRAY['AUD','CAD','CHF','EUR','GBP','NZD','JPY','USD']) AS currency
 )
 SELECT currency INTO TEMPORARY TABLE tmp_currencies FROM ccs;
 
---build candles of our chosen chart size 
+--build candles of our chosen chart size (1h)
 WITH selected_candles AS (
 	SELECT from_currency, to_currency,
 	open_price,
@@ -19,8 +20,8 @@ WITH selected_candles AS (
 	the_date - INTERVAL '0 mins' AS the_date
 	FROM exchange_value_tick evt 
 	WHERE from_currency  = ANY(SELECT currency FROM tmp_currencies) AND to_currency = ANY(SELECT currency FROM tmp_currencies)
-	AND the_date < (DATE '1 Mar 2022' + INTERVAL '16 hours')
-	AND the_date >= (DATE '1 Mar 2022' - INTERVAL '20 days' + INTERVAL '16 hours') --600 = 400 + 200 (days_back + normalisation_window)
+	AND the_date < (DATE '1 Mar 2025' + INTERVAL '16 hours')
+	AND the_date >= (DATE '1 Mar 2025' - INTERVAL '20 days' + INTERVAL '16 hours') --600 = 400 + 200 (days_back + normalisation_window)
 ), 
 candle_indexs AS (
 	SELECT from_currency, to_currency,
@@ -90,11 +91,11 @@ SELECT * INTO TEMPORARY TABLE tmp_candles FROM time_indexed_candles;
 
 
 
-
+--now check the prices now of all other exchanges to the current exchange price to find discrepancies
 WITH point_prices AS (
 	SELECT from_currency,
 	to_currency,
-	close_price,
+	close_price, ---use close price of "now"
 	the_date 
 	FROM tmp_candles 
 ),
@@ -104,7 +105,7 @@ this_pair AS (
 	close_price AS their_price, 
 	the_date 
 	FROM point_prices 
-	--WHERE from_currency = 'AUD' AND to_currency = 'USD'
+	--WHERE from_currency = 'AUD' AND to_currency = 'USD' --use for specific
 ),
 froms AS (
 	SELECT tp.from_currency AS this_currency,
