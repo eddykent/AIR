@@ -3,22 +3,23 @@
 import time
 import numpy as np
 import scipy.spatial 
+from enum import Enum
 
 import tqdm
 
-from charting.candle_stick_pattern import * 
-import charting.candle_stick_functions as csf
-from indicators.indicator import Indicator
-from charting.chart_pattern import ChartPattern 
+from air.charting.candle_stick_pattern import * 
+import air.charting.candle_stick_functions as csf
+from air.indicators.indicator import Indicator
+from air.charting.chart_pattern import ChartPattern 
 
-from enum import Enum
+from air.utils import overrides
+
 
 import logging 
 log = logging.getLogger(__name__)
 
 
 
-from utils import overrides
 
 
 

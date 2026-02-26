@@ -14,18 +14,18 @@
 import numpy as np
 import pdb
 
-from utils import overrides
+from air.utils import overrides
 
-import charting.candle_stick_functions as csf
+import air.charting.candle_stick_functions as csf
 
-from indicators.momentum import MACD
-from indicators.moving_average import EMA, WMA
-from indicators.reversal import Stochastic
-from indicators.trend import IchimokuCloud
+from air.indicators.momentum import MACD
+from air.indicators.moving_average import EMA, WMA
+from air.indicators.reversal import Stochastic
+from air.indicators.trend import IchimokuCloud
 
 
-from setups.trade_setup import TradeSetup
-from setups.setup_tools import CrossTool, SmudgeTool,ValueLagTool
+from air.setups.trade_setup import TradeSetup
+from air.setups.setup_tools import CrossTool, SmudgeTool,ValueLagTool
 
 
 

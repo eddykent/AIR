@@ -10,10 +10,10 @@ import pdb
 #an indicator takes in a list of candles (usually with an index) and outputs list of values. There may of course be more than 1 value per indicator output (eg bollinger bands)
 #so a keys dictionary is used to hold names of each channel of the indicator output 
 #possibly organise/split this file into oscillators, volatility, trend followers and trend reversals ?
-import charting.chart_viewer as chv #get all chart viewing elements so we can also draw nice charts. The view can  be "added" to a candlestick chart where appropriate
-import charting.candle_stick_functions as csf
-from setups.signal import TradeSignal, TradeDirection, SetupCriteria
-from utils import overrides 
+import air.charting.chart_viewer as chv #get all chart viewing elements so we can also draw nice charts. The view can  be "added" to a candlestick chart where appropriate
+import air.charting.candle_stick_functions as csf
+from air.setups.signal import TradeSignal, TradeDirection, SetupCriteria
+from air.utils import overrides 
 
 class CandleType(Enum):
 	CANDLE = 0

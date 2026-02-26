@@ -1,3 +1,0 @@
-chart pretty score app (ai heart) 
-news results & sentiments 
-any other training data and testing data stuff

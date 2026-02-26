@@ -9,12 +9,12 @@ import time
 from collections import namedtuple
 from enum import Enum
 
-import charting.chart_viewer as chv 
-import charting.candle_stick_functions as csf
-from setups.signal import TradeSignal, TradeDirection
-from utils import overrides 
+import air.charting.chart_viewer as chv 
+import air.charting.candle_stick_functions as csf
+from air.setups.signal import TradeSignal, TradeDirection
+from air.utils import overrides 
 
-from charting.chart_pattern import ChartPattern
+from air.charting.chart_pattern import ChartPattern
 
 #should this shape be at the top/bottom of a window?
 class WindowConstraint(Enum):

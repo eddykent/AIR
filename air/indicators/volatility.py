@@ -1,11 +1,11 @@
 
 import numpy as np 
 
-from utils import overrides
+from air.utils import overrides
 
-from indicators.indicator import Indicator, RunningHigh, RunningLow
-from indicators.moving_average import SMA, EMA
-from charting import candle_stick_functions as csf
+from air.indicators.indicator import Indicator, RunningHigh, RunningLow
+from air.indicators.moving_average import SMA, EMA
+from air.charting import candle_stick_functions as csf
 
 
 class STDDEV(SMA):

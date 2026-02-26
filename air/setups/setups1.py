@@ -1,16 +1,16 @@
 
 import pdb
 
-from utils import overrides
+from air.utils import overrides
 
 
-from setups.trade_setup import *
-from indicators.volatility import BollingerBands, KeltnerChannel, ATR
-from indicators.reversal import RSI
-from indicators.trend import ADX 
-from indicators.moving_average import EMA
-from indicators.indicator import Typical, HeikinAshi
-from indicators.volume import VWAPDaily
+from air.setups.trade_setup import *
+from air.indicators.volatility import BollingerBands, KeltnerChannel, ATR
+from air.indicators.reversal import RSI
+from air.indicators.trend import ADX 
+from air.indicators.moving_average import EMA
+from air.indicators.indicator import Typical, HeikinAshi
+from air.indicators.volume import VWAPDaily
 
 #https://medium.com/codex/trading-stocks-using-bollinger-bands-keltner-channel-and-rsi-in-python-980e87e8109d
 class BB_KC_RSI(TradeSetup):

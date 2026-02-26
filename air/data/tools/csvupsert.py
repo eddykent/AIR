@@ -1,14 +1,15 @@
 
 
 ##file to put CSV price/volume data into the database 
+##deprecated?
 
 import os 
 from tqdm import tqdm
 import pdb
 
-from data.tools.cursor import Database, Inject
+from air.data.tools.cursor import Database, Inject
 
-from utils import ListFileReader, TimeHandler
+from air.utils import ListFileReader, TimeHandler
 
 
 candle_csv_directory = 'data/csvs'

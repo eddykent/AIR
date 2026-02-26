@@ -10,9 +10,9 @@ import datetime
 from tqdm import tqdm
 import pdb
 
-from data.text import Article, NewsArticle
-from utils import Database
-from data.capture.newnews import FXStreet
+from air.data.text import Article, NewsArticle
+from air.data.tools.cursor import Database
+from air.data.capture.newnews import FXStreet
 
 
 sql = {}

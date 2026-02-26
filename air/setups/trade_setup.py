@@ -12,20 +12,20 @@ import string
 import pdb
 
 
-from utils import ListFileReader, PipHandler
-from utils import overrides, deprecated
-import charting.chart_viewer as chv 
-from charting import candle_stick_functions as csf
+from air.utils import ListFileReader, PipHandler
+from air.utils import overrides, deprecated
+import air.charting.chart_viewer as chv 
+from air.charting import candle_stick_functions as csf
 #from charting.chart_pattern import ChartPattern - unable to import any indicator related stuff here 
 
-from indicators.indicator import CandleSticks, CandleType
-from indicators.volatility import ATR
+from air.indicators.indicator import CandleSticks, CandleType
+from air.indicators.volatility import ATR
 
-from data.tools.cursor import Database, DataComposer
+from air.data.tools.cursor import Database, DataComposer
 
-from setups.signal import *
+from air.setups.signal import *
 
-from setups.setup_tools import ATRStop
+from air.setups.setup_tools import ATRStop
 
 
 

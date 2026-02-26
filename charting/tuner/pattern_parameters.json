@@ -1,8 +1,0 @@
---JSON file for providing tuned parameter values to chart patterns. These values can be created by
---making a simple program to show a random chart with a chart pattern on. If I like it, then I can 
---press a good button and if I don't like it I can press a bad button. The tuner program could vary
---the chart pattern parameters and check to see what was better and what was worse  
---I guess I can check both charts and see if the change was improving or not 
-{
-	"TrendingPattern":{"yes":"I have loaded!"}
-}

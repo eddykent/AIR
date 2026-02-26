@@ -12,15 +12,15 @@ import pickle
 import logging 
 log = logging.getLogger(__name__)
 
-from configuration import Configuration
-from data.tools.cursor import Database, Inject 
+from air.configuration import Configuration
+from air.data.tools.cursor import Database, Inject 
 
-from web.crawler import SeleniumHandler, Crawler, XPathNavigator, By, TimeoutException #perhaps just crawler for specialist stuff?
-from utils import ListFileReader, TimeHandler
+from air.web.crawler import SeleniumHandler, Crawler, XPathNavigator, By, TimeoutException #perhaps just crawler for specialist stuff?
+from air.utils import ListFileReader, TimeHandler
 
-from data.tools.prep import TimelineMerge
+from air.data.tools.prep import TimelineMerge
 
-import debugging.functs as dbf
+import air.debugging.functs as dbf
 
 class DukascopyCSVProcessor:
 	

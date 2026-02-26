@@ -11,20 +11,20 @@
 import numpy as np
 import pdb
 
-from utils import overrides
+from air.utils import overrides
 
-import charting.candle_stick_functions as csf
-from charting.candle_stick_pattern  import Engulfing, PinBar
-from charting.chart_pattern import ChartPattern, SupportAndResistance #get an xtreme window 
+import air.charting.candle_stick_functions as csf
+from air.charting.candle_stick_pattern  import Engulfing, PinBar
+from air.charting.chart_pattern import ChartPattern, SupportAndResistance #get an xtreme window 
 
-from setups.trade_setup import TradeSetup
-from setups.setup_tools import DivTool, CrossTool, Zero2OneTool, CandleLagTool, ValueLagTool, ExtremesTool, SmudgeTool
+from air.setups.trade_setup import TradeSetup
+from air.setups.setup_tools import DivTool, CrossTool, Zero2OneTool, CandleLagTool, ValueLagTool, ExtremesTool, SmudgeTool
 
 
-from indicators.trend import ADX, CCI
-from indicators.momentum import MACD 
-from indicators.moving_average import EMA, ZLMA
-from indicators.reversal import RSI, Stochastic
+from air.indicators.trend import ADX, CCI
+from air.indicators.momentum import MACD 
+from air.indicators.moving_average import EMA, ZLMA
+from air.indicators.reversal import RSI, Stochastic
 
 
 class TripleRSIADX(TradeSetup):

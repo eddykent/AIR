@@ -1,5 +1,0 @@
-chart (dropdown select instrument)
-drag/drop indicators 
-add properties for buy/sell bias for each indicator
-backtest on all instruments & viewed chart output 
-save/run setup? 

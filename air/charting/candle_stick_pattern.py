@@ -6,11 +6,11 @@ import numpy as np
 import pdb
 
 #candle patterns - Engulfing, Pinbar, Soilders/Crows, MorningEveningStars, AbandonedIsland, ThreeLineStrikes, Inside/Outside?
-from indicators.indicator import Indicator
-import charting.candle_stick_functions as csf
-import charting.chart_viewer as chv
+from air.indicators.indicator import Indicator
+import air.charting.candle_stick_functions as csf
+import air.charting.chart_viewer as chv
 
-from utils import overrides
+from air.utils import overrides
 
 #class CandleStickException(Exception):
 	

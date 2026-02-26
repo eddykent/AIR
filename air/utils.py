@@ -17,6 +17,7 @@ import numpy as np
 
 #from collections import MutableSequence
 
+from air.configuration import Configuration #monkey patch
 
 import pdb
 
@@ -30,7 +31,13 @@ def overrides(interface_class):
 
 #from deprecation import deprecated
 
-from data.tools.cursor import Database
+def deprecated(method):
+    def deprecatedmethod(method):
+        log.warning("Deprecated method used.") #how to print method name?
+        return method
+    return deprecatedmethod
+
+from air.data.tools.cursor import Database
 
 
 

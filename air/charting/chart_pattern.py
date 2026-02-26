@@ -6,6 +6,8 @@ import gc
 
 import tqdm
 
+from air.utils import overrides, deprecated
+
 from air.charting.candle_stick_pattern import * 
 import air.charting.candle_stick_functions as csf
 from air.indicators.indicator import Indicator, RunningHigh,RunningLow
@@ -18,7 +20,7 @@ log = logging.getLogger(__name__)
 
 
 
-from utils import overrides, deprecated
+
 
 class XtremeWindowSettings:
 	required_candles = 100
@@ -250,7 +252,7 @@ class ChartPattern(Indicator):
 			new_max_index_map[maxima[0],maxima[1],max_index] = index_map[maxima]
 			
 			new_maxima = scipy.signal.argrelmax(these_maximums,axis=2,order=self._order) #map back somehow... 
-			new_maxima_end = new_max_index_map[new_maxima].astype(np.int)
+			new_maxima_end = new_max_index_map[new_maxima].astype(int)
 			maxima = (new_maxima[0],new_maxima[1],new_maxima_end)
 			
 			#handle min change
@@ -279,7 +281,7 @@ class ChartPattern(Indicator):
 			new_min_index_map[minima[0],minima[1],min_index] = index_map[minima]
 			
 			new_minima = scipy.signal.argrelmin(these_minimums,axis=2,order=self._order) #map back somehow... 
-			new_minima_end = new_min_index_map[new_minima].astype(np.int)
+			new_minima_end = new_min_index_map[new_minima].astype(int)
 			minima = (new_minima[0],new_minima[1],new_minima_end)
 			
 			
@@ -334,7 +336,7 @@ class ChartPattern(Indicator):
 		sort_by_window = all_extr_windows_labeled[:,0]
 		all_extr_windows_labeled = all_extr_windows_labeled[sort_by_window.argsort()]
 		
-		duplicate_window_index = all_extr_windows_labeled[:,0].astype(np.int)
+		duplicate_window_index = all_extr_windows_labeled[:,0].astype(int)
 		window_coords, counts = np.unique(duplicate_window_index,return_counts=True)
 		max_extremes = np.max(counts)
 		
@@ -345,7 +347,7 @@ class ChartPattern(Indicator):
 		#adjust time indexs to be of the same as the np_candles time axis  something like this:? 
 		all_extr_windows_labeled[:,3] = all_extr_windows_labeled[:,2] + all_extr_windows_labeled[:,3] 
 		
-		#duplicate_window_map = np.stack([all_extr_windows_labeled[:,1],all_extr_windows_labeled[:,2]], axis=1).astype(np.int) #this is incorrect... 
+		#duplicate_window_map = np.stack([all_extr_windows_labeled[:,1],all_extr_windows_labeled[:,2]], axis=1).astype(int) #this is incorrect... 
 		#window_map = np.unique(duplicate_window_map,axis=0).T #takes some time to get uniques... 
 		
 		#generate the window map correctly here, then apply mask below  - remember the xtreme windows should be in correct order 
@@ -705,8 +707,8 @@ class PivotPoints(ChartPattern):
 		t0 = time.time() 
 		timeline = self.timeline[:]
 		
-		np_timeline = np.empty((timeline.shape[0],6)).astype(np.int)
-		stack_num = np.zeros((timeline.shape[0],)).astype(np.int) #store the stack number here (the number the time belongs to) 
+		np_timeline = np.empty((timeline.shape[0],6)).astype(int)
+		stack_num = np.zeros((timeline.shape[0],)).astype(int) #store the stack number here (the number the time belongs to) 
 		
 		fyears = lambda dt : dt.year 
 		fmonths = lambda dt : dt.month
@@ -722,7 +724,7 @@ class PivotPoints(ChartPattern):
 			np_timeline[i,4] = fmins(td)
 			np_timeline[i,5] = td.weekday() #get the day of week on the end for helping merge fri and sun
 		
-		np_timeline = np_timeline.astype(np.int)
+		np_timeline = np_timeline.astype(int)
 
 		#crude algorithm for assigning datetimes to the correct box, for use when finding pivot points.
 		#requires more thought to overcome bank holidays etc.. probably needs heavy use of the datetime/timedelta functions etc
@@ -759,7 +761,7 @@ class PivotPoints(ChartPattern):
 		
 		#what test?
 		#check if sitting on a support or hanging on a resistance for signals?
-		return_val = np.zeros((np_candles.shape[0],np_candles.shape[1],3)).astype(np.int)
+		return_val = np.zeros((np_candles.shape[0],np_candles.shape[1],3)).astype(int)
 		
 		_,counts = np.unique(day_indexs,return_counts=True)
 		xpos = np.concatenate([[0],np.cumsum(counts)])
@@ -794,7 +796,7 @@ class PivotPoints(ChartPattern):
 		
 		#
 		#any other tests here.. 
-		return_val[:,:,0] = (bullish1.astype(np.int) - bearish1.astype(np.int)).reshape((np_candles.shape[0],np_candles.shape[1]))
+		return_val[:,:,0] = (bullish1.astype(int) - bearish1.astype(int)).reshape((np_candles.shape[0],np_candles.shape[1]))
 		
 		
 		return return_val

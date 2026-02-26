@@ -10,7 +10,7 @@ from dataclasses import dataclass, fields
 
 from tqdm import tqdm
 
-from data.tools.cursor import Database, Inject
+from air.data.tools.cursor import Database, Inject
 
 sql = {}
 

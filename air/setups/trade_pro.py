@@ -14,18 +14,18 @@
 import numpy as np
 import pdb
 
-import charting.candle_stick_functions as csf
-from charting.candle_stick_pattern import Engulfing
+import air.charting.candle_stick_functions as csf
+from air.charting.candle_stick_pattern import Engulfing
 
-from setups.trade_setup import TradeSetup
-from setups.setup_tools import DivTool, CrossTool, Zero2OneTool
+from air.setups.trade_setup import TradeSetup
+from air.setups.setup_tools import DivTool, CrossTool, Zero2OneTool
 
-from indicators.momentum import MACD 
-from indicators.reversal import RSI, Stochastic
-from indicators.moving_average import EMA
-from indicators.volume import ChaikinMoneyFlow, MoneyFlowIndex
+from air.indicators.momentum import MACD 
+from air.indicators.reversal import RSI, Stochastic
+from air.indicators.moving_average import EMA
+from air.indicators.volume import ChaikinMoneyFlow, MoneyFlowIndex
 
-from utils import overrides
+from air.utils import overrides
 
 
 class MACD_MFT(TradeSetup):

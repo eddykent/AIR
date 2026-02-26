@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 #import pdb
 
 
-from configuration import Configuration
+from air.configuration import Configuration
 
 ##file for controls for the database - including database tools like cursors 
 
@@ -30,7 +30,7 @@ class Database:
 	previous_query_filename = 'queries/previous_query.txt'
 	commit = False
 	
-	default_parameters = { #eww
+	default_parameters = { #eww - yes this needs to be removed 
 		'take_profit_factor':10, #movement required (in multiples of average true range) to hit a take profit
 		'stop_loss_factor':7, #movement required (in multiples of average true range) to hit a stop loss
 		'spread_penalty':3, #penalty added (in multiples of average true range) that change the price at 10pm to account for crazy spread times

@@ -4,9 +4,9 @@ import numpy as np
 
 import pdb 
 
-from utils import overrides
+from air.utils import overrides
 
-from indicators.indicator import Indicator
+from air.indicators.indicator import Indicator
 
 #from a set of  currencies, currency pairs and an oscillator make a mapping 
 #then make classes that can collect into single currencies, and distribute back into pairs 

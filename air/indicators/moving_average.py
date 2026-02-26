@@ -2,9 +2,9 @@
 
 import numpy as np
 
-from utils import overrides
-from indicators.indicator import Indicator,  Diff
-from charting import candle_stick_functions as csf
+from air.utils import overrides
+from air.indicators.indicator import Indicator,  Diff
+from air.charting import candle_stick_functions as csf
 
 import pdb
 

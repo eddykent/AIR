@@ -1,21 +1,21 @@
 import pdb
 import numpy as np
 
-from setups.trade_setup import TradeSetup
-from setups.setup_tools import StopTool, SmudgeTool, DelayTool, DivTool, Zero2OneTool
+from air.setups.trade_setup import TradeSetup
+from air.setups.setup_tools import StopTool, SmudgeTool, DelayTool, DivTool, Zero2OneTool
 
-from indicators.moving_average import EMA 
-from indicators.indicator import CandleSticks, RunningHigh, RunningLow
-from indicators.momentum import MACD
-from indicators.reversal import RSI 
-from indicators.volatility import BollingerBands
-from indicators.trend import ADX, IchimokuCloud
+from air.indicators.moving_average import EMA 
+from air.indicators.indicator import CandleSticks, RunningHigh, RunningLow
+from air.indicators.momentum import MACD
+from air.indicators.reversal import RSI 
+from air.indicators.volatility import BollingerBands
+from air.indicators.trend import ADX, IchimokuCloud
 
-from charting.candle_stick_pattern import PinBar, Engulfing
-import charting.candle_stick_functions as csf
-from utils import overrides
+from air.charting.candle_stick_pattern import PinBar, Engulfing
+import air.charting.candle_stick_functions as csf
+from air.utils import overrides
 
-from charting.chart_pattern import SupportAndResistance
+from air.charting.chart_pattern import SupportAndResistance
 
 
 class ForexSignalsAnchorBarStop(StopTool):

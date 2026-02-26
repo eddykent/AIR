@@ -6,13 +6,13 @@ import numpy as np
 #youtube: https://www.youtube.com/watch?v=2Q3ozkuF17s (dont watch it all just see the idea/shape) 
 import pdb
 
-import charting.chart_viewer as chv 
-import charting.candle_stick_functions as csf
-from setups.trade_setup import TradeSignal, TradeDirection, SetupCriteria
-from indicators.indicator import Indicator
-from utils import overrides 
+import air.charting.chart_viewer as chv 
+import air.charting.candle_stick_functions as csf
+from air.setups.trade_setup import TradeSignal, TradeDirection, SetupCriteria
+from air.indicators.indicator import Indicator
+from air.utils import overrides 
 
-from charting.chart_pattern import ChartPattern
+from air.charting.chart_pattern import ChartPattern
 
 
 

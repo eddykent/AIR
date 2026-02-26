@@ -4,10 +4,10 @@ import numpy as np
 
 #this file contains my own custom setup options that I thought of myself. They are mainly just a collection of patterns and indicators
 
-from utils import overrides
-from setups.trade_setup import TradeSetup, TradeSignal
-from charting.harmonic_pattern import *  
-from charting.chart_pattern import ChartPattern
+from air.utils import overrides
+from air.setups.trade_setup import TradeSetup, TradeSignal
+from air.charting.harmonic_pattern import *  
+from air.charting.chart_pattern import ChartPattern
 
 import logging
 log = logging.getLogger(__name__)

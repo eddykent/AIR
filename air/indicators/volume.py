@@ -1,11 +1,11 @@
 import numpy as np
 
 
-from utils import overrides, TimeHandler
+from air.utils import overrides, TimeHandler
 
-from indicators.indicator import Indicator, Diff, Typical, CandleType, Bounded 
-from indicators.moving_average import SMA, EMA
-from charting import candle_stick_functions as csf
+from air.indicators.indicator import Indicator, Diff, Typical, CandleType, Bounded 
+from air.indicators.moving_average import SMA, EMA
+from air.charting import candle_stick_functions as csf
 
 
 

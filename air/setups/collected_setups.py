@@ -7,15 +7,15 @@ import numpy as np
 import logging
 log = logging.getLogger(__name__)
 
-from utils import overrides
-from setups.trade_setup import TradeSetup, TradeSignal
-from charting.chart_pattern import ChartPattern, XtremeWindowSettings 
+from air.utils import overrides
+from air.setups.trade_setup import TradeSetup, TradeSignal
+from air.charting.chart_pattern import ChartPattern, XtremeWindowSettings 
 
-from charting.harmonic_pattern import *  
-from charting.shape_pattern import * 
-from charting.trend_pattern import *
+from air.charting.harmonic_pattern import *  
+from air.charting.shape_pattern import * 
+from air.charting.trend_pattern import *
 
-import debugging.functs as dbf
+import air.debugging.functs as dbf
 
 
 #class IndicatorCollection

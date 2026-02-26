@@ -16,15 +16,15 @@ import numpy as np
 
 import scipy.signal
 
-from setups.signal import * #anyting signal data related
+from air.setups.signal import * #anyting signal data related
 
-from utils import ListFileReader, PipHandler
-from utils import overrides, deprecated
-from data.tools.cursor import Database, DataComposer
+from air.utils import ListFileReader, PipHandler
+from air.utils import overrides, deprecated
+from air.data.tools.cursor import Database, DataComposer
 
-import charting.candle_stick_functions as csf
-from indicators.indicator import *
-from indicators.trend import *
+import air.charting.candle_stick_functions as csf
+from air.indicators.indicator import *
+from air.indicators.trend import *
 
 
 bullish = 0 

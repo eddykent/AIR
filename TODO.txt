@@ -49,7 +49,7 @@ additional constraints for chart patterns & speed - AI & gui survey app?
 	- re-think support/resistance as gives bad results
 	- harmonics - eg why are there so few? fix the cache method in Harmony (custom_setups)
 	- trend pattern - what additional constraints can be added to get better results? 
-
+	
 data_pull scripts for getting latest data? 
 	ASYNC all webcalls in the fundmental analysis! Async for AI too? -- probably pretty important for faster trade decisions :) - done
 	use proxies for scraping tasks to hide ip and not get blocked from anything else

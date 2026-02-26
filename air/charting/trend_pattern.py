@@ -6,13 +6,13 @@ import numpy as np
 import pdb
 
 #from indicators.indicators import Indicator
-import charting.chart_viewer as chv 
-import charting.candle_stick_functions as csf
-import charting.trend_line_functions as tlf 
-from setups.trade_setup import TradeSignal, TradeDirection, SetupCriteria
-from utils import overrides 
+import air.charting.chart_viewer as chv 
+import air.charting.candle_stick_functions as csf
+import air.charting.trend_line_functions as tlf 
+from air.setups.trade_setup import TradeSignal, TradeDirection, SetupCriteria
+from air.utils import overrides 
 
-from charting.chart_pattern import ChartPattern
+from air.charting.chart_pattern import ChartPattern
 
 #detection: breakouts (when going over a trendline) and retests (when going near a trendline). 
 #breakouts may need confirmation
@@ -44,7 +44,7 @@ class TrendPattern(ChartPattern):
 		
 		levels = Ys - parametrics
 		end_indexs = np.nanargmax(levels,axis=1) if top else np.nanargmin(levels,axis=1)
-		end_indexs = end_indexs.astype(np.int)
+		end_indexs = end_indexs.astype(int)
 		
 		x1s = Xs[:,0]
 		y1s = Ys[:,0]
