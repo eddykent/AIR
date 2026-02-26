@@ -1,6 +1,6 @@
 #list of python module dependencies & setups for this project
 numpy
-#pandas
+pandas
 psycopg2
 plotly
 requests
