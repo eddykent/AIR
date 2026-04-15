@@ -2,9 +2,9 @@
 
 import numpy as np 
 
-from setups.trader_dna import * 
-from setups.trade_pro import * 
-from setups.trading_rush import * 
+from air.setups.trader_dna import * 
+from air.setups.trade_pro import * 
+from air.setups.trading_rush import * 
 
 trader_dna_list = [
 	TripleRSIADX,

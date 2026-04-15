@@ -5,28 +5,28 @@
 
 import numpy as np 
 
-from data.tools.cursor import Database
+from air.data.tools.cursor import Database
 
-from strategy.strategy_components import TriggerBlock, SetupBlock, MultiTriggerBlock
-from charting import candle_stick_functions as csf
+from air.strategy.strategy_components import TriggerBlock, SetupBlock, MultiTriggerBlock
+from air.charting import candle_stick_functions as csf
 
-from setups.setup_tools import PipStop, ATRStop, DivTool, DelayTool, ValueLagTool, CrossTool
-from utils import ListFileReader
+from air.setups.setup_tools import PipStop, ATRStop, DivTool, DelayTool, ValueLagTool, CrossTool
+from air.utils import ListFileReader
 
-from indicators.reversal import RSI, Stochastic, WilliamsPercentRange, MassIndex
-from indicators.trend import ADX, CCI, IchimokuCloud, ParabolicSAR, Aroon, SuperTrend
-from indicators.moving_average import EMA, TEMA, WMA, ZLMA
-from indicators.momentum import MACD, Accelerator, RVI
-from indicators.currency import CurrencyWrapper
-from indicators.volume import ClientSentiment, MoneyFlowIndex, VWAP#fx does not care about daily
-from indicators.volatility import ChoppinessIndex, BollingerBands, KeltnerChannel, DonchianChannel
-from indicators.mathematic import FourierGradient
+from air.indicators.reversal import RSI, Stochastic, WilliamsPercentRange, MassIndex
+from air.indicators.trend import ADX, CCI, IchimokuCloud, ParabolicSAR, Aroon, SuperTrend
+from air.indicators.moving_average import EMA, TEMA, WMA, ZLMA
+from air.indicators.momentum import MACD, Accelerator, RVI
+from air.indicators.currency import CurrencyWrapper
+from air.indicators.volume import ClientSentiment, MoneyFlowIndex, VWAP#fx does not care about daily
+from air.indicators.volatility import ChoppinessIndex, BollingerBands, KeltnerChannel, DonchianChannel
+from air.indicators.mathematic import FourierGradient
 
-from charting.match_pattern import MatchPattern
-from charting.chart_pattern import SupportAndResistance, PivotPoints
-from charting.candle_stick_pattern import PinBar, Engulfing, SoldiersAndCrows, MorningEveningStars, ThreeLineStrikes, Harami
+from air.charting.match_pattern import MatchPattern
+from air.charting.chart_pattern import SupportAndResistance, PivotPoints
+from air.charting.candle_stick_pattern import PinBar, Engulfing, SoldiersAndCrows, MorningEveningStars, ThreeLineStrikes, Harami
 
-from setups.collected_setups import Harmony, Trends, Shapes, Triangles
+from air.setups.collected_setups import Harmony, Trends, Shapes, Triangles
 
 csps =  [PinBar, Engulfing, SoldiersAndCrows, MorningEveningStars, ThreeLineStrikes, Harami]
 

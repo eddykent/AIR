@@ -131,7 +131,7 @@ class MatchPatternInstance(ChartPattern):
 		#now extra constraints to delete biases
 		bias_flag[query_error > 0.005] = 0 # over half % query error is unacceptable apparently! 
 		
-		pdb.set_trace()
+		#pdb.set_trace()
 		#print('check_paths') #TODO: this is incorrect?
 		rr = np.stack([bias_flag,udr,average_end,std,query_error,query_std])
 		result = np.reshape(np.transpose(rr),(rr.shape[1],1,rr.shape[0]))

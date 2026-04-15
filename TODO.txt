@@ -1,4 +1,19 @@
 TODO: 
+
+=====
+
+BEFORE CONTINUING (RESSURRECTION):
+1) MOVE ALL CODE TO CORRECT FILETREE THEN TEST ALL
+2) FORK NEW PROJECT TO MAKE THIS WORK WITH STOCKS INSTEAD OF FX - LEAVE THIS AS IS? COMPLETE? SEPARATE "VIEW" FOR BOTH FORKS? 
+3) ENSURE REMOTE IS SET UP CORRECTLY
+4) ENSURE git ignore AND git config SET UP CORRECTLY (NO COMMITTING PASSWORDS, DATA OR BINARY)
+5) TEST DATABASE CONNECTION 
+6) PULL SOME RELEVANT DATA FOR FORK  
+
+=====
+
+THENN: 
+
 DEFENSIVE CODING: documentation, type hints and overrides for all non-testing python scripts. (use typecheck?)
 
 refactor currency strength nn to be of the same form as DataProvider etc 

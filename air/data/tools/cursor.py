@@ -3,6 +3,7 @@
 import datetime
 import time
 import hashlib
+import os
 import pickle
 
 import psycopg2

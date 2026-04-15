@@ -13,19 +13,19 @@ import uuid
 import pdb
 
 
-from backtest import BackTesterCandles, BackTesterCache, BackTestStatistics
-from charting import candle_stick_functions as csf
+from air.backtest import BackTesterCandles, BackTesterCache, BackTestStatistics
+from air.charting import candle_stick_functions as csf
 
-from setups.trade_setup import blank_result, TradeSetup, TradeDirection
-from setups.setup_tools import Zero2OneTool
-from setups.collected_setups import Harmony, Trends, Shapes
+from air.setups.trade_setup import blank_result, TradeSetup, TradeDirection
+from air.setups.setup_tools import Zero2OneTool
+from air.setups.collected_setups import Harmony, Trends, Shapes
 
-from strategy.strategy_components import TriggerBlock, SetupBlock
-from strategy.trigger_block_lists import moving_averages, chart_patterns, trends_group, oscillators_group, momentum_group #more? 
+from air.strategy.strategy_components import TriggerBlock, SetupBlock
+from air.strategy.trigger_block_lists import moving_averages, chart_patterns, trends_group, oscillators_group, momentum_group #more? 
 
-from utils import overrides 
+from air.utils import overrides 
 
-import debugging.functs as dbf
+import _debugging.functs as dbf
 
 
 def _len_func_try(x):
