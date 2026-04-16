@@ -15,12 +15,12 @@ from enum import Enum
 
 import pdb 
 
-from utils import CurrencyPair, ListFileReader, overrides, InstrumentDetails
-from setups.signal import TradeDirection, TradeSignal, TradeExitSignal, TradeSignallingData
-from charting import candle_stick_functions as csf
+from air.utils import CurrencyPair, ListFileReader, overrides, InstrumentDetails
+from air.setups.signal import TradeDirection, TradeSignal, TradeExitSignal, TradeSignallingData
+from air.charting import candle_stick_functions as csf
 
-import debugging.functs as dbf 
-import debugging.charts as dbc
+import _debugging.functs as dbf 
+import _debugging.charts as dbc
 
 #use pandas
 ##classes that take a set of trade signals and then test if they won/lost. Also report statistics (win streaks, percent loss, drawdowns??) 
@@ -445,7 +445,7 @@ class BackTestStatistics:
 		#pdb.set_trace()
 		maxlen = max(lens) if not lens.empty else 0
 		values_dest = np.full((N,maxlen),np.nan)
-		if maxlen is 0:
+		if maxlen == 0:
 			return values_dest #everything moves by 0 percent since lists are empty
 		instrument_indexs = np.repeat(df['instrument_index'],lens)
 		df_indexs = np.repeat(np.arange(N),lens)
@@ -455,7 +455,7 @@ class BackTestStatistics:
 		time_indexs = np.arange(df_indexs.shape[0]) - np.repeat(offsets,lens)
 		
 		value_indexs = time_indexs + np.repeat(df['entry_index'],lens)
-		direction_indexs = np.array(np.repeat((df['direction'] == TradeDirection.SELL).astype(np.int),lens)) #df being used instead of np so cast
+		direction_indexs = np.array(np.repeat((df['direction'] == TradeDirection.SELL).astype(int),lens)) #df being used instead of np so cast
 		
 		np_candles = self.signalling_data.np_candles
 		if len(np_candles.shape) == 3:
@@ -811,7 +811,7 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 			
 		trade_tracks, timeline_indexs = self._get_trade_tracks_and_timeline_indexs(trade_signals)
 		trade_directions = trade_signals['direction'].to_numpy()
-		trade_directions_end = (trade_directions == TradeDirection.SELL).astype(np.int) 
+		trade_directions_end = (trade_directions == TradeDirection.SELL).astype(int) 
 		trade_directions_start = 1 - trade_directions_end 
 		
 		bid_ask_trade_tracks = np.stack([trade_tracks[:,:,0,:],trade_tracks[:,:,1,:]])
@@ -919,7 +919,7 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		exit_prices[depleated_mask] = np.mean(trade_tracks_end[depleated_mask,exit_indexs[depleated_mask],1:],axis=1)
 		exit_prices[exit_signal_mask] = np.mean(trade_tracks_end[exit_signal_mask,exit_indexs[exit_signal_mask],1:],axis=1)
 		
-		dir_mult = (trade_directions == TradeDirection.BUY).astype(np.int) - (trade_directions == TradeDirection.SELL).astype(np.int)
+		dir_mult = (trade_directions == TradeDirection.BUY).astype(int) - (trade_directions == TradeDirection.SELL).astype(int)
 		result_movements = (exit_prices - entry_prices) * dir_mult 
 		result_movements[cutoff_mask] = 0
 		result_percents = (result_movements / entry_prices) * 100 
@@ -1102,7 +1102,7 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		
 		#pdb.set_trace()
 		
-		dirs = (trade_signals['direction'] == TradeDirection.BUY).to_numpy(np.int) - (trade_signals['direction'] == TradeDirection.SELL).to_numpy(np.int)
+		dirs = (trade_signals['direction'] == TradeDirection.BUY).to_numpy(int) - (trade_signals['direction'] == TradeDirection.SELL).to_numpy(int)
 		
 		take_profits = start_prices + (dirs * tpd)
 		stop_losses = start_prices - (dirs * sld)
@@ -1158,7 +1158,7 @@ class BackTesterCandles(BackTester): #allows for fuzzing the data
 		start_positions = 1.0 / (start_pos + 1.0)
 		
 		#to ensure we get the earliest after start position, everything before that index will be less than 1 so we can floor it off
-		result_numeric = np.floor(time_ind[np.newaxis,:]  * result_grid.astype(np.int) * start_positions[:,np.newaxis]).astype(np.int)
+		result_numeric = np.floor(time_ind[np.newaxis,:]  * result_grid.astype(int) * start_positions[:,np.newaxis]).astype(int)
 		result_numeric[result_numeric == 0] = result_numeric.shape[1] ##then set all 0s to max value to stop them being selected by argmin
 		
 		result_numeric = np.concatenate([result_numeric,np.full((result_numeric.shape[0],1), result_numeric.shape[1]-1)],axis=1)

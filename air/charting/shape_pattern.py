@@ -62,7 +62,7 @@ class ShapePattern(ChartPattern):
 		result_buys = np.stack([self._test_shape(xtreme_windows,shape,relative_gap,TradeDirection.BUY,x_pos) for shape in self._shapes],axis=1)
 		result_sells = np.stack([self._test_shape(xtreme_windows,shape,relative_gap,TradeDirection.SELL,x_pos) for shape in self._shapes],axis=1)
 		
-		all_results = result_buys.astype(np.int) - result_sells.astype(np.int)  #array of -1,0,1
+		all_results = result_buys.astype(int) - result_sells.astype(int)  #array of -1,0,1
 		shape_indexs = np.argmax(np.abs(all_results),axis=1)
 		
 		bias = all_results[np.arange(shape_indexs.shape[0]),shape_indexs]
@@ -190,9 +190,9 @@ class ShapePattern(ChartPattern):
 	
 	@staticmethod
 	def dirtyrank(numarray):
-		values = numarray.copy().astype(np.float)
+		values = numarray.copy().astype(np.float64)
 		ind = 0 
-		result = np.zeros(values.shape).astype(np.int)
+		result = np.zeros(values.shape).astype(int)
 		while not np.isnan(values).all():
 			min = np.nanmin(values)
 			min_mask = np.where(values == min)

@@ -8,10 +8,10 @@ from keras.layers import Dense
 from keras.layers import LSTM, Bidirectional, Input
 import spacy
 
-from models.model_base import ModelMaker
-from utils import overrides 
+from air.models.model_base import ModelMaker
+from air.utils import overrides 
 
-from fundamental import TextAnalysis
+#from air.fundamental import TextAnalysis#problem
 
 import pdb
 

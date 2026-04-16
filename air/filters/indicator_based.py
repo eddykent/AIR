@@ -9,11 +9,11 @@ import time
 
 from data.tools.cursor import Database
 
-from utils import overrides
-from filters.trade_filter import *
-from indicators.reversal import RSI 
-from indicators.trend import ADX
-from setups.signal import TradeDirection 
+from air.utils import overrides
+from air.filters.trade_filter import *
+from air.indicators.reversal import RSI 
+from air.indicators.trend import ADX
+from air.setups.signal import TradeDirection 
 
 #deprecate?
 class RSIFilterSlow(LateralIndicatorFilter):

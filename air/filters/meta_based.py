@@ -8,15 +8,15 @@ import time
 
 import pdb
 
-from data.tools.cursor import Database, Inject
+from air.data.tools.cursor import Database, Inject
 
-from utils import overrides
-from filters.trade_filter import *
-from indicators.volume import ClientSentiment
-from indicators.reversal import RSI 
-from indicators.indicator import Change
+from air.utils import overrides
+from air.filters.trade_filter import *
+from air.indicators.volume import ClientSentiment
+from air.indicators.reversal import RSI 
+from air.indicators.indicator import Change
 
-from utils import ListFileReader
+from air.utils import ListFileReader
 
 #need to be refactored to call database per trade? 
 

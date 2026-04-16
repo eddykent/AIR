@@ -386,7 +386,7 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		buy_df['take_profit_distance'] = signal_data_extra.bullish.take_profit_distances[instrument_indexer,timeline_indexer]
 		buy_df['stop_loss_distance'] = signal_data_extra.bullish.stop_loss_distances[instrument_indexer,timeline_indexer]
 		buy_df['length'] = TradeSignal.length
-		trade_signals = trade_signals.append(buy_df)
+		#trade_signals = trade_signals.append(buy_df)
 		#then sells 
 		#if signal_data_extra.bearish.signals.any():
 		sell_df = pd.DataFrame([])
@@ -401,7 +401,8 @@ class TradeSetup:	#this not just an indicator - does not have calculate() etc. I
 		sell_df['take_profit_distance'] = signal_data_extra.bearish.take_profit_distances[instrument_indexer,timeline_indexer]
 		sell_df['stop_loss_distance'] = signal_data_extra.bearish.stop_loss_distances[instrument_indexer,timeline_indexer]
 		sell_df['length'] = TradeSignal.length
-		trade_signals = trade_signals.append(sell_df)
+		#trade_signals = trade_signals.append(sell_df)
+		trade_signals = pd.concat([buy_df,sell_df])
 			
 		#get rid of signals that are in grace period
 		return_df = trade_signals[trade_signals['the_date'] > signal_data_extra.start_date].copy() 

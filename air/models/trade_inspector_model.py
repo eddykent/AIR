@@ -8,13 +8,13 @@ from keras.models import Sequential,Model
 from keras.layers import Dense
 from keras.layers import LSTM, Bidirectional, Input, Concatenate
 
-from setups.signal import TradeDirection
+from air.setups.signal import TradeDirection
 
-import charting.candle_stick_functions as csf
+import air.charting.candle_stick_functions as csf
 
-from models.model_base import ModelMaker
-from utils import overrides 
-from backtest import TradeResultStatus
+from air.models.model_base import ModelMaker
+from air.utils import overrides 
+from air.backtest import TradeResultStatus
 
 
 import pdb

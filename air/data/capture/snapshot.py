@@ -28,14 +28,14 @@ log = logging.getLogger(__name__)
 #1) grab all useful data from websites (multi processing)
 #2) use for influencing trades if needed (use in snapshot filters) 
 #3) log to database for backtests later to gauge usefulness of the data in journal  
-from configuration import Configuration
-from data.tools.cursor import Database
+from air.configuration import Configuration
+from air.data.tools.cursor import Database
 
-from web.scraper import Scraper
-from web.crawler import Crawler, By, SeleniumHandler
-from data.tools.processpool import ProcessPool, ProcessWorker
+from air.web.scraper import Scraper
+from air.web.crawler import Crawler, By, SeleniumHandler
+from air.data.tools.processpool import ProcessPool, ProcessWorker
 
-from utils import overrides
+from air.utils import overrides
 
 categories = ['client_sentiment','currency_strength','signals','analysis','macroscopic'] #others?
 

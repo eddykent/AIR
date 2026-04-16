@@ -3,9 +3,9 @@ import datetime
 
 import numpy as np 
 
-from data.tools.cursor import DataComposer, Database
-from setups.signal import TradeSignallingData
-from indicators.indicator import CandleSticks, CandleType #should these be somewhere else? 
+from air.data.tools.cursor import DataComposer, Database
+from air.setups.signal import TradeSignallingData
+from air.indicators.indicator import CandleSticks, CandleType #should these be somewhere else? 
 
 sql = {}
 

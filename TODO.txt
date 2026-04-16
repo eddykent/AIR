@@ -10,6 +10,8 @@ BEFORE CONTINUING (RESSURRECTION):
 5) TEST DATABASE CONNECTION 
 6) PULL SOME RELEVANT DATA FOR FORK  
 
+extra: clean up deprecated & fix any tests that are broken
+
 =====
 
 THENN: 

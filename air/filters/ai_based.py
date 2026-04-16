@@ -6,10 +6,10 @@ from tqdm import tqdm
 
 import pdb
 
-from data.tools.cursor import Database, Inject
+from air.data.tools.cursor import Database, Inject
 
-from utils import overrides
-from filters.trade_filter import *
+from air.utils import overrides
+from air.filters.trade_filter import *
 #from models.model_base import ModelLoader, ModelMaker 
 
 

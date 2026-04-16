@@ -21,13 +21,13 @@ import logging
 log = logging.getLogger(__name__)
 
 #my own imports
-from configuration import Configuration
+from air.configuration import Configuration
 
-from web.crawler import SeleniumHandler
-from web.crawler import WebDriverException 
-from data.tools.dukascopy import Dukascopy
+from air.web.crawler import SeleniumHandler
+from air.web.crawler import WebDriverException 
+from air.data.tools.dukascopy import Dukascopy
 
-from data.tools.cursor import Database
+from air.data.tools.cursor import Database
 
 now = datetime.datetime.now()
 NOW = datetime.datetime(now.year,now.month,now.day,now.hour,now.minute)

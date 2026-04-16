@@ -18,16 +18,16 @@ import time
 
 import random
 
-from web.scraper import Scraper
-from web.crawler import SeleniumHandler, Crawler, By, XPathNavigator, Keys
+from air.web.scraper import Scraper
+from air.web.crawler import SeleniumHandler, Crawler, By, XPathNavigator, Keys
 
-from data.tools.processpool import ProcessWorker, ProcessPool
-
-
-from data.tools.cursor import Database, Inject
+from air.data.tools.processpool import ProcessWorker, ProcessPool
 
 
-from utils import overrides, ListFileReader, CountryCurrencyMap
+from air.data.tools.cursor import Database, Inject
+
+
+from air.utils import overrides, ListFileReader, CountryCurrencyMap
 
 
 #this file has web crawler scripts and scrapers for downloading economic calendar information by month

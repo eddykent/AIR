@@ -25,15 +25,15 @@ import pandas as pd
 
 import pdb 
 
-from web.scraper import Scraper 
-from web.crawler import Crawler, SeleniumHandler #for more complex news grabbing tasks
+from air.web.scraper import Scraper 
+from air.web.crawler import Crawler, SeleniumHandler #for more complex news grabbing tasks
 
-from data.tools.cursor import Inject
+from air.data.tools.cursor import Inject
 
-from data.tools.processpool import ProcessPool, ProcessWorker
-from utils import TimeHandler, overrides
+from air.data.tools.processpool import ProcessPool, ProcessWorker
+from air.utils import TimeHandler, overrides
 
-from data.text import NewsArticle
+from air.data.text import NewsArticle
 
 import logging 
 log = logging.getLogger(__name__)

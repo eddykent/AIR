@@ -9,16 +9,16 @@ import pandas as pd
 
 import pdb 
 
-from data.tools.cursor import Database
+from air.data.tools.cursor import Database
 
-from utils import CurrencyPair, ListFileReader, overrides
-from setups.trade_setup import TradeSignal, TradeDirection
-from indicators.indicator import CandleSticks
+from air.utils import CurrencyPair, ListFileReader, overrides
+from air.setups.trade_setup import TradeSignal, TradeDirection
+from air.indicators.indicator import CandleSticks
 
 sql = {}
 
 #use for figuring out if a filter works 
-class FilterConfusionMatrix:
+class FilterConfusionMatrix: #consider moving to filter_tools.py 
 	
 	signals = []
 	pass_guids = [] 

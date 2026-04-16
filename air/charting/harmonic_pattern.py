@@ -67,7 +67,7 @@ class HarmonicPattern(ChartPattern): #uses XABCD
 		shape_pass = self._test_shapes(xabcds)
 		bullish = xabcds[:,0] < xabcds[:,1] #simply, if X is below A, then it must be a bullish pattern
 		bearish = xabcds[:,0] > xabcds[:,1]
-		bias = np.full((xtreme_windows.shape[0],),0).astype(np.float)
+		bias = np.full((xtreme_windows.shape[0],),0).astype(np.float64)
 		bias[bullish] = 1
 		bias[bearish] = -1
 		bias[~shape_pass] = 0 #non patterns are neither bull or bear

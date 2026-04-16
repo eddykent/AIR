@@ -117,7 +117,7 @@ class BB_KC_RSI(TradeSetup):
 	
 	
 	@overrides(TradeSetup)
-	def detect(self, trade_signalling_data):
+	def trigger(self, trade_signalling_data):
 		
 		self.relative_strength_index = RSI()
 		self.bollinger_bands = BollingerBands()
@@ -168,7 +168,7 @@ class ADX_EMA_RSI(TradeSetup):
 	#	super().__init__(*args,**kwargs)
 	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
+	def trigger(self,trade_signalling_data):
 		adx = ADX()
 		rsi = RSI() 
 		ema = EMA() 
@@ -213,7 +213,7 @@ class HA_VWAP_RSI_DIVERGENCE(TradeSetup):
 	grace_period = 50
 	
 	@overrides(TradeSetup)
-	def detect(self,trade_signalling_data):
+	def trigger(self,trade_signalling_data):
 		
 		vwap = VWAPDaily()
 		heikinashi = HeikinAshi()

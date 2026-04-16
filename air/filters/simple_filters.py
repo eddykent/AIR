@@ -5,12 +5,12 @@ import numpy as np
 ##indicator based filters (flat, meaning the database is called once and the info is used over and over)
 ###if the resolution is 4h, a trade at 15:45  will still use the 12:00 candle from 8 to 12 which is not ideal
 
-from utils import overrides
-from filters.trade_filter import *
-from indicators.moving_average import EMA 
-from indicators.reversal import RSI 
-from indicators.indicator import CandleSticks
-import charting.candle_stick_functions as csf
+from air.utils import overrides
+from air.filters.trade_filter import *
+from air.indicators.moving_average import EMA 
+from air.indicators.reversal import RSI 
+from air.indicators.indicator import CandleSticks
+import air.charting.candle_stick_functions as csf
 
 #for use with the crappy forex signal strat
 #deprecate & use a lateral one

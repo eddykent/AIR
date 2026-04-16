@@ -14,4 +14,4 @@ CREATE EXTENSION 'uuid-ossp'
 
 ### Data:
 --------
-Use web/candle_stick_data/* and web/news_archives/* for capturing all data needed 
+Use web/candle_stick_data/ and web/news_archives/ for capturing all data needed --? 

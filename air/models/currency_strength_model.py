@@ -5,8 +5,8 @@ from tensorflow import keras
 
 
 import pdb
-from models.model_base import ModelMaker
-from utils import overrides
+from air.models.model_base import ModelMaker
+from air.utils import overrides
 
 class CurrencyStrengthModel(ModelMaker):
 	

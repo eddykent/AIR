@@ -10,37 +10,35 @@ LogSetup() #think of how to rmeove this line
 	  
 	  
 #from _tests.candle_stick_tests import * ##ancient?
-	  
 #from _tests.chart_pattern_test import * #works
 #from _tests.chart_pattern_support_resistance_test import * #anicent, not working anymore (TODO)
 #from _tests.matching_test import * #works (results not tested)
 
 #bat - 213,419,805
 
-from _tests.heikinashi_test import *
+#from _tests.heikinashi_test import *#works
 
-#from _tests.text_sentiment_test import *
-#from _tests.fundamental_test import *     # <<<<<<run this to get latest articles easily. 
-#from _tests.news_reader_invoke_test import * #more testing required!  
+#from _tests.text_sentiment_test import * #deprecated
+#from _tests.fundamental_test import *     # <<<<<<run this to get latest articles easily.   #deprecated
+#from _tests.news_reader_invoke_test import * #more testing required!  #fundamental deprecated 
 
-#from _tests.timeline_test import *
-#from _tests.backtest_test import *
+#from _tests.timeline_test import * #deprecated
+#from _tests.backtest_test import * #error with old data :/ no module named setups 
 
-#from _tests.backtest_np_test import *
+#from _tests.backtest_np_test import * #<<<important one that uses many things   ##perhaps some deprecated features - using pandas now not lists
 
-#from _tests.spacy_test import *
-
-#
-#from _tests.heikinashi_test  import *
-#from _tests.setup_test import *
-#from _tests.chart_pattern_collection_test import *
-#from _tests.logging_test import *
-#from _tests.data_compose_test import *
-#from _tests. _compose_branch_test import *
-#from _tests. _compose_fork_test import *
+#from _tests.spacy_test import * #TODO
 
 
-#from _tests.shape_patterns_test import *
+#from _tests.setup_test import * ##yay a backtest result! 
+#from _tests.chart_pattern_collection_test import * #works
+#from _tests.logging_test import * #TODO
+#from _tests.data_compose_test import * #TODO
+#from _tests. _compose_branch_test import * #TODO
+#from _tests. _compose_fork_test import * #TODO
+
+
+from _tests.shape_patterns_test import * #some stuff deprecated some not 
 #from _tests.candle_offset_test import *
 
 #from _tests.broker_test import * << stops on start screen (element not found?) 
@@ -64,7 +62,7 @@ from _tests.heikinashi_test import *
 #from _tests.filter_tests import * 1
 #from _tests.ai_filter_tests import *
 #from _tests.ai_train_test import *
-#from _tests.advanced_filter_tests import *w
+#from _tests.advanced_filter_tests import *
 #from _tests.pandas_tests import *
  
 #[Bat,Crab,Butterfly,Gartley,DeepCrab]

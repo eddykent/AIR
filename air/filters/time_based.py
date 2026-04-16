@@ -4,12 +4,12 @@ import pandas as pd
 from tqdm import tqdm 
 import datetime
 
-from utils import overrides
-from filters.trade_filter import *
+from air.utils import overrides
+from air.filters.trade_filter import *
 
-from data.tools.cursor import Database, Inject
+from air.data.tools.cursor import Database, Inject
 
-from utils import ListFileReader, PipHandler
+from air.utils import ListFileReader, PipHandler
 
 economic_calendar_sql = """
 SELECT 

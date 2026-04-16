@@ -6,6 +6,8 @@ import datetime
 import numpy as np
 import pandas as pd
 
+##TODO: from_dict needed!
+
 #looks like you're setting up some kind of grammar!
 class TradeDirection(Enum):
 	SELL = -1

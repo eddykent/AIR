@@ -15,7 +15,7 @@ from air.charting.harmonic_pattern import *
 from air.charting.shape_pattern import * 
 from air.charting.trend_pattern import *
 
-import air.debugging.functs as dbf
+import _debugging.functs as dbf
 
 
 #class IndicatorCollection
@@ -52,7 +52,7 @@ class ChartCollection(TradeSetup):
 		
 		result_shape = (np_candles.shape[0],np_candles.shape[1],len(self.settings), len(self._chart_patterns)) #1 for the 0th summary value (-1,0 or 1) 
 		result_array = np.full(result_shape,0)
-		result_cdlen = np.full(result_shape,0).astype(np.float) #put into result_array instead? use for getting max harmonic
+		result_cdlen = np.full(result_shape,0).astype(np.float64) #put into result_array instead? use for getting max harmonic
 		
 		for si,settings in enumerate(self.settings):    
 			base = self._chart_patterns[0]()
@@ -70,10 +70,10 @@ class ChartCollection(TradeSetup):
 				
 				try:
 					result_ch = the_ch._bundle_perform(xtreme_window_bundle) 
-					result_array[:,:,si,ci] = result_ch[:,:,0].astype(np.int)
+					result_array[:,:,si,ci] = result_ch[:,:,0].astype(int)
 					#pdb.set_trace()
 					if result_ch.shape[2] > 1: #should also contain breakout size or something for SL later (if needed)
-						result_cdlen[:,:,si,ci] = result_ch[:,:,1].astype(np.float)
+						result_cdlen[:,:,si,ci] = result_ch[:,:,1].astype(np.float64)
 				
 				except Exception as e:
 					result_array[:,:,si,ci] = 0
@@ -96,7 +96,7 @@ class ChartCollection(TradeSetup):
 		#for every result get the highest order value (last) that is true and 0 for none (index+1)
 		bull_orders = np.any(result_array ==  1,axis=3) 
 		bear_orders = np.any(result_array == -1,axis=3)
-		mult = np.zeros(result_array.shape[:3]).astype(np.int) 
+		mult = np.zeros(result_array.shape[:3]).astype(int) 
 		mult[:,:] = np.arange(1,len(self.settings)+1) 
 		
 		#find out the last occuring index of a pattern that corresponds to the order that was used (higher is better) 
@@ -147,7 +147,7 @@ class ChartCollection(TradeSetup):
 #		np_candles = trade_signalling_data.np_candles 
 #		result_shape = (np_candles.shape[0],np_candles.shape[1],len(self.orders), len(self.harmonics)) #1 for the 0th summary value (-1,0 or 1) 
 #		result_array = np.full(result_shape,0)
-#		result_cdlen = np.full(result_shape,0).astype(np.float) #put into result_array instead? use for getting max harmonic
+#		result_cdlen = np.full(result_shape,0).astype(np.float64) #put into result_array instead? use for getting max harmonic
 #		
 #		#this section might be better put in its own function for combining pattern results? 
 #		for oi,order in enumerate(self.orders):    
@@ -164,8 +164,8 @@ class ChartCollection(TradeSetup):
 #				the_h._order = order
 #				try:
 #					result_h = the_h._bundle_perform(xtreme_window_bundle) #candles not needed in cache?
-#					result_array[:,:,oi,hi] = result_h[:,:,0].astype(np.int)
-#					result_cdlen[:,:,oi,hi] = result_h[:,:,1].astype(np.float)
+#					result_array[:,:,oi,hi] = result_h[:,:,0].astype(int)
+#					result_cdlen[:,:,oi,hi] = result_h[:,:,1].astype(np.float64)
 #				except Exception as e:
 #					result_array[:,:,oi,hi] = 0
 #					log.warning(f"failed to perform {the_h.__class__.__name__} with order {order}... \n\tex: {e}")
