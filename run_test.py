@@ -38,11 +38,11 @@ LogSetup() #think of how to rmeove this line
 #from _tests. _compose_fork_test import * #TODO
 
 
-from _tests.shape_patterns_test import * #some stuff deprecated some not 
+#from _tests.shape_patterns_test import * #some stuff deprecated some not - messy - uses candle_stream not np_candles
 #from _tests.candle_offset_test import *
 
 #from _tests.broker_test import * << stops on start screen (element not found?) 
-#from _tests.indicators_test import *
+#from _tests.indicators_test import * #<<yay works 
 #from _tests.volume_indicators_test import *
 
 
@@ -56,10 +56,10 @@ from _tests.shape_patterns_test import * #some stuff deprecated some not
 ###570 works but isnt being drawn!!!
 
 
-#from _tests.divergence_test import *
+#from _tests.divergence_test import * << working
 
 
-#from _tests.filter_tests import * 1
+from _tests.filter_tests import * 
 #from _tests.ai_filter_tests import *
 #from _tests.ai_train_test import *
 #from _tests.advanced_filter_tests import *

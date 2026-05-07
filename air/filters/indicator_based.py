@@ -7,7 +7,7 @@ import time
 
 ##indicator based filters - one result per trade (more accurate)
 
-from data.tools.cursor import Database
+from air.data.tools.cursor import Database
 
 from air.utils import overrides
 from air.filters.trade_filter import *

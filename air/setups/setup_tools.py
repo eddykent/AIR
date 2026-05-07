@@ -167,7 +167,7 @@ class ExtremesTool(SetupTool):
 		sort_by_window = points_labelled[:,0]
 		points_labelled = points_labelled[sort_by_window.argsort()]
 		
-		duplicate_window_index = points_labelled[:,0].astype(np.int)
+		duplicate_window_index = points_labelled[:,0].astype(int)
 		window_coords, counts = np.unique(duplicate_window_index,return_counts=True)
 		max_extremes = np.max(counts)
 		

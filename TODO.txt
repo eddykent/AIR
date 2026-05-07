@@ -7,10 +7,15 @@ BEFORE CONTINUING (RESSURRECTION):
 2) FORK NEW PROJECT TO MAKE THIS WORK WITH STOCKS INSTEAD OF FX - LEAVE THIS AS IS? COMPLETE? SEPARATE "VIEW" FOR BOTH FORKS? 
 3) ENSURE REMOTE IS SET UP CORRECTLY
 4) ENSURE git ignore AND git config SET UP CORRECTLY (NO COMMITTING PASSWORDS, DATA OR BINARY)
-5) TEST DATABASE CONNECTION 
+5) TEST DATABASE CONNECTION - done - working fine but needs upgrade
 6) PULL SOME RELEVANT DATA FOR FORK  
 
 extra: clean up deprecated & fix any tests that are broken
+
+signals are now pandas dfs 
+consider using pytest
+deprecate any old stuff
+
 
 =====
 

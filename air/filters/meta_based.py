@@ -157,8 +157,8 @@ class CurrencyStrengthOperator: #any other lateral operations?
 		currency_pairs = np.array([inst.split('/') for inst in self.instruments])
 		result = np.zeros((len(self.currencies),len(self.instruments)))
 		for i,currency in enumerate(self.currencies):
-			result[i] += (currency_pairs[:,0] == currency).astype(np.int)
-			result[i] -= (currency_pairs[:,1] == currency).astype(np.int)
+			result[i] += (currency_pairs[:,0] == currency).astype(int)
+			result[i] -= (currency_pairs[:,1] == currency).astype(int)
 		return result
 	
 	def get_strengths(self,columns):
@@ -220,7 +220,7 @@ class CurrencyStrengthFilter(PartialIndicatorFilter):
 		#pdb.set_trace()n
 		if pc is not None:
 			end_candles = np.array(pc)
-			end_candle = end_candles[:,np.newaxis,:-1].astype(np.float) #chop date off 
+			end_candle = end_candles[:,np.newaxis,:-1].astype(float) #chop date off 
 			these_candles = np.concatenate([these_candles[:,1:,:],end_candle],axis=1)
 		return these_candles
 		

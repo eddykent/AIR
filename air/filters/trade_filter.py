@@ -207,7 +207,7 @@ class PartialIndicatorFilter:
 		#pdb.set_trace()
 		if pc is not None:
 			end_candles = np.array(pc)
-			end_candle = end_candles[ii,np.newaxis,:-1].astype(np.float) #chop date off 
+			end_candle = end_candles[ii,np.newaxis,:-1].astype(float) #chop date off 
 			these_candles = np.concatenate([these_candles[1:,:],end_candle],axis=0)
 		return these_candles
 		

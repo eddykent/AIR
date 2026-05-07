@@ -169,6 +169,7 @@ class CandleDataTool:
 
 
 #use this to get a set of partial candles for use with indicator based 
+#seems to get specific candles?
 #move to somewhere else? 
 class PartialCandleDataTool:
 	

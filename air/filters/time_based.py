@@ -19,7 +19,7 @@ WHERE the_date >= %(start_date)s
 AND the_date <= %(end_date)s
 """
 
-#use this tool to read the economic calendar events out of the database into a dataframe
+#use this tool to read the economic calendar events out of the database into a dataframe - wronng place... 
 class EconomicCalendarTool:
 	
 	start_date = None
