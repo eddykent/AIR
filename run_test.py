@@ -59,11 +59,11 @@ LogSetup() #think of how to rmeove this line
 #from _tests.divergence_test import * << working
 
 
-from _tests.filter_tests import * 
-#from _tests.ai_filter_tests import *
+#from _tests.filter_tests import * # << does not leverage pandas - need filters that do (re-write) 
+#from _tests.ai_filter_tests import * #<< simple setups also does not use pandas 
 #from _tests.ai_train_test import *
 #from _tests.advanced_filter_tests import *
-#from _tests.pandas_tests import *
+#from _tests.pandas_tests import *  #<< doesnt work after refactor as loading pickles of python objs with changed paths 
  
 #[Bat,Crab,Butterfly,Gartley,DeepCrab]
 #from _tests.selenium_test import * 
@@ -84,13 +84,13 @@ from _tests.filter_tests import *
 
 #import debugging.charts as dbc
 
-#from _tests.maths_indicator_test import *
+#from _tests.maths_indicator_test import * # << works so the maths indicator works (but is slow D: ) 
 #from _tests.background_test import *
 
 
 #from debug.charts import *
 
-#from _tests.all_trade_pro_test import *
+from _tests.all_trade_pro_test import *
 #from _tests.all_trader_dna_test import *
 
 

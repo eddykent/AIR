@@ -13,7 +13,7 @@ from air.utils import overrides
 from air.filters.trade_filter import *
 from air.indicators.reversal import RSI 
 from air.indicators.trend import ADX
-from air.setups.signal import TradeDirection 
+from air.setups.signal import TradeDirection, TradeSignal
 
 #deprecate?
 class RSIFilterSlow(LateralIndicatorFilter):

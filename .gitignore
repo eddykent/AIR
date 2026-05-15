@@ -1,0 +1,27 @@
+#compile pythonn
+*.pyc
+__pycache__/*
+
+#data 
+data/
+
+#deprecated stuff
+deprecated/
+
+#don't add config 
+./config.ini
+
+#don't add ssh
+.ssh
+
+#dont add logs or results!
+logs
+results
+
+#bad queries 
+queries/scrap
+*.ini
+queries/previous_query.txt
+todo_this_week_20230327.txt
+*.pyc
+*.pyc
