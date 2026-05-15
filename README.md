@@ -3,7 +3,7 @@ This project is a completely stand alone forex trading framework. The main purpo
 
 The framework relies heavily on numpy, a linear algebra numerical library and scipy, a scientific computation framework for calculating and backtesting. This makes it very fast for computing maxima/minima, statistics, price-pattern shapes, indicator values and more (https://numpy.org/doc/stable/). 
 
-The utopia is to be able to do something like: 
+The utopia of this project is to be able to do something in python like: 
 
 ```
 import Grab from air.data
@@ -13,9 +13,9 @@ import display from air.charting
 
 data = Grab(currencies=['USD','JPY','GBP'],from=2024,until='now')
 
-signals = MyStrat(data)
+signals = MyStrat()(data)
 
-better_signals = NoSillyDecisions.filter(signals)
+better_signals = NoSillyDecisions(craziness=42).filter(signals)
 
 display(better_signals) #might spam charts! 
 ```
@@ -24,18 +24,18 @@ Or even:
 
 ```
 import Grab from air.data
-import air.backtest
+from air.backtest import Backtest, Stats
 
 import CharlatanStrat from air.strategy
 
-data = Grab(currencies=['USD','JPY','GBP'],from=2024,until='now')
+data = Grab(http=True)(currencies=['USD','JPY','GBP'],from=2024,until='now')
 
-signals = Charlatan(data)
+signals = CharlatanStrat()(data)
 
-backtest.test(signals) ## print wins/loses
+Backtest()(signals) ## get wins / losses 
 ```
 
-Ideally, a strat can be made from this library with numpy syntactic sugar, like this:
+A strat can be made from this library with numpy and pythonic syntactic sugar, like this:
 
 ```
 from air.indicators import MACD, RSI
@@ -43,18 +43,21 @@ from air.strategy import Strategy
 
 
 class MyStrat(Strategy):
-    macd  = MACD(14,23,3)
-    rsi = RSI(14,20,80)
+    macd  = MACD(14,23,3) #default
+    rsi = RSI(14,20,80) #default
+	
     __init__(self, some_params):
         #set rsi or macd here if overridden
+		pass
 
     def detect(self,charts):
         rsi_result = rsi(charts)
         macd_result = macd(charts)
         bullish = rsi_result > 80 && macd_result.signal < macd.macd_line   #macd crossed the signal upwards 
         bearish = rsi_result < 20 && macd_result.signal > macd.macd_line   #macd crossed the signal downwards
+		return bullish, bearish  #return the bullish/bearish np bool masks for fast vectorised extraction
 ```
 
-All vectorised. Many instruments all at once. 
+All vectorised. Many instruments. All at once. 
 
-This whole project is, ofcourse, a work in progress. 
+This whole project is, ofcourse, a work in progress. Help is invited and discussion is welcomed. 
