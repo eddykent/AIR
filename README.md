@@ -6,10 +6,10 @@ The framework relies heavily on numpy, a linear algebra numerical library and sc
 The utopia of this project is to be able to do something in python like: 
 
 ```
-import Grab from air.data
-import MyStrat from air.strategy
-import NoSillyDecisions from air.filters
-import display from air.charting
+from air.data import Grab 
+from air.strategy import MyStrat 
+from air.filters import NoSillyDecisions 
+from air.charting import display 
 
 data = Grab(currencies=['USD','JPY','GBP'],from=2024,until='now')
 
@@ -23,10 +23,10 @@ display(better_signals) #might spam charts!
 Or even: 
 
 ```
-import Grab from air.data
+from air.data import Grab 
 from air.backtest import Backtest, Stats
 
-import CharlatanStrat from air.strategy
+from air.strategy import CharlatanStrat 
 
 data = Grab(http=True)(currencies=['USD','JPY','GBP'],from=2024,until='now')
 
