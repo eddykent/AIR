@@ -35,7 +35,7 @@ signals = CharlatanStrat()(data)
 Backtest()(signals) ## get wins / losses 
 ```
 
-A strat can be made from this library with numpy and pythonic syntactic sugar, like this:
+A "Strategy" can be made in this library with numpy syntactic sugar, like this:
 
 ```
 from air.indicators import MACD, RSI
@@ -43,21 +43,26 @@ from air.strategy import Strategy
 
 
 class MyStrat(Strategy):
+
     macd  = MACD(14,23,3) #default
     rsi = RSI(14,20,80) #default
 	
     __init__(self, some_params):
+	
         #set rsi or macd here if overridden
 		pass
 
     def detect(self,charts):
         rsi_result = rsi(charts)
-        macd_result = macd(charts)
+        macd_result = macd(charts) 
+		
+		#nice vectorised syntax here <<<<
         bullish = rsi_result > 80 && macd_result.signal < macd.macd_line   #macd crossed the signal upwards 
         bearish = rsi_result < 20 && macd_result.signal > macd.macd_line   #macd crossed the signal downwards
+		
 		return bullish, bearish  #return the bullish/bearish np bool masks for fast vectorised extraction
 ```
 
 All vectorised. Many instruments. All at once. 
 
-This whole project is, ofcourse, a work in progress. Help is invited and discussion is welcomed. 
+This whole project is, ofcourse, a work in progress. Help is invited and discussion is welcome. 
