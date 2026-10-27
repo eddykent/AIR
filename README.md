@@ -26,11 +26,11 @@ Or even:
 from air.data import Grab 
 from air.backtest import Backtest, Stats
 
-from air.strategy import CharlatanStrat 
+from air.strategy import TestingStrat 
 
 data = Grab(http=True)(currencies=['USD','JPY','GBP'],from=2024,until='now')
 
-signals = CharlatanStrat()(data)
+signals = TestingStrat()(data)
 
 Backtest()(signals) ## get wins / losses 
 ```
@@ -59,8 +59,8 @@ class MyStrat(Strategy):
 		#nice vectorised syntax here <<<<
         bullish = rsi_result > 80 && macd_result.signal < macd.macd_line   #macd crossed the signal upwards 
         bearish = rsi_result < 20 && macd_result.signal > macd.macd_line   #macd crossed the signal downwards
-		
-		return bullish, bearish  #return the bullish/bearish np bool masks for fast vectorised extraction
+
+        return bullish, bearish  #return the bullish/bearish np bool masks for fast vectorised extraction
 ```
 
 All vectorised. Many instruments. All at once. 
